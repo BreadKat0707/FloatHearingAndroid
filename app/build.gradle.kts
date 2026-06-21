@@ -25,6 +25,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -40,10 +41,19 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi"
+        )
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material3:material3-window-size-class")
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -73,8 +83,16 @@ dependencies {
 
     implementation("io.github.compose-fluent:fluent:v0.1.0")
 
+
+    // Clover UI
+    implementation("cn.lemondrop.clover:clover-ui:0.1.0-SNAPSHOT")
+
     // Haze - Material Design 毛玻璃效果
     implementation("dev.chrisbanes.haze:haze:1.7.2")
+
+    //Accompanist Lyric
+    implementation("com.mocharealm.accompanist:lyrics-ui:1.0.19")
+    implementation("com.mocharealm.accompanist:lyrics-core:0.4.5")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

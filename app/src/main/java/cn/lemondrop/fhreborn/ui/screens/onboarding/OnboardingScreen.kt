@@ -6,13 +6,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.material3.MaterialTheme
 import io.github.composefluent.component.Icon
 import io.github.composefluent.component.ProgressRing
@@ -31,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.scanner.ScanProgress
+import cn.lemondrop.clover.CloverAdaptivePageScaffold
 import cn.lemondrop.fhreborn.ui.theme.FluentButton
 import cn.lemondrop.fhreborn.ui.theme.FluentOutlinedButton
 import cn.lemondrop.fhreborn.ui.viewmodel.OnboardingViewModel
@@ -77,16 +83,25 @@ fun OnboardingScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    CloverAdaptivePageScaffold(
+        title = {
+            Text(
+                text = "首次设置",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 64.dp),
+                .padding(
+                    top = paddingValues.calculateTopPadding() + 32.dp,
+                    bottom = paddingValues.calculateBottomPadding()
+                ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
             Text(
                 text = "欢迎使用 FH Reborn",
                 style = MaterialTheme.typography.headlineMedium,
@@ -128,20 +143,6 @@ fun OnboardingScreen(
                     }
                 )
             }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text(
-                "首次设置",
-                style = MaterialTheme.typography.titleLarge
-            )
         }
     }
 }

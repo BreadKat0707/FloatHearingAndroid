@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.lemondrop.clover.CloverTitleBar
 import cn.lemondrop.fhreborn.ui.theme.FluentButton
 import cn.lemondrop.fhreborn.ui.theme.FluentOutlinedButton
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
@@ -56,41 +58,13 @@ fun CrashReportScreen(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 标题栏
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "应用发生异常",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "上次使用时应用意外停止，以下是错误详情",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    FluentIconButton(
-                        onClick = onDismiss
-                    ) {
-                        Icon(imageVector = Lucide.X, contentDescription = "关闭")
-                    }
-                }
-
+            Box(modifier = Modifier.fillMaxSize()) {
                 // 崩溃日志内容
                 LazyColumn(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(horizontal = 16.dp)
+                        .padding(top = 16.dp, bottom = 72.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .padding(12.dp),
@@ -107,32 +81,44 @@ fun CrashReportScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 底部操作按钮
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-                ) {
-                    FluentOutlinedButton(
-                        onClick = onDismiss
-                    ) {
-                        Text("关闭")
-                    }
-                    FluentButton(
-                        onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clip = ClipData.newPlainText("崩溃日志", crashLog)
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                // 底部标题栏（含操作按钮）
+                CloverTitleBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "应用发生异常",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "上次使用时应用意外停止，以下是错误详情",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    ) {
-                        Icon(imageVector = Lucide.Copy, contentDescription = "复制")
-                        Text("复制")
-                    }
-                }
+                    },
+                    trailing = {
+                        FluentOutlinedButton(
+                            onClick = onDismiss
+                        ) {
+                            Text("关闭")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        FluentButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("崩溃日志", crashLog)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Icon(imageVector = Lucide.Copy, contentDescription = "复制")
+                            Text("复制")
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
         }
     }

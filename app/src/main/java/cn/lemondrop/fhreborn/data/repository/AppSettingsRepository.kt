@@ -74,6 +74,10 @@ class AppSettingsRepository(private val context: Context) {
     val coverCacheStrategy: Flow<String> = dataStore.data.map { it[stringPreferencesKey("cover_cache")] ?: "disk" }
     suspend fun setCoverCacheStrategy(value: String) = dataStore.edit { it[stringPreferencesKey("cover_cache")] = value }
 
+    // ========== 主界面 ==========
+    val hideSystemUi: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("hide_system_ui")] ?: false }
+    suspend fun setHideSystemUi(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("hide_system_ui")] = value }
+
     // ========== 无障碍 ==========
     val largeText: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("large_text")] ?: false }
     suspend fun setLargeText(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("large_text")] = value }

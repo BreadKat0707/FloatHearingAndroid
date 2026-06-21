@@ -14,10 +14,10 @@ import androidx.media3.session.SessionToken
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.PlaybackState
 import cn.lemondrop.fhreborn.data.db.entity.Song
-import cn.lemondrop.fhreborn.data.lyrics.LyricLine
-import cn.lemondrop.fhreborn.data.lyrics.LyricParser
 import cn.lemondrop.fhreborn.data.lyrics.LyricReader
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
+import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
+import com.mocharealm.accompanist.lyrics.core.parser.AutoParser
 import cn.lemondrop.fhreborn.player.PlaybackService
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.Job
@@ -74,8 +74,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _endOfSongTimer = MutableStateFlow(false)
     val isEndOfSongTimer: StateFlow<Boolean> = _endOfSongTimer.asStateFlow()
 
-    private val _lyrics = MutableStateFlow<List<LyricLine>>(emptyList())
-    val lyrics: StateFlow<List<LyricLine>> = _lyrics.asStateFlow()
+    private val _lyrics = MutableStateFlow<SyncedLyrics?>(null)
+    val lyrics: StateFlow<SyncedLyrics?> = _lyrics.asStateFlow()
 
     private val _currentLyricIndex = MutableStateFlow(-1)
     val currentLyricIndex: StateFlow<Int> = _currentLyricIndex.asStateFlow()
@@ -109,9 +109,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     _duration.value = controller.duration.coerceAtLeast(0L)
 
                     // 更新当前歌词索引
-                    val lyricsList = _lyrics.value
-                    if (lyricsList.isNotEmpty()) {
-                        val idx = lyricsList.indexOfLast { it.startTime <= pos }
+                    val synced = _lyrics.value
+                    val lines = synced?.lines
+                    if (!lines.isNullOrEmpty()) {
+                        val idx = lines.indexOfLast { it.start <= pos }
                         if (idx != _currentLyricIndex.value) {
                             _currentLyricIndex.value = idx
                         }
@@ -249,7 +250,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val song = _currentSong.value ?: return
         viewModelScope.launch {
             val lyricText = LyricReader.readLyrics(getApplication(), song)
-            _lyrics.value = lyricText?.let { LyricParser.parseAuto(it) } ?: emptyList()
+            _lyrics.value = lyricText?.let {
+                try {
+                    AutoParser().parse(it)
+                } catch (e: Exception) {
+                    android.util.Log.w("PlayerViewModel", "歌词解析失败: ${e.message}")
+                    null
+                }
+            }
             _currentLyricIndex.value = -1
         }
     }

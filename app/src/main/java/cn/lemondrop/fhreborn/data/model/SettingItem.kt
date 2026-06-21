@@ -5,11 +5,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class SettingType {
     data object Navigation : SettingType()           // 点击进入子页面
     data object Toggle : SettingType()               // 开关
-    data class Selection(val options: List<String>) : SettingType() // 单选
+    data class Selection(val options: List<Option>) : SettingType() // 单选
     data class Slider(val min: Float, val max: Float, val steps: Int = 0) : SettingType() // 滑块
     data object TextInput : SettingType()            // 文本输入
     data object Info : SettingType()                 // 纯展示
 }
+
+data class Option(val key: String, val label: String)
 
 data class SettingItem(
     val key: String,

@@ -19,7 +19,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        mavenLocal()
         maven("https://jitpack.io")
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
         maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     }
 }

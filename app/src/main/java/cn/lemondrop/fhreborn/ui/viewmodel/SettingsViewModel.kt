@@ -56,6 +56,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setStringSetting(key: String, value: String) {
+        viewModelScope.launch {
+            repository.setString(key, value)
+        }
+    }
+
     // 统计数据
     val totalPlayDuration: Flow<Long?> = statisticsRepository.getTotalPlayDuration()
     val totalPlayCount: Flow<Int?> = statisticsRepository.getTotalPlayCount()

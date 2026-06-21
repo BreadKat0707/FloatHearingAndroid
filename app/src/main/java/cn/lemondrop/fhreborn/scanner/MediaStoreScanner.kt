@@ -76,8 +76,14 @@ class MediaStoreScanner(private val context: Context) {
                 val mimeType = cursor.getString(mimeCol) ?: ""
                 val modifiedAt = cursor.getLong(modifiedCol) * 1000L
                 val year = cursor.getInt(yearCol).takeIf { it > 0 }
-                val discNumber = cursor.getInt(discCol).takeIf { it > 0 }
-                val trackNumber = cursor.getInt(trackCol).takeIf { it > 0 }
+
+                // MediaStore 的 TRACK 列常把碟号和音轨号编码在一起，例如 1001 表示 disc 1 track 1
+                val rawDisc = cursor.getInt(discCol).takeIf { it > 0 }
+                val rawTrack = cursor.getInt(trackCol).takeIf { it > 0 }
+                val parsedDisc = rawTrack?.div(1000)?.takeIf { it > 0 }
+                val parsedTrack = rawTrack?.rem(1000)?.takeIf { it > 0 }
+                val discNumber = rawDisc ?: parsedDisc
+                val trackNumber = parsedTrack ?: rawTrack
 
                 val format = extractFormat(mimeType, path)
 

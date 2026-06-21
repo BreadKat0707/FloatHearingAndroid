@@ -15,15 +15,17 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import io.github.composefluent.component.Icon
 import io.github.composefluent.component.ListItem
 import io.github.composefluent.component.Slider
@@ -34,21 +36,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
 import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.fhreborn.data.model.Option
+import cn.lemondrop.clover.CloverDialog
+import cn.lemondrop.fhreborn.ui.components.MainScaffold
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
+import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import com.composables.icons.lucide.Activity
-import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.BrainCircuit
 import com.composables.icons.lucide.ChevronRight
@@ -71,7 +74,10 @@ import com.composables.icons.lucide.Zap
 
 @Composable
 fun SettingsScreen(
-    onBack: () -> Unit = {}
+    currentRoute: String,
+    onNavigate: (String) -> Unit,
+    onPlayerClick: () -> Unit,
+    playerViewModel: PlayerViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: SettingsViewModel = viewModel(
@@ -80,36 +86,46 @@ fun SettingsScreen(
 
     val selectedCategory by viewModel.selectedCategory.collectAsState()
 
-    // 拦截系统返回键：在分类详情页时先回到设置主页，避免直接退出到媒体库
+    // 拦截系统返回键：在分类详情页时先回到设置主页，避免直接退出
     BackHandler(enabled = selectedCategory != null) {
         viewModel.navigateBack()
     }
 
-    // 系统 insets
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
-    val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
+    val titleText: @Composable () -> Unit = {
+        Text(
+            text = when (selectedCategory) {
+                null -> "设置"
+                "language" -> "语言"
+                "personalize" -> "个性化"
+                "features" -> "功能"
+                "output" -> "输出"
+                "lyrics" -> "歌词"
+                "library" -> "媒体库"
+                "accessibility" -> "无障碍"
+                "plugins" -> "扩展与插件"
+                "data" -> "数据管理"
+                "experimental" -> "实验性选项"
+                "developer" -> "开发者选项"
+                "about" -> "关于"
+                else -> "设置"
+            },
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
 
-    // 底部标题栏高度
-    val titleBarHeight = 52.dp
-    val bottomControlsHeight = titleBarHeight + navBarPadding.calculateBottomPadding()
-
-    // Haze 状态用于内容模糊效果
-    val hazeState = remember { HazeState() }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // 内容区域
+    MainScaffold(
+        playerViewModel = playerViewModel,
+        currentRoute = currentRoute,
+        onNavigate = onNavigate,
+        title = titleText,
+        onPlayerClick = onPlayerClick
+    ) { paddingValues, bottomOverlayHeight ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeSource(state = hazeState),
-            contentPadding = PaddingValues(
-                top = statusBarPadding.calculateTopPadding() + 8.dp,
-                bottom = bottomControlsHeight + 16.dp
-            ),
+                .padding(top = paddingValues.calculateTopPadding()),
+            contentPadding = PaddingValues(vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (selectedCategory == null) {
@@ -132,32 +148,12 @@ fun SettingsScreen(
                     }
                 }
             }
-        }
 
-        // 底部标题栏（最底部，单手可达）
-        SettingsTitleBar(
-            hazeState = hazeState,
-            title = when (selectedCategory) {
-                null -> "设置"
-                "language" -> "语言"
-                "personalize" -> "个性化"
-                "features" -> "功能"
-                "output" -> "输出"
-                "lyrics" -> "歌词"
-                "library" -> "媒体库"
-                "accessibility" -> "无障碍"
-                "plugins" -> "扩展与插件"
-                "data" -> "数据管理"
-                "experimental" -> "实验性选项"
-                "developer" -> "开发者选项"
-                "about" -> "关于"
-                else -> "设置"
-            },
-            showBack = selectedCategory != null,
-            onBack = { viewModel.navigateBack() },
-            onClose = onBack,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            // 底部占位，让最后一项可以滚动到亚克力底栏上方
+            item {
+                Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
+            }
+        }
     }
 }
 
@@ -204,6 +200,45 @@ private fun SettingItemRow(
         is SettingType.Slider -> viewModel.getIntValue(item.key, (item.defaultValue as? Number)?.toInt() ?: 0)
             .collectAsState(initial = (item.defaultValue as? Number)?.toInt() ?: 0)
         else -> remember { mutableStateOf((item.defaultValue as? Number)?.toInt() ?: 0) }
+    }
+
+    val selectionType = item.type as? SettingType.Selection
+    var showSelectionDialog by remember { mutableStateOf(false) }
+
+    // 选择弹窗
+    if (showSelectionDialog && selectionType != null) {
+        CloverDialog(
+            onDismissRequest = { showSelectionDialog = false },
+            title = item.title,
+            buttons = {
+                TextButton(onClick = { showSelectionDialog = false }) {
+                    Text("取消")
+                }
+            }
+        ) {
+            selectionType.options.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            viewModel.setStringSetting(item.key, option.key)
+                            showSelectionDialog = false
+                        }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = option.key == stringValue,
+                        onClick = {
+                            viewModel.setStringSetting(item.key, option.key)
+                            showSelectionDialog = false
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(text = option.label)
+                }
+            }
+        }
     }
 
     // Slider 类型使用 Column 布局，其他使用 Row
@@ -261,6 +296,7 @@ private fun SettingItemRow(
             onClick = {
                 when (item.type) {
                     is SettingType.Toggle -> viewModel.toggleSetting(item)
+                    is SettingType.Selection -> showSelectionDialog = true
                     else -> {}
                 }
             },
@@ -284,8 +320,9 @@ private fun SettingItemRow(
                         )
                     }
                     is SettingType.Selection -> {
+                        val selectedLabel = selectionType?.options?.find { it.key == stringValue }?.label ?: stringValue
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = stringValue)
+                            Text(text = selectedLabel)
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Lucide.ChevronRight,
@@ -311,66 +348,6 @@ private fun SettingItemRow(
     }
 }
 
-@Suppress("DEPRECATION")
-@Composable
-private fun SettingsTitleBar(
-    title: String,
-    showBack: Boolean,
-    onBack: () -> Unit,
-    onClose: () -> Unit,
-    modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .then(
-                if (hazeState != null) {
-                    Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 20.dp
-                    }
-                } else Modifier
-            )
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(
-                    alpha = if (hazeState != null) 0.4f else 1.0f
-                )
-            )
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (showBack) {
-            FluentIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "返回",
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        } else {
-            FluentIconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "关闭",
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
 // ========== 设置分类定义 ==========
 
 private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCategory> {
@@ -380,9 +357,9 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
             title = "语言",
             icon = Lucide.Globe,
             items = listOf(
-                SettingItem("lang_app", "应用语言", "当前: 简体中文", Lucide.Globe, SettingType.Selection(listOf("简体中文", "繁體中文", "English", "日本語", "한국어"))),
-                SettingItem("lang_lyric", "歌词语言", "歌词显示与搜索语言", Lucide.BookOpen, SettingType.Selection(listOf("自动", "简体中文", "繁體中文", "English", "日本語", "한국어"))),
-                SettingItem("lang_sort", "排序规则", "按语言习惯排序", Lucide.Type, SettingType.Selection(listOf("默认", "拼音", "五十音图", "罗马音")))
+                SettingItem("lang_app", "应用语言", "当前: 简体中文", Lucide.Globe, SettingType.Selection(listOf(Option("简体中文", "简体中文"), Option("繁體中文", "繁體中文"), Option("English", "English"), Option("日本語", "日本語"), Option("한국어", "한국어")))),
+                SettingItem("lang_lyric", "歌词语言", "歌词显示与搜索语言", Lucide.BookOpen, SettingType.Selection(listOf(Option("自动", "自动"), Option("简体中文", "简体中文"), Option("繁體中文", "繁體中文"), Option("English", "English"), Option("日本語", "日本語"), Option("한국어", "한국어")))),
+                SettingItem("lang_sort", "排序规则", "按语言习惯排序", Lucide.Type, SettingType.Selection(listOf(Option("默认", "默认"), Option("拼音", "拼音"), Option("五十音图", "五十音图"), Option("罗马音", "罗马音"))))
             )
         ),
         cn.lemondrop.fhreborn.data.model.SettingCategory(
@@ -392,19 +369,17 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
             items = listOf(
                 // 主题与颜色
                 SettingItem("", "主题与颜色", null, null, SettingType.Info),
-                SettingItem("theme_mode", "颜色模式", "深色 / 浅色 / 跟随系统", null, SettingType.Selection(listOf("跟随系统", "浅色", "深色")), "跟随系统"),
-                SettingItem("follow_system_dark", "跟随系统深色模式设定", null, null, SettingType.Toggle, true),
-                SettingItem("accent_color", "主题颜色", "紫色", Lucide.Palette, SettingType.Selection(listOf("默认", "蓝", "绿", "紫", "橙", "粉", "红", "青")), "紫"),
+                SettingItem("theme_mode", "颜色模式", "深色 / 浅色 / 跟随系统", null, SettingType.Selection(listOf(Option("system", "跟随系统"), Option("light", "浅色"), Option("dark", "深色"))), "system"),
+                SettingItem("accent_color", "主题颜色", "紫色", Lucide.Palette, SettingType.Selection(listOf(Option("默认", "默认"), Option("蓝", "蓝"), Option("绿", "绿"), Option("紫", "紫"), Option("橙", "橙"), Option("粉", "粉"), Option("红", "红"), Option("青", "青"))), "紫"),
 
                 // 主界面
                 SettingItem("", "主界面", null, null, SettingType.Info),
-                SettingItem("hide_system_ui", "隐藏状态栏和导航栏", null, null, SettingType.Toggle, false),
-                SettingItem("peek_system_ui", "滑动状态栏/导航栏区域显示", "隐藏后可通过滑动唤出", null, SettingType.Toggle, true),
-                SettingItem("main_bg", "主页面背景", "默认（跟随系统变换）", null, SettingType.Selection(listOf("默认（跟随系统变换）", "纯色", "自定义图片")), "默认（跟随系统变换）"),
+                SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
+                SettingItem("main_bg", "主页面背景", "默认（跟随系统变换）", null, SettingType.Selection(listOf(Option("默认（跟随系统变换）", "默认（跟随系统变换）"), Option("纯色", "纯色"), Option("自定义图片", "自定义图片"))), "默认（跟随系统变换）"),
 
                 // 播放器
                 SettingItem("", "播放器", null, null, SettingType.Info),
-                SettingItem("player_bg", "播放器页面背景", "专辑图取色的流体（暗）", null, SettingType.Selection(listOf("专辑图取色的流体（暗）", "专辑图取色的流体（亮）", "纯色", "自定义图片")), "专辑图取色的流体（暗）"),
+                SettingItem("player_bg", "播放器页面背景", "专辑图取色的流体（暗）", null, SettingType.Selection(listOf(Option("专辑图取色的流体（暗）", "专辑图取色的流体（暗）"), Option("专辑图取色的流体（亮）", "专辑图取色的流体（亮）"), Option("纯色", "纯色"), Option("自定义图片", "自定义图片"))), "专辑图取色的流体（暗）"),
                 SettingItem("cover_radius", "封面圆角大小调整", "调整播放器专辑封面的圆角大小", null, SettingType.Slider(0f, 24f, 23), 12),
                 SettingItem("cover_crop", "封面裁剪", "将不规则尺寸的封面以正方形显示", null, SettingType.Toggle, true),
                 SettingItem("show_playmode_queue", "显示播放模式和播放列表", "显示在播放控制两侧", null, SettingType.Toggle, true),
@@ -420,8 +395,8 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
             items = listOf(
                 // 搜索
                 SettingItem("", "搜索", null, null, SettingType.Info),
-                SettingItem("search_mode", "搜索模式", "模糊匹配 / 精确匹配 / 拼音", null, SettingType.Selection(listOf("模糊匹配", "精确匹配", "拼音搜索")), "模糊匹配"),
-                SettingItem("search_scope", "搜索范围", "歌曲 / 专辑 / 艺术家 / 全部", null, SettingType.Selection(listOf("全部", "歌曲", "专辑", "艺术家", "歌词")), "全部"),
+                SettingItem("search_mode", "搜索模式", "模糊匹配 / 精确匹配 / 拼音", null, SettingType.Selection(listOf(Option("模糊匹配", "模糊匹配"), Option("精确匹配", "精确匹配"), Option("拼音搜索", "拼音搜索"))), "模糊匹配"),
+                SettingItem("search_scope", "搜索范围", "歌曲 / 专辑 / 艺术家 / 全部", null, SettingType.Selection(listOf(Option("全部", "全部"), Option("歌曲", "歌曲"), Option("专辑", "专辑"), Option("艺术家", "艺术家"), Option("歌词", "歌词"))), "全部"),
                 SettingItem("search_history", "搜索历史", null, null, SettingType.Toggle, true),
                 SettingItem("search_suggestions", "搜索建议", "输入时显示推荐结果", null, SettingType.Toggle, true),
 
@@ -443,12 +418,12 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 // 封面与取色
                 SettingItem("", "封面与取色", null, null, SettingType.Info),
                 SettingItem("cover_extract_color", "封面取色", "从专辑封面提取主题色用于流体背景", Lucide.Palette, SettingType.Toggle, true),
-                SettingItem("cover_extract_mode", "取色模式", "鲜艳 / 柔和 / 暗色 / 亮色", null, SettingType.Selection(listOf("鲜艳", "柔和", "暗色", "亮色", "自适应")), "自适应"),
-                SettingItem("cover_fallback_color", "默认主题色", "无封面时的备用颜色", null, SettingType.Selection(listOf("默认", "蓝", "绿", "紫", "橙", "粉", "红", "青")), "默认"),
+                SettingItem("cover_extract_mode", "取色模式", "鲜艳 / 柔和 / 暗色 / 亮色", null, SettingType.Selection(listOf(Option("鲜艳", "鲜艳"), Option("柔和", "柔和"), Option("暗色", "暗色"), Option("亮色", "亮色"), Option("自适应", "自适应"))), "自适应"),
+                SettingItem("cover_fallback_color", "默认主题色", "无封面时的备用颜色", null, SettingType.Selection(listOf(Option("默认", "默认"), Option("蓝", "蓝"), Option("绿", "绿"), Option("紫", "紫"), Option("橙", "橙"), Option("粉", "粉"), Option("红", "红"), Option("青", "青"))), "默认"),
                 SettingItem("cover_blur_radius", "封面模糊半径", "流体背景的模糊强度", null, SettingType.Slider(0f, 64f, 63), 32),
 
                 // 常用功能
-                SettingItem("sleep_timer", "睡眠定时器", "设定时间后自动停止播放", Lucide.Clock, SettingType.Selection(listOf("关闭", "15分钟", "30分钟", "45分钟", "60分钟", "自定义")), "关闭"),
+                SettingItem("sleep_timer", "睡眠定时器", "设定时间后自动停止播放", Lucide.Clock, SettingType.Selection(listOf(Option("关闭", "关闭"), Option("15分钟", "15分钟"), Option("30分钟", "30分钟"), Option("45分钟", "45分钟"), Option("60分钟", "60分钟"), Option("自定义", "自定义"))), "关闭"),
                 SettingItem("skip_silence", "跳过静音", "自动跳过歌曲开头的静音部分", null, SettingType.Toggle, false),
                 SettingItem("gesture_control", "手势控制", "播放页左滑下首 / 右滑上首", null, SettingType.Toggle, true),
                 SettingItem("mini_lyric", "迷你歌词", "播放页显示当前歌词行", null, SettingType.Toggle, true),
@@ -463,45 +438,45 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
             items = listOf(
                 // 播放设备
                 SettingItem("", "播放设备", null, null, SettingType.Info),
-                SettingItem("audio_output", "输出设备", "自动 / 扬声器 / 耳机 / 蓝牙", Lucide.Headphones, SettingType.Selection(listOf("自动", "内置扬声器", "有线耳机", "蓝牙耳机", "USB DAC")), "自动"),
-                SettingItem("audio_device_priority", "设备优先级", "多设备连接时的首选输出", null, SettingType.Selection(listOf("上次使用", "有线优先", "蓝牙优先", "USB优先")), "上次使用"),
+                SettingItem("audio_output", "输出设备", "自动 / 扬声器 / 耳机 / 蓝牙", Lucide.Headphones, SettingType.Selection(listOf(Option("自动", "自动"), Option("内置扬声器", "内置扬声器"), Option("有线耳机", "有线耳机"), Option("蓝牙耳机", "蓝牙耳机"), Option("USB DAC", "USB DAC"))), "自动"),
+                SettingItem("audio_device_priority", "设备优先级", "多设备连接时的首选输出", null, SettingType.Selection(listOf(Option("上次使用", "上次使用"), Option("有线优先", "有线优先"), Option("蓝牙优先", "蓝牙优先"), Option("USB优先", "USB优先"))), "上次使用"),
                 SettingItem("auto_switch_device", "自动切换设备", "断开当前设备时自动切换", null, SettingType.Toggle, true),
 
                 // 音量
                 SettingItem("", "音量", null, null, SettingType.Info),
                 SettingItem("media_volume", "媒体音量", "系统媒体音量控制", Lucide.MonitorSpeaker, SettingType.Slider(0f, 100f, 99), 70),
                 SettingItem("volume_normalize", "音量标准化", "统一不同歌曲的音量差异 (ReplayGain)", null, SettingType.Toggle, false),
-                SettingItem("volume_normalize_mode", "标准化模式", "音轨增益 / 专辑增益", null, SettingType.Selection(listOf("音轨增益", "专辑增益")), "音轨增益"),
+                SettingItem("volume_normalize_mode", "标准化模式", "音轨增益 / 专辑增益", null, SettingType.Selection(listOf(Option("音轨增益", "音轨增益"), Option("专辑增益", "专辑增益"))), "音轨增益"),
                 SettingItem("volume_limit", "音量限制", "设置最大输出音量", null, SettingType.Slider(0f, 100f, 99), 100),
                 SettingItem("fade_in_out", "淡入淡出", "播放开始和结束时平滑过渡音量", null, SettingType.Toggle, true),
-                SettingItem("fade_duration", "淡入淡出时长", "毫秒", null, SettingType.Selection(listOf("500ms", "1000ms", "2000ms", "3000ms")), "1000ms"),
+                SettingItem("fade_duration", "淡入淡出时长", "毫秒", null, SettingType.Selection(listOf(Option("500ms", "500ms"), Option("1000ms", "1000ms"), Option("2000ms", "2000ms"), Option("3000ms", "3000ms"))), "1000ms"),
 
                 // 输出选项
                 SettingItem("", "输出选项", null, null, SettingType.Info),
-                SettingItem("sample_rate", "输出采样率", "跟随系统或固定采样率", Lucide.MonitorSpeaker, SettingType.Selection(listOf("跟随系统", "44.1kHz", "48kHz", "88.2kHz", "96kHz", "176.4kHz", "192kHz", "384kHz")), "跟随系统"),
-                SettingItem("bit_depth", "输出位深", "16bit / 24bit / 32bit 浮点", null, SettingType.Selection(listOf("跟随源文件", "16bit", "24bit", "32bit 浮点")), "跟随源文件"),
-                SettingItem("channel_mode", "通道模式", "立体声 / 单声道 / 自动", null, SettingType.Selection(listOf("自动", "立体声", "单声道", "反相立体声")), "自动"),
+                SettingItem("sample_rate", "输出采样率", "跟随系统或固定采样率", Lucide.MonitorSpeaker, SettingType.Selection(listOf(Option("跟随系统", "跟随系统"), Option("44.1kHz", "44.1kHz"), Option("48kHz", "48kHz"), Option("88.2kHz", "88.2kHz"), Option("96kHz", "96kHz"), Option("176.4kHz", "176.4kHz"), Option("192kHz", "192kHz"), Option("384kHz", "384kHz"))), "跟随系统"),
+                SettingItem("bit_depth", "输出位深", "16bit / 24bit / 32bit 浮点", null, SettingType.Selection(listOf(Option("跟随源文件", "跟随源文件"), Option("16bit", "16bit"), Option("24bit", "24bit"), Option("32bit 浮点", "32bit 浮点"))), "跟随源文件"),
+                SettingItem("channel_mode", "通道模式", "立体声 / 单声道 / 自动", null, SettingType.Selection(listOf(Option("自动", "自动"), Option("立体声", "立体声"), Option("单声道", "单声道"), Option("反相立体声", "反相立体声"))), "自动"),
                 SettingItem("audio_latency", "音频延迟补偿", "调整音视频同步偏移", null, SettingType.Slider(-500f, 500f, 1000), 0),
-                SettingItem("buffer_size", "缓冲区大小", "较大的缓冲区可减少卡顿", null, SettingType.Selection(listOf("自动", "小", "中", "大", "极大")), "自动"),
+                SettingItem("buffer_size", "缓冲区大小", "较大的缓冲区可减少卡顿", null, SettingType.Selection(listOf(Option("自动", "自动"), Option("小", "小"), Option("中", "中"), Option("大", "大"), Option("极大", "极大"))), "自动"),
 
                 // 解码器
                 SettingItem("", "解码器", null, null, SettingType.Info),
-                SettingItem("decoder_priority", "解码器优先级", "系统内置 / Media3 / FFmpeg", Lucide.Activity, SettingType.Selection(listOf("自动选择", "系统内置优先", "Media3优先", "FFmpeg优先")), "自动选择"),
+                SettingItem("decoder_priority", "解码器优先级", "系统内置 / Media3 / FFmpeg", Lucide.Activity, SettingType.Selection(listOf(Option("自动选择", "自动选择"), Option("系统内置优先", "系统内置优先"), Option("Media3优先", "Media3优先"), Option("FFmpeg优先", "FFmpeg优先"))), "自动选择"),
                 SettingItem("ffmpeg_enabled", "FFmpeg 解码器", "使用 FFmpeg 处理更多格式", null, SettingType.Toggle, true),
                 SettingItem("dsd_direct", "DSD 直通", "原生 DSD 输出到支持设备", null, SettingType.Toggle, false),
-                SettingItem("dsd_to_pcm", "DSD 转 PCM", "将 DSD 转为高采样率 PCM", null, SettingType.Selection(listOf("自动", "DoP (DSD over PCM)", "Native PCM 转换")), "自动"),
+                SettingItem("dsd_to_pcm", "DSD 转 PCM", "将 DSD 转为高采样率 PCM", null, SettingType.Selection(listOf(Option("自动", "自动"), Option("DoP (DSD over PCM)", "DoP (DSD over PCM)"), Option("Native PCM 转换", "Native PCM 转换"))), "自动"),
                 SettingItem("gapless_decoder", "无缝解码", "精确处理歌曲边界", null, SettingType.Toggle, true),
 
                 // 均衡器与音效
                 SettingItem("", "均衡器与音效", null, null, SettingType.Info),
                 SettingItem("eq_enabled", "均衡器", "自定义频段增益", Lucide.Activity, SettingType.Toggle, false),
-                SettingItem("eq_preset", "均衡器预设", "预设音效", null, SettingType.Selection(listOf("关闭", "流行", "摇滚", "古典", "爵士", "电子", "人声", "舞曲", "轻柔", "重金属", "嘻哈")), "关闭"),
+                SettingItem("eq_preset", "均衡器预设", "预设音效", null, SettingType.Selection(listOf(Option("关闭", "关闭"), Option("流行", "流行"), Option("摇滚", "摇滚"), Option("古典", "古典"), Option("爵士", "爵士"), Option("电子", "电子"), Option("人声", "人声"), Option("舞曲", "舞曲"), Option("轻柔", "轻柔"), Option("重金属", "重金属"), Option("嘻哈", "嘻哈"))), "关闭"),
                 SettingItem("bass_boost_enabled", "低音增强", "提升低频响应", null, SettingType.Toggle, false),
                 SettingItem("bass_boost_strength", "低音增强强度", "0 ~ 100%", null, SettingType.Slider(0f, 100f, 99), 50),
                 SettingItem("virtualizer_enabled", "声场扩展", "拓宽立体声声场", null, SettingType.Toggle, false),
                 SettingItem("virtualizer_strength", "声场扩展强度", "0 ~ 100%", null, SettingType.Slider(0f, 100f, 99), 50),
                 SettingItem("reverb_enabled", "混响效果", "模拟不同空间的混响", null, SettingType.Toggle, false),
-                SettingItem("reverb_preset", "混响预设", null, null, SettingType.Selection(listOf("关闭", "小房间", "中房间", "大房间", "大厅", "教堂", "浴室")), "关闭"),
+                SettingItem("reverb_preset", "混响预设", null, null, SettingType.Selection(listOf(Option("关闭", "关闭"), Option("小房间", "小房间"), Option("中房间", "中房间"), Option("大房间", "大房间"), Option("大厅", "大厅"), Option("教堂", "教堂"), Option("浴室", "浴室"))), "关闭"),
                 SettingItem("loudness_enabled", "响度增强", "在低音量时增强高低频", null, SettingType.Toggle, false),
                 SettingItem("loudness_strength", "响度增强强度", "0 ~ 100%", null, SettingType.Slider(0f, 100f, 99), 50),
 
@@ -509,8 +484,8 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("", "高级输出", null, null, SettingType.Info),
                 SettingItem("exclusive_mode", "独占音频输出", "绕过系统混音器独占音频设备", null, SettingType.Toggle, false),
                 SettingItem("float_output", "浮点输出", "使用 32-bit float 输出", null, SettingType.Toggle, false),
-                SettingItem("resampler_quality", "重采样质量", "音频重采样算法质量", null, SettingType.Selection(listOf("快速", "标准", "高质量", "极致")), "标准"),
-                SettingItem("mixer_mode", "混音模式", "音频混合处理模式", null, SettingType.Selection(listOf("标准", "高保真", "低延迟")), "标准")
+                SettingItem("resampler_quality", "重采样质量", "音频重采样算法质量", null, SettingType.Selection(listOf(Option("快速", "快速"), Option("标准", "标准"), Option("高质量", "高质量"), Option("极致", "极致"))), "标准"),
+                SettingItem("mixer_mode", "混音模式", "音频混合处理模式", null, SettingType.Selection(listOf(Option("标准", "标准"), Option("高保真", "高保真"), Option("低延迟", "低延迟"))), "标准")
             )
         ),
         cn.lemondrop.fhreborn.data.model.SettingCategory(
@@ -518,10 +493,10 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
             title = "歌词",
             icon = Lucide.BookOpen,
             items = listOf(
-                SettingItem("lyric_priority", "歌词来源优先级", "内嵌 / 文件 / 导入", null, SettingType.Selection(listOf("内嵌标签优先", "同目录文件优先", "应用内置目录优先")), "内嵌标签优先"),
+                SettingItem("lyric_priority", "歌词来源优先级", "内嵌 / 文件 / 导入", null, SettingType.Selection(listOf(Option("内嵌标签优先", "内嵌标签优先"), Option("同目录文件优先", "同目录文件优先"), Option("应用内置目录优先", "应用内置目录优先"))), "内嵌标签优先"),
                 SettingItem("lyric_translation", "显示翻译", "双行显示原文+翻译", null, SettingType.Toggle, true),
                 SettingItem("lyric_romaji", "显示罗马音", "日语/韩语罗马音注音", null, SettingType.Toggle, false),
-                SettingItem("lyric_font_size", "歌词字体大小", "8sp ~ 48sp", null, SettingType.Selection(listOf("小", "中", "大", "特大")), "中"),
+                SettingItem("lyric_font_size", "歌词字体大小", "8sp ~ 48sp", null, SettingType.Selection(listOf(Option("小", "小"), Option("中", "中"), Option("大", "大"), Option("特大", "特大"))), "中"),
                 SettingItem("lyric_align_center", "歌词居中对齐", "歌词预览和歌词页居中对齐", null, SettingType.Toggle, false),
                 SettingItem("desktop_lyric", "桌面歌词", "悬浮窗形式显示歌词", null, SettingType.Toggle, false),
                 SettingItem("statusbar_lyric", "状态栏歌词", "通知栏显示当前歌词", null, SettingType.Toggle, false)
@@ -535,7 +510,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("auto_scan", "启动时自动扫描", "每次打开检测媒体库变更", null, SettingType.Toggle, true),
                 SettingItem("scan_directories", "扫描目录", "管理音乐文件夹", Lucide.FolderOpen, SettingType.Navigation),
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
-                SettingItem("cover_cache", "封面缓存策略", "懒加载 / 磁盘缓存 / 混合", null, SettingType.Selection(listOf("懒加载", "磁盘缓存", "混合策略")), "磁盘缓存"),
+                SettingItem("cover_cache", "封面缓存策略", "懒加载 / 磁盘缓存 / 混合", null, SettingType.Selection(listOf(Option("懒加载", "懒加载"), Option("磁盘缓存", "磁盘缓存"), Option("混合策略", "混合策略"))), "磁盘缓存"),
                 SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true)
             )
         ),
@@ -589,7 +564,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
             items = listOf(
                 SettingItem("crash_report", "崩溃报告", "捕获并显示崩溃日志", null, SettingType.Toggle, true),
                 SettingItem("debug_mode", "调试模式", "显示额外调试信息", null, SettingType.Toggle, false),
-                SettingItem("log_level", "日志级别", "控制日志输出详细程度", null, SettingType.Selection(listOf("错误", "警告", "信息", "调试", "详细")), "信息"),
+                SettingItem("log_level", "日志级别", "控制日志输出详细程度", null, SettingType.Selection(listOf(Option("错误", "错误"), Option("警告", "警告"), Option("信息", "信息"), Option("调试", "调试"), Option("详细", "详细"))), "信息"),
                 SettingItem("clear_database", "清空数据库", "删除所有扫描数据（谨慎）", null, SettingType.Navigation)
             )
         ),

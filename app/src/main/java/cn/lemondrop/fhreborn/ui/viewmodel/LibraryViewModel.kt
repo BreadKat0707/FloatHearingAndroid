@@ -10,6 +10,7 @@ import cn.lemondrop.fhreborn.data.db.entity.ScanDirectory
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.repository.MediaLibraryRepository
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
+import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.scanner.MediaScanner
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val statisticsRepository = PlayStatisticsRepository(
         AppDatabase.getInstance(application).playRecordDao()
     )
+    private val settingsRepository = SettingsRepository(application)
 
     val songCount = repository.songCount
     val scanDirectories = repository.scanDirectories
@@ -51,6 +53,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val playCountMap = MutableStateFlow<Map<Long, Int>>(emptyMap())
 
     init {
+        viewModelScope.launch {
+            // 恢复排序设置
+            val savedField = settingsRepository.sortField.first()
+            val savedOrder = settingsRepository.sortOrder.first()
+            savedField?.let { _sortField.value = SortField.valueOf(it) }
+            savedOrder?.let { _sortOrder.value = SortOrder.valueOf(it) }
+        }
         viewModelScope.launch {
             statisticsRepository.getMostPlayed(1000).collect { stats ->
                 playCountMap.value = stats.associate { it.songId to it.count }
@@ -79,8 +88,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 .thenBy { it.album.lowercase() }
                 .thenBy { it.title.lowercase() }
             SortField.ALBUM_DISC_TRACK -> compareBy<Song> { it.album.lowercase() }
-                .thenBy { it.discNumber ?: 0 }
-                .thenBy { it.trackNumber ?: 0 }
+                .thenBy { it.discNumber ?: 1 }          // 无碟号视为第 1 碟
+                .thenBy { it.trackNumber ?: Int.MAX_VALUE } // 无音轨号排在最后
                 .thenBy { it.title.lowercase() }
             SortField.MODIFIED_TIME -> compareBy { it.modifiedAt }
             SortField.ADDED_TIME -> compareBy { it.addedAt }
@@ -144,14 +153,24 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     fun setSortField(field: SortField) {
         _sortField.value = field
+        viewModelScope.launch {
+            settingsRepository.setSortField(field.name)
+        }
     }
 
     fun setSortOrder(order: SortOrder) {
         _sortOrder.value = order
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(order.name)
+        }
     }
 
     fun toggleSortOrder() {
-        _sortOrder.value = if (_sortOrder.value == SortOrder.ASC) SortOrder.DESC else SortOrder.ASC
+        val newOrder = if (_sortOrder.value == SortOrder.ASC) SortOrder.DESC else SortOrder.ASC
+        _sortOrder.value = newOrder
+        viewModelScope.launch {
+            settingsRepository.setSortOrder(newOrder.name)
+        }
     }
 
     fun setSearchQuery(query: String) {
@@ -190,6 +209,21 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearSearch() {
         _searchQuery.value = ""
+    }
+
+    val hiddenFolders: StateFlow<Set<String>> = settingsRepository.hiddenFolders
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun hideFolder(path: String) {
+        viewModelScope.launch {
+            settingsRepository.addHiddenFolder(path)
+        }
+    }
+
+    fun unhideFolder(path: String) {
+        viewModelScope.launch {
+            settingsRepository.removeHiddenFolder(path)
+        }
     }
 
     data class Album(

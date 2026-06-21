@@ -1,38 +1,49 @@
 package cn.lemondrop.fhreborn.ui.screens.library
 
 import android.app.Application
-import android.graphics.BitmapFactory
-import android.net.Uri
-import androidx.compose.foundation.Image
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +57,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,48 +66,50 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.lemondrop.fhreborn.Screen
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import cn.lemondrop.fhreborn.scanner.ScanProgress
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
-import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
-import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
-import cn.lemondrop.fhreborn.ui.screens.player.FluidBackground
+import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
+import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
 import cn.lemondrop.fhreborn.ui.components.SortSheet
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
+import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
+import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
+import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
+import cn.lemondrop.clover.CloverBottomNavbar
+import cn.lemondrop.clover.CloverBottomSheet
+import cn.lemondrop.clover.CloverFlyout
+import cn.lemondrop.clover.CloverMenuItem
+import cn.lemondrop.clover.CloverNavItem
+import cn.lemondrop.clover.CloverNavigationRail
+import cn.lemondrop.clover.CloverSizes
+import cn.lemondrop.clover.CloverTitleBar
+import cn.lemondrop.clover.CloverTopAppBar
+import cn.lemondrop.clover.cloverIsCompactWidth
 import com.composables.icons.lucide.Album
-import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.LayoutList
 import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.FolderOpen
-import com.composables.icons.lucide.Headphones
 import com.composables.icons.lucide.Heart
-import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.ListChecks
-import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
 import com.composables.icons.lucide.Mic
@@ -103,10 +117,8 @@ import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Pause
 import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.Repeat
-import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Shuffle
 import com.composables.icons.lucide.SkipForward
-import com.composables.icons.lucide.Timer
 
 /**
  * 媒体库页面 — 底部倒置布局（PRD 规范）
@@ -116,10 +128,10 @@ import com.composables.icons.lucide.Timer
  */
 @Composable
 fun LibraryScreen(
-    playerViewModel: PlayerViewModel,
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToStatistics: () -> Unit = {},
-    onNavigateToPlayer: () -> Unit = {}
+    currentRoute: String,
+    onNavigate: (String) -> Unit,
+    onPlayerClick: () -> Unit,
+    playerViewModel: PlayerViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: LibraryViewModel = viewModel(
@@ -134,11 +146,13 @@ fun LibraryScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val sortField by viewModel.sortField.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
+    val hiddenFolders by viewModel.hiddenFolders.collectAsState(initial = emptySet())
 
     var isSearching by remember { mutableStateOf(false) }
     var selectedNavIndex by remember { mutableIntStateOf(0) }
     var showDrawer by remember { mutableStateOf(false) }
     var showFolderBrowser by remember { mutableStateOf(false) }
+    var folderBrowserInitialPath by remember { mutableStateOf(listOf<String>()) }
     var selectedSongId by remember { mutableStateOf<Long?>(null) }
     var playingSongId by remember { mutableStateOf<Long?>(null) }
     var showSongMenu by remember { mutableStateOf(false) }
@@ -148,34 +162,91 @@ fun LibraryScreen(
 
     val displaySongs = if (searchQuery.isNotBlank()) searchResults else songs
 
-    // Haze 状态用于内容模糊效果
-    val hazeState = remember { HazeState() }
-
-
     // 系统 insets
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
-    val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
+    val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
+    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
 
     // 底部控件高度
     val miniPlayBarHeight = 72.dp
     val navBarHeight = 72.dp
-    val titleBarHeight = 64.dp
-    val bottomControlsHeight = miniPlayBarHeight + navBarHeight + titleBarHeight + 16.dp
+    val acrylicHeight = navBarHeight + CloverSizes.titleBarHeight + navBarPadding
+    val bottomControlsHeight = miniPlayBarHeight + 8.dp + acrylicHeight + 16.dp
 
     val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
+    val drawerHazeState = remember { HazeState() }
+    val barHazeBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    val barHazeTintColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // 内容区域（顶部留空给状态栏，底部留空给底部控件）
+    val isCompact = cloverIsCompactWidth()
+
+    val navItems = remember {
+        listOf(
+            CloverNavItem("歌曲", Lucide.Music),
+            CloverNavItem("专辑", Lucide.Album),
+            CloverNavItem("艺术家", Lucide.Mic),
+            CloverNavItem("文件夹", Lucide.FolderOpen)
+        )
+    }
+
+    val titleText: @Composable () -> Unit = {
+        Text(
+            text = when (selectedNavIndex) {
+                0 -> "媒体库"
+                1 -> "专辑"
+                2 -> "艺术家"
+                3 -> "文件夹"
+                else -> "媒体库"
+            },
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
+    val menuButton: @Composable () -> Unit = {
+        FluentIconButton(onClick = { showDrawer = true }) {
+            Icon(
+                imageVector = Lucide.Menu,
+                contentDescription = "菜单",
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+
+    val titleActions: @Composable RowScope.() -> Unit = {
+        FluentIconButton(onClick = { /* TODO: 全部顺序循环 */ }) {
+            Icon(
+                imageVector = Lucide.Repeat,
+                contentDescription = "全部顺序循环",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        FluentIconButton(onClick = { /* TODO: 全部随机 */ }) {
+            Icon(
+                imageVector = Lucide.Shuffle,
+                contentDescription = "全部随机",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        FluentIconButton(onClick = { showTitleBarMenu = true }) {
+            Icon(
+                imageVector = Lucide.EllipsisVertical,
+                contentDescription = "更多",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+
+    val libraryBody: @Composable (PaddingValues, Dp) -> Unit = { contentPadding, bottomSpacer ->
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .hazeSource(state = hazeState),
-            contentPadding = PaddingValues(
-                top = statusBarPadding.calculateTopPadding() + 8.dp,
-                bottom = navBarPadding.calculateBottomPadding() + 8.dp
-            ),
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // 搜索栏
@@ -236,71 +307,138 @@ fun LibraryScreen(
                 )
                 1 -> AlbumsContent(albums = albums)
                 2 -> ArtistsContent(artists = artists)
-                3 -> FoldersContent(songs = displaySongs)
+                3 -> FoldersContent(
+                    songs = displaySongs,
+                    hiddenFolders = hiddenFolders,
+                    onFolderClick = { pathParts ->
+                        folderBrowserInitialPath = pathParts
+                        showFolderBrowser = true
+                    },
+                    onHideFolder = { viewModel.hideFolder(it) }
+                )
             }
 
-            // 底部占位，让内容可以滚动到底部栏下方，确保 Acrylic 有内容可模糊
+            // 底部占位，让内容可以滚动到播放器/底部栏下方
             item {
-                Spacer(modifier = Modifier.height(bottomControlsHeight + 32.dp))
+                Spacer(modifier = Modifier.height(bottomSpacer))
             }
         }
+    }
 
-        // 底部控件堆叠（从屏幕底部向上）
-        Column(
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            // 浮动 MiniPlayBar
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isCompact) {
+            // drawerHazeState 源：页面主体内容
+            Box(modifier = Modifier.fillMaxSize().hazeSource(state = drawerHazeState)) {
+                libraryBody(
+                    PaddingValues(
+                        top = statusBarPadding.calculateTopPadding() + 8.dp,
+                        bottom = 0.dp
+                    ),
+                    bottomControlsHeight + 32.dp
+                )
+            }
+
+            // MiniPlayBar 浮在亚克力面板上方，自身不参与模糊
             MiniPlayBar(
-                hazeState = hazeState,
                 playerViewModel = playerViewModel,
-                onClick = onNavigateToPlayer,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                onClick = onPlayerClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = acrylicHeight + 8.dp)
             )
 
-            // 底部导航栏：歌曲 / 专辑 / 艺术家 / 文件夹
-            LibraryNavBar(
-                hazeState = hazeState,
-                selectedIndex = selectedNavIndex,
-                onSelect = { selectedNavIndex = it },
-                modifier = Modifier.fillMaxWidth()
-            )
+            // 底部导航栏 + 标题栏共用一块亚克力背景
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .hazeEffect(state = drawerHazeState) {
+                        blurRadius = 40.dp
+                        backgroundColor = barHazeBackgroundColor
+                        tints = listOf(HazeTint(barHazeTintColor))
+                        noiseFactor = 0.1f
+                    }
+                    .pointerInput(Unit) {
+                        // 拦截亚克力面板空白区域的点击，不触发后面列表项的点击
+                        detectTapGestures(onTap = { })
+                    }
+            ) {
+                CloverBottomNavbar(
+                    items = navItems,
+                    selectedIndex = selectedNavIndex,
+                    onItemSelected = { selectedNavIndex = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = null
+                )
 
-            // 标题栏（最底部，单手可达）
-            LibraryTitleBar(
-                hazeState = hazeState,
-                title = when (selectedNavIndex) {
-                    0 -> "媒体库"
-                    1 -> "专辑"
-                    2 -> "艺术家"
-                    3 -> "文件夹"
-                    else -> "媒体库"
-                },
-                onDrawerClick = { showDrawer = true },
-                onMoreClick = { showTitleBarMenu = true },
-                modifier = Modifier.fillMaxWidth()
-            )
+                CloverTitleBar(
+                    title = titleText,
+                    leading = menuButton,
+                    trailing = titleActions,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = navBarPadding),
+                    backgroundColor = null
+                )
+            }
+        } else {
+            // 大屏幕：左侧 NavigationRail + 顶部 TopAppBar
+            Row(modifier = Modifier.fillMaxSize()) {
+                CloverNavigationRail(
+                    items = navItems,
+                    selectedIndex = selectedNavIndex,
+                    onItemSelected = { selectedNavIndex = it },
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .statusBarsPadding()
+                )
+
+                Column(modifier = Modifier.weight(1f)) {
+                    CloverTopAppBar(
+                        title = titleText,
+                        navigationIcon = menuButton,
+                        actions = titleActions,
+                        modifier = Modifier.statusBarsPadding()
+                    )
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        libraryBody(
+                            PaddingValues(
+                                top = 8.dp,
+                                bottom = navBarPadding + 8.dp
+                            ),
+                            miniPlayBarHeight + 32.dp
+                        )
+
+                        MiniPlayBar(
+                            playerViewModel = playerViewModel,
+                            onClick = onPlayerClick,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .padding(bottom = navBarPadding + 8.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 
     // Drawer 底部弹出菜单
-    if (showDrawer) {
-        DrawerMenuSheet(
-            onDismiss = { showDrawer = false },
-            onNavigateToFolders = {
-                showDrawer = false
+    cn.lemondrop.fhreborn.ui.components.AppDrawer(
+        visible = showDrawer,
+        onDismiss = { showDrawer = false },
+        currentRoute = currentRoute,
+        onNavigate = { route ->
+            showDrawer = false
+            if (route == Screen.FolderBrowser.route) {
                 showFolderBrowser = true
-            },
-            onNavigateToSettings = {
-                showDrawer = false
-                onNavigateToSettings()
-            },
-            onNavigateToStatistics = {
-                showDrawer = false
-                onNavigateToStatistics()
-            },
-            hazeState = hazeState
-        )
-    }
+            } else {
+                onNavigate(route)
+            }
+        },
+        hazeState = drawerHazeState
+    )
 
     // 标题栏 Flyout 菜单（浮动于底部栏之上）
     TitleBarFlyoutMenu(
@@ -316,20 +454,23 @@ fun LibraryScreen(
         },
         onLayoutToggle = {
             // TODO: 切换列表布局
-        },
-        hazeState = hazeState
+        }
     )
 
     // 浏览路径 — 文件管理器式覆盖层
     if (showFolderBrowser) {
+        BackHandler { showFolderBrowser = false }
         FolderBrowserOverlay(
             songs = songs,
+            initialPath = folderBrowserInitialPath,
+            playerViewModel = playerViewModel,
             onDismiss = { showFolderBrowser = false }
         )
     }
 
     // 排序弹窗
     if (showSortSheet) {
+        BackHandler { showSortSheet = false }
         SortSheet(
             currentField = sortField,
             currentOrder = sortOrder,
@@ -341,6 +482,7 @@ fun LibraryScreen(
 
     // 歌曲上下文菜单
     if (showSongMenu && menuSong != null) {
+        BackHandler { showSongMenu = false }
         SongMenuSheet(
             song = menuSong!!,
             onDismiss = { showSongMenu = false },
@@ -444,9 +586,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(artist
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
-    songs: List<Song>
+    songs: List<Song>,
+    hiddenFolders: Set<String>,
+    onFolderClick: (List<String>) -> Unit,
+    onHideFolder: (String) -> Unit
 ) {
-    if (songs.isEmpty()) {
+    val visibleSongs = songs.filterNot { song ->
+        hiddenFolders.any { hidden -> song.path.startsWith(hidden) }
+    }
+
+    if (visibleSongs.isEmpty()) {
         item {
             Box(
                 modifier = Modifier
@@ -460,63 +609,98 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
         return
     }
 
-    val folderMap = songs.groupBy { it.path.substringBeforeLast('/') }
+    val folderMap = visibleSongs.groupBy { it.path.substringBeforeLast('/') }
     val sortedFolders = folderMap.toSortedMap()
+
+    item {
+        Text(
+            text = "${sortedFolders.size} 个文件夹",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+    }
 
     sortedFolders.forEach { (folderPath, folderSongs) ->
         item(key = folderPath) {
-            var expanded by remember { mutableStateOf(false) }
-            Column(
+            var showOptions by remember { mutableStateOf(false) }
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(FluentLargeCorner))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { expanded = !expanded }
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Lucide.ChevronRight,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .rotate(if (expanded) 90f else 0f),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = folderPath.substringAfterLast('/'),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = folderPath,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    .clickable {
+                        val parts = folderPath.split('/').filter { it.isNotEmpty() }
+                        onFolderClick(parts)
                     }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Lucide.FolderOpen,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "${folderSongs.size} 首",
-                        style = MaterialTheme.typography.labelMedium,
+                        text = folderPath.substringAfterLast('/'),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = folderPath,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${folderSongs.size} 首歌曲",
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                if (expanded) {
-                    folderSongs.forEach { song ->
-                        SongItemSmall(song = song)
-                    }
+                FluentIconButton(onClick = { showOptions = true }) {
+                    Icon(
+                        imageVector = Lucide.EllipsisVertical,
+                        contentDescription = "更多",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
+
+            if (showOptions) {
+                FolderOptionsSheet(
+                    folderPath = folderPath,
+                    onDismiss = { showOptions = false },
+                    onHide = {
+                        onHideFolder(folderPath)
+                        showOptions = false
+                    }
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun FolderOptionsSheet(
+    folderPath: String,
+    onDismiss: () -> Unit,
+    onHide: () -> Unit
+) {
+    CloverBottomSheet(onDismiss = onDismiss) {
+        CloverMenuItem(
+            label = "在音乐库隐藏",
+            icon = Lucide.EyeOff,
+            onClick = {
+                onHide()
+                onDismiss()
+            }
+        )
     }
 }
 
@@ -708,288 +892,6 @@ private fun ArtistItem(artist: LibraryViewModel.Artist) {
     }
 }
 
-@Composable
-internal fun SongCoverImage(
-    songId: Long,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    var bitmap by remember(songId) { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(songId) {
-        withContext(Dispatchers.IO) {
-            bitmap = try {
-                val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream)?.asImageBitmap()
-                }
-            } catch (e: Exception) {
-                null
-            }
-        }
-    }
-
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap!!,
-            contentDescription = null,
-            modifier = modifier.clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surface),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "♪",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Suppress("DEPRECATION")
-@Composable
-private fun MiniPlayBar(
-    playerViewModel: PlayerViewModel,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
-) {
-    val currentSong by playerViewModel.currentSong.collectAsState()
-    val isPlaying by playerViewModel.isPlaying.collectAsState()
-    val isDarkTheme = isSystemInDarkTheme()
-    val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
-    val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.6f)
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .clip(RoundedCornerShape(FluentLargeCorner))
-            .clickable(onClick = onClick)
-    ) {
-        // 流体背景
-        FluidBackground(
-            songId = currentSong?.id,
-            isPlaying = isPlaying,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp)
-        ) {
-            currentSong?.let { song ->
-                SongCoverImage(
-                    songId = song.id,
-                    modifier = Modifier.size(40.dp)
-                )
-            } ?: Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(fluidOnColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("♪", color = fluidOnColorSecondary)
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = currentSong?.title ?: "Float Hearing",
-                    color = fluidOnColor,
-                    maxLines = 1
-                )
-                Text(
-                    text = currentSong?.artist ?: "Make some sounds",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = fluidOnColorSecondary,
-                    maxLines = 1
-                )
-            }
-
-            currentSong?.let {
-                val targetBlendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
-                FluentIconButton(onClick = { playerViewModel.playPause() }) {
-                    Icon(
-                        imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
-                        contentDescription = if (isPlaying) "暂停" else "播放",
-                        modifier = Modifier
-                            .size(22.dp)
-                            .graphicsLayer {
-                                compositingStrategy = CompositingStrategy.Offscreen
-                                blendMode = targetBlendMode
-                            },
-                        tint = fluidOnColor.copy(alpha = 0.6f)
-                    )
-                }
-                FluentIconButton(onClick = { playerViewModel.next() }) {
-                    Icon(
-                        imageVector = Lucide.SkipForward,
-                        contentDescription = "下一首",
-                        modifier = Modifier
-                            .size(22.dp)
-                            .graphicsLayer {
-                                compositingStrategy = CompositingStrategy.Offscreen
-                                blendMode = targetBlendMode
-                            },
-                        tint = fluidOnColor.copy(alpha = 0.6f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 底部导航栏：歌曲 / 专辑 / 艺术家 / 文件夹
- */
-@Suppress("DEPRECATION")
-@Composable
-private fun LibraryNavBar(
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
-) {
-    val items = listOf(
-        "歌曲" to Lucide.Music,
-        "专辑" to Lucide.Album,
-        "艺术家" to Lucide.Mic,
-        "文件夹" to Lucide.FolderOpen,
-    )
-    val hazeTint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    val hazeBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
-    Row(
-        modifier = modifier
-            .height(64.dp)
-            .then(
-                if (hazeState != null) {
-                    Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 32.dp
-                        backgroundColor = hazeBg
-                        tints = listOf(HazeTint(color = hazeTint))
-                    }
-                } else Modifier
-            )
-            .padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        items.forEachIndexed { index, (label, icon) ->
-            val selected = index == selectedIndex
-            FluentIconButton(onClick = { onSelect(index) }) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        modifier = Modifier.size(22.dp),
-                        tint = if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 标题栏（最底部，单手可达）
- */
-@Suppress("DEPRECATION")
-@Composable
-private fun LibraryTitleBar(
-    title: String,
-    onDrawerClick: () -> Unit,
-    onMoreClick: () -> Unit = {},
-    modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
-) {
-    val hazeTint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    val hazeBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .then(
-                if (hazeState != null) {
-                    Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 32.dp
-                        backgroundColor = hazeBg
-                        tints = listOf(HazeTint(color = hazeTint))
-                    }
-                } else Modifier
-            )
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Drawer 图标
-        FluentIconButton(onClick = onDrawerClick) {
-            Icon(
-                imageVector = Lucide.Menu,
-                contentDescription = "菜单",
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        // 标题
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-
-        // 全部顺序循环
-        FluentIconButton(onClick = { }) {
-            Icon(
-                imageVector = Lucide.Repeat,
-                contentDescription = "全部顺序循环",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        // 全部随机
-        FluentIconButton(onClick = { }) {
-            Icon(
-                imageVector = Lucide.Shuffle,
-                contentDescription = "全部随机",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        // 更多
-        FluentIconButton(onClick = onMoreClick) {
-            Icon(
-                imageVector = Lucide.EllipsisVertical,
-                contentDescription = "更多",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
 // ===== 标题栏 Flyout 菜单（浮动于底部栏之上） =====
 
 @Composable
@@ -1000,181 +902,60 @@ private fun TitleBarFlyoutMenu(
     onMultiSelectClick: () -> Unit = {},
     onScrollToTop: () -> Unit = {},
     onLocateCurrent: () -> Unit = {},
-    onLayoutToggle: () -> Unit = {},
-    hazeState: HazeState? = null
+    onLayoutToggle: () -> Unit = {}
 ) {
-    val flyoutHazeTint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-    val flyoutHazeBg = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
-    val menuItems = listOf(
-        Triple("排序", Lucide.ArrowUpDown, onSortClick),
-        Triple("多选", Lucide.ListChecks, onMultiSelectClick),
-        Triple("回到顶部", Lucide.ArrowUp, onScrollToTop),
-        Triple("定位当前播放", Lucide.Music, onLocateCurrent),
-        Triple("列表布局", Lucide.LayoutList, onLayoutToggle)
-    )
-
-    AnimatedVisibility(
-        visible = visible,
-        modifier = Modifier.fillMaxSize(),
-        enter = fadeIn(),
-        exit = fadeOut()
-    ) {
-        // 点击外部关闭的透明遮罩
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                )
-        )
+    BackHandler(enabled = visible) {
+        onDismiss()
     }
 
-    // 菜单面板：从底栏位置向上弹出，覆盖在底栏上层
-    AnimatedVisibility(
+    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
+
+    CloverFlyout(
         visible = visible,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 4.dp, end = 4.dp),
-        enter = fadeIn() + scaleIn(
-            initialScale = 0.85f,
-            transformOrigin = TransformOrigin(1f, 1f)
-        ),
-        exit = fadeOut() + scaleOut(
-            targetScale = 0.85f,
-            transformOrigin = TransformOrigin(1f, 1f)
-        )
+        onDismiss = onDismiss
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.BottomEnd
-        ) {
-            Column(
-                modifier = Modifier
-                    .width(210.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .then(
-                        if (hazeState != null) {
-                            Modifier.hazeEffect(state = hazeState) {
-                                blurRadius = 40.dp
-                                backgroundColor = flyoutHazeBg
-                                tints = listOf(HazeTint(color = flyoutHazeTint))
-                            }
-                        } else Modifier
-                    )
-                    .padding(vertical = 10.dp)
-            ) {
-                menuItems.forEach { (label, icon, onClick) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onDismiss()
-                                onClick()
-                            }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
+        CloverMenuItem(
+            label = "排序",
+            icon = Lucide.ArrowUpDown,
+            onClick = {
+                onDismiss()
+                onSortClick()
             }
-        }
-    }
-}
-
-// ===== Drawer 底部弹出菜单 =====
-
-@Suppress("DEPRECATION")
-@Composable
-private fun DrawerMenuSheet(
-    onDismiss: () -> Unit,
-    onNavigateToFolders: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
-    onNavigateToStatistics: () -> Unit = {},
-    hazeState: HazeState? = null
-) {
-    val drawerHazeTint = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-    val drawerHazeBg = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.3f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .then(
-                    if (hazeState != null) {
-                        Modifier.hazeEffect(state = hazeState) {
-                            blurRadius = 32.dp
-                            backgroundColor = drawerHazeBg
-                            tints = listOf(HazeTint(color = drawerHazeTint))
-                        }
-                    } else Modifier
-                )
-                .padding(horizontal = 12.dp, vertical = 12.dp)
-                .clickable(enabled = false) { /* 阻止点击穿透到背景 */ }
-        ) {
-            DrawerItem(icon = Lucide.Music, label = "媒体库")
-            DrawerItem(icon = Lucide.ListMusic, label = "歌单")
-            DrawerItem(icon = Lucide.FolderOpen, label = "浏览路径", onClick = onNavigateToFolders)
-            DrawerItem(icon = Lucide.Lightbulb, label = "想法")
-            DrawerItem(icon = Lucide.Activity, label = "统计和数据分析", onClick = onNavigateToStatistics)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            DrawerItem(icon = Lucide.Headphones, label = "音频输出")
-            DrawerItem(icon = Lucide.Timer, label = "定时播放")
-            DrawerItem(icon = Lucide.Settings, label = "设置", onClick = onNavigateToSettings)
-        }
-    }
-}
-
-@Composable
-private fun DrawerItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit = {}
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp)
-            .padding(horizontal = 8.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            modifier = Modifier.size(22.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+        CloverMenuItem(
+            label = "多选",
+            icon = Lucide.ListChecks,
+            onClick = {
+                onDismiss()
+                onMultiSelectClick()
+            }
         )
+        CloverMenuItem(
+            label = "回到顶部",
+            icon = Lucide.ArrowUp,
+            onClick = {
+                onDismiss()
+                onScrollToTop()
+            }
+        )
+        CloverMenuItem(
+            label = "定位当前播放",
+            icon = Lucide.Music,
+            onClick = {
+                onDismiss()
+                onLocateCurrent()
+            }
+        )
+        CloverMenuItem(
+            label = "列表布局",
+            icon = Lucide.LayoutList,
+            onClick = {
+                onDismiss()
+                onLayoutToggle()
+            }
+        )
+
+        Spacer(modifier = Modifier.height(navBarPadding + 4.dp))
     }
 }
 
@@ -1216,10 +997,13 @@ private fun buildFileTree(songs: List<Song>): FileNode {
 @Composable
 private fun FolderBrowserOverlay(
     songs: List<Song>,
+    initialPath: List<String> = emptyList(),
+    playerViewModel: PlayerViewModel,
     onDismiss: () -> Unit
 ) {
     val rootNode = remember(songs) { buildFileTree(songs) }
-    var currentPath by remember { mutableStateOf(listOf<String>()) }
+    var currentPath by remember { mutableStateOf(initialPath) }
+    val playingSongId by playerViewModel.currentSong.collectAsState()
 
     val currentNode = remember(rootNode, currentPath) {
         var node = rootNode
@@ -1229,10 +1013,32 @@ private fun FolderBrowserOverlay(
         node
     }
 
-    val items = remember(currentNode) {
-        currentNode.children.values.sortedWith(
-            compareBy({ !it.isDirectory }, { it.name.lowercase() })
-        )
+    val foldersInCurrent = remember(currentNode) {
+        currentNode.children.values
+            .filter { it.isDirectory }
+            .sortedBy { it.name.lowercase() }
+    }
+
+    val songsInCurrent = remember(currentNode) {
+        currentNode.children.values
+            .filter { !it.isDirectory && it.song != null }
+            .sortedBy { it.name.lowercase() }
+            .mapNotNull { it.song }
+    }
+
+    val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
+    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
+    val bottomControlsHeight = CloverSizes.titleBarHeight + navBarPadding
+
+    // 地址栏路径：根 > 一级 > 二级
+    val breadcrumb = listOf("根") + currentPath
+
+    BackHandler {
+        if (currentPath.isEmpty()) {
+            onDismiss()
+        } else {
+            currentPath = currentPath.dropLast(1)
+        }
     }
 
     Box(
@@ -1240,47 +1046,53 @@ private fun FolderBrowserOverlay(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // 标题栏
-            Row(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = statusBarPadding.calculateTopPadding())
+        ) {
+            // 地址栏
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .height(52.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                FluentIconButton(onClick = {
-                    if (currentPath.isEmpty()) {
-                        onDismiss()
-                    } else {
-                        currentPath = currentPath.dropLast(1)
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (currentPath.isEmpty()) Lucide.ArrowLeft else Lucide.ArrowLeft,
-                        contentDescription = if (currentPath.isEmpty()) "关闭" else "返回上级",
-                        modifier = Modifier.size(22.dp)
+                itemsIndexed(breadcrumb) { index, name ->
+                    val isLast = index == breadcrumb.lastIndex
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable(enabled = !isLast) {
+                            // breadcrumb: ["根", part0, part1, ...]
+                            // 点击根 -> 空路径；点击第 n 个 -> 保留前 n-1 段
+                            currentPath = if (index <= 1) emptyList() else currentPath.take(index - 1)
+                        }
                     )
+                    if (!isLast) {
+                        Icon(
+                            imageVector = Lucide.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
             }
 
             HorizontalDivider()
 
             // 文件/文件夹列表
-            androidx.compose.foundation.lazy.LazyColumn(
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = bottomControlsHeight + 16.dp
+                )
             ) {
-                if (items.isEmpty()) {
+                if (foldersInCurrent.isEmpty() && songsInCurrent.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -1292,19 +1104,60 @@ private fun FolderBrowserOverlay(
                         }
                     }
                 } else {
-                    items(items, key = { it.path }) { item ->
+                    items(foldersInCurrent, key = { it.path }) { item ->
                         FileBrowserItemRow(
                             item = item,
                             onClick = {
-                                if (item.isDirectory) {
-                                    currentPath = currentPath + item.name
-                                }
+                                currentPath = currentPath + item.name
                             }
+                        )
+                    }
+                    items(songsInCurrent, key = { it.id }) { song ->
+                        SongItem(
+                            song = song,
+                            isSelected = false,
+                            isPlaying = song.id == playingSongId?.id,
+                            onClick = {
+                                playerViewModel.playSongs(songsInCurrent, songsInCurrent.indexOf(song))
+                            },
+                            onMoreClick = { /* TODO: 歌曲更多操作 */ }
                         )
                     }
                 }
             }
         }
+
+        // 底部标题栏
+        CloverTitleBar(
+            title = {
+                Text(
+                    text = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leading = {
+                FluentIconButton(onClick = {
+                    if (currentPath.isEmpty()) {
+                        onDismiss()
+                    } else {
+                        currentPath = currentPath.dropLast(1)
+                    }
+                }) {
+                    Icon(
+                        imageVector = Lucide.ArrowLeft,
+                        contentDescription = if (currentPath.isEmpty()) "关闭" else "返回上级",
+                        modifier = Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = navBarPadding)
+        )
     }
 }
 
