@@ -276,11 +276,11 @@ fun PlayerScreen(
                     )
                 }
 
-                // 封面区域
-                val coverScale by animateFloatAsState(
+                // 封面区域：按原图比例适配容器，非正方形也能显示完整封面
+                val coverSizeMultiplier by animateFloatAsState(
                     targetValue = if (isPlaying) 1f else 0.92f,
                     animationSpec = tween(300, easing = FastOutSlowInEasing),
-                    label = "coverScale"
+                    label = "coverSizeMultiplier"
                 )
                 BoxWithConstraints(
                     modifier = Modifier
@@ -288,12 +288,10 @@ fun PlayerScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    val density = LocalDensity.current
-                    val placeholderSize = maxWidth.coerceAtMost(maxHeight)
-
-                    currentSong?.let { song ->
-                        var bitmap by remember(song.id) { mutableStateOf<ImageBitmap?>(null) }
-                        LaunchedEffect(song.id) {
+                    var bitmap by remember(currentSong?.id) { mutableStateOf<ImageBitmap?>(null) }
+                    LaunchedEffect(currentSong?.id) {
+                        bitmap = null
+                        currentSong?.let { song ->
                             withContext(Dispatchers.IO) {
                                 bitmap = try {
                                     val uri = Uri.parse("content://media/external/audio/media/${song.id}/albumart")
@@ -305,73 +303,52 @@ fun PlayerScreen(
                                 }
                             }
                         }
+                    }
 
+                    val (baseCoverWidth, baseCoverHeight) = with(density) {
                         val bmp = bitmap
                         if (bmp != null) {
-                            val (coverW, coverH) = with(density) {
-                                val maxWPx = maxWidth.toPx()
-                                val maxHPx = maxHeight.toPx()
-                                val scale = min(1f, min(maxWPx / bmp.width, maxHPx / bmp.height))
-                                val w = (bmp.width * scale).toDp()
-                                val h = (bmp.height * scale).toDp()
-                                w to h
+                            val maxWPx = maxWidth.toPx()
+                            val maxHPx = maxHeight.toPx()
+                            val aspect = bmp.width.toFloat() / bmp.height.toFloat()
+                            val fitW: Float
+                            val fitH: Float
+                            if (maxWPx / maxHPx > aspect) {
+                                // 高度受限，按高度缩放
+                                fitH = maxHPx
+                                fitW = fitH * aspect
+                            } else {
+                                // 宽度受限，按宽度缩放
+                                fitW = maxWPx
+                                fitH = fitW / aspect
                             }
+                            fitW.toDp() to fitH.toDp()
+                        } else {
+                            val size = maxWidth.coerceAtMost(maxHeight)
+                            size to size
+                        }
+                    }
+
+                    val coverWidth = baseCoverWidth * coverSizeMultiplier
+                    val coverHeight = baseCoverHeight * coverSizeMultiplier
+
+                    Box(
+                        modifier = Modifier
+                            .size(coverWidth, coverHeight)
+                            .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
+                            .clip(RoundedCornerShape(FluentLargeCorner)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val bmp = bitmap
+                        if (bmp != null) {
                             Image(
                                 bitmap = bmp,
                                 contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(coverW, coverH)
-                                    .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
-                                    .clip(RoundedCornerShape(FluentLargeCorner))
-                                    .graphicsLayer { scaleX = coverScale; scaleY = coverScale }
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(placeholderSize)
-                                    .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
-                                    .clip(RoundedCornerShape(FluentLargeCorner))
-                                    .graphicsLayer { scaleX = coverScale; scaleY = coverScale },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .fluidBlend(targetBlendMode)
-                                        .background(fluidOnColor.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "♪",
-                                        modifier = Modifier.fluidBlend(targetBlendMode),
-                                        style = MaterialTheme.typography.displayLarge,
-                                        color = fluidOnColor.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
-                    } ?: Box(
-                        modifier = Modifier
-                            .size(placeholderSize)
-                            .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
-                            .clip(RoundedCornerShape(FluentLargeCorner))
-                            .graphicsLayer { scaleX = coverScale; scaleY = coverScale },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .fluidBlend(targetBlendMode)
-                                .background(fluidOnColor.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "♪",
-                                modifier = Modifier.fluidBlend(targetBlendMode),
-                                style = MaterialTheme.typography.displayLarge,
-                                color = fluidOnColor.copy(alpha = 0.5f)
-                            )
+                            PlaceholderCoverContent()
                         }
                     }
                 }
@@ -873,4 +850,20 @@ private fun shareCurrentSong(context: android.content.Context, song: cn.lemondro
     context.startActivity(
         android.content.Intent.createChooser(intent, "分享音频")
     )
+}
+
+@Composable
+private fun PlaceholderCoverContent() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "♪",
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+        )
+    }
 }
