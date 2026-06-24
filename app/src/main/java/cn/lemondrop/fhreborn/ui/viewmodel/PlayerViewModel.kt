@@ -2,6 +2,8 @@ package cn.lemondrop.fhreborn.ui.viewmodel
 
 import android.app.Application
 import android.content.ComponentName
+import android.content.Intent
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -22,8 +24,11 @@ import cn.lemondrop.fhreborn.player.PlaybackService
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -79,6 +84,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _currentLyricIndex = MutableStateFlow(-1)
     val currentLyricIndex: StateFlow<Int> = _currentLyricIndex.asStateFlow()
+
+    // 外部（通知栏/媒体控件）请求打开播放器页面的一次性事件
+    private val _openPlayerEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val openPlayerEvent: SharedFlow<Unit> = _openPlayerEvent.asSharedFlow()
 
     init {
         val context = getApplication<Application>()
@@ -139,6 +148,17 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
         val songs = songIds.mapNotNull { songDao.getSongById(it) }
         if (songs.isEmpty()) return
+
+        // 如果播放器/服务已经持有媒体项且当前歌曲一致，说明进程未重建，
+        // 直接同步现有状态，避免用 DB 里的旧进度把播放拉回去。
+        if (controller.mediaItemCount > 0 &&
+            controller.currentMediaItem?.mediaId == state.currentSongId?.toString()
+        ) {
+            _queue.value = songs
+            syncState(controller)
+            loadLyrics()
+            return
+        }
 
         val currentIndex = if (state.currentSongId != null) {
             songs.indexOfFirst { it.id == state.currentSongId }.coerceAtLeast(0)
@@ -219,6 +239,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         _shuffleMode.value = controller.shuffleModeEnabled
     }
 
+    private fun ensureServiceStarted() {
+        val context = getApplication<Application>()
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, PlaybackService::class.java)
+        )
+    }
+
     private fun saveState() {
         viewModelScope.launch {
             val controller = mediaController ?: return@launch
@@ -234,8 +262,13 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun requestOpenPlayer() {
+        _openPlayerEvent.tryEmit(Unit)
+    }
+
     fun playSongs(songs: List<Song>, startIndex: Int = 0) {
         val controller = mediaController ?: return
+        ensureServiceStarted()
         _queue.value = songs
         val mediaItems = songs.map { it.toMediaItem() }
         controller.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
@@ -267,6 +300,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (controller.isPlaying) {
             controller.pause()
         } else {
+            ensureServiceStarted()
             controller.play()
         }
     }

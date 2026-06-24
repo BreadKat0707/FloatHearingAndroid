@@ -68,8 +68,7 @@ fun StatisticsScreen(
                 items = tabItems,
                 selectedIndex = selectedTab,
                 onItemSelected = { selectedTab = it },
-                modifier = Modifier.fillMaxWidth(),
-                backgroundColor = null
+                modifier = Modifier.fillMaxWidth()
             )
         },
         onPlayerClick = onPlayerClick

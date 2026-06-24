@@ -3,10 +3,6 @@ package cn.lemondrop.fhreborn.ui.screens.player
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import androidx.compose.animation.Crossfade
@@ -34,11 +30,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -49,15 +48,15 @@ import kotlin.math.sqrt
 fun FluidBackground(
     songId: Long?,
     isPlaying: Boolean,
+    isDarkTheme: Boolean = isSystemInDarkTheme(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val isDarkTheme = isSystemInDarkTheme()
 
     val bgColor = if (isDarkTheme) Color.Black else Color.White
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.6f)
-    val layerAlpha1 = if (isDarkTheme) 0.6f else 0.6f
-    val layerAlpha2 = if (isDarkTheme) 0.4f else 0.4f
+    val layerAlpha1 = 0.6f
+    val layerAlpha2 = 0.4f
 
     BoxWithConstraints(
         modifier = modifier
@@ -67,6 +66,9 @@ fun FluidBackground(
         // 让图片旋转时始终覆盖整个容器：对角线要 >= 容器最大边
         val containerSize = maxWidth.coerceAtLeast(maxHeight)
         val imageSize = containerSize * sqrt(2f) * 1.15f
+
+        // 加载尺寸不需要这么大，重度模糊后会自动平滑，内存占用大幅减小
+        val bitmapLoadSize = (containerSize * 0.5f).coerceAtLeast(300.dp)
 
         // 切歌时使用 Crossfade 做淡入淡出过渡
         Crossfade(
@@ -78,12 +80,31 @@ fun FluidBackground(
 
             LaunchedEffect(currentSongId) {
                 withContext(Dispatchers.IO) {
-                    bitmap = loadEnhancedAlbumArt(context, currentSongId, isDarkTheme, imageSize)
+                    bitmap = loadEnhancedAlbumArt(
+                        context,
+                        currentSongId,
+                        targetSize = bitmapLoadSize
+                    )
                 }
             }
 
             bitmap?.let { bmp ->
                 val imageBitmap = remember(bmp) { bmp.asImageBitmap() }
+                val colorMatrix = remember(isDarkTheme) {
+                    val sat = if (isDarkTheme) 1.8f else 1.6f
+                    val invSat = 1f - sat
+                    val r = 0.213f * invSat
+                    val g = 0.715f * invSat
+                    val b = 0.072f * invSat
+                    ColorMatrix(
+                        floatArrayOf(
+                            r + sat, g, b, 0f, 0f,
+                            r, g + sat, b, 0f, 0f,
+                            r, g, b + sat, 0f, 0f,
+                            0f, 0f, 0f, 1f, 0f
+                        )
+                    )
+                }
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     // 全屏背景层 - 慢速同向旋转
@@ -95,7 +116,8 @@ fun FluidBackground(
                         imageSize = imageSize,
                         blurRadius = 80.dp,
                         alpha = layerAlpha1,
-                        isPlaying = isPlaying
+                        isPlaying = isPlaying,
+                        colorFilter = ColorFilter.colorMatrix(colorMatrix)
                     )
 
                     // 中层 - 同向但更快，制造流动感
@@ -107,7 +129,8 @@ fun FluidBackground(
                         imageSize = imageSize,
                         blurRadius = 60.dp,
                         alpha = layerAlpha2,
-                        isPlaying = isPlaying
+                        isPlaying = isPlaying,
+                        colorFilter = ColorFilter.colorMatrix(colorMatrix)
                     )
                 }
             }
@@ -128,10 +151,11 @@ private fun FluidLayer(
     rotationDuration: Int,
     rotationDirection: Float,
     baseScale: Float,
-    imageSize: androidx.compose.ui.unit.Dp,
-    blurRadius: androidx.compose.ui.unit.Dp,
+    imageSize: Dp,
+    blurRadius: Dp,
     alpha: Float,
-    isPlaying: Boolean
+    isPlaying: Boolean,
+    colorFilter: ColorFilter? = null
 ) {
     // 使用 Animatable 实现可暂停的旋转和轻微呼吸缩放
     val rotation = remember { Animatable(0f) }
@@ -182,7 +206,8 @@ private fun FluidLayer(
                     } else Modifier
                 )
                 .alpha(alpha),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            colorFilter = colorFilter
         )
     }
 }
@@ -190,41 +215,16 @@ private fun FluidLayer(
 private suspend fun loadEnhancedAlbumArt(
     context: Context,
     songId: Long?,
-    isDarkTheme: Boolean = true,
-    targetSize: androidx.compose.ui.unit.Dp = 600.dp
+    targetSize: Dp = 600.dp
 ): Bitmap? {
     if (songId == null) return null
     return try {
         val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
         context.contentResolver.openInputStream(uri)?.use { stream ->
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = 4 // 降采样以提高性能
-            }
-            BitmapFactory.decodeStream(stream, null, options)?.let { bmp ->
-                // 缩放到目标尺寸，确保旋转时不露出边缘
+            BitmapFactory.decodeStream(stream)?.let { bmp ->
                 val density = context.resources.displayMetrics.density
                 val targetPx = (targetSize.value * density).toInt().coerceAtLeast(1)
-                val scaled = Bitmap.createScaledBitmap(bmp, targetPx, targetPx, true)
-
-                // 深色模式高饱和，浅色模式低饱和避免刺眼
-                val sat = if (isDarkTheme) 1.8f else 1.6f
-                val invSat = 1f - sat
-                val r = 0.213f * invSat
-                val g = 0.715f * invSat
-                val b = 0.072f * invSat
-                val matrix = floatArrayOf(
-                    r + sat, g, b, 0f, 0f,
-                    r, g + sat, b, 0f, 0f,
-                    r, g, b + sat, 0f, 0f,
-                    0f, 0f, 0f, 1f, 0f
-                )
-                val cm = android.graphics.ColorMatrix(matrix)
-                val paint = android.graphics.Paint().apply {
-                    colorFilter = ColorMatrixColorFilter(cm)
-                }
-                val result = Bitmap.createBitmap(scaled.width, scaled.height, Bitmap.Config.ARGB_8888)
-                android.graphics.Canvas(result).drawBitmap(scaled, 0f, 0f, paint)
-                result
+                Bitmap.createScaledBitmap(bmp, targetPx, targetPx, true)
             }
         }
     } catch (e: Exception) {

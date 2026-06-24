@@ -18,27 +18,29 @@ class MediaScanner(context: Context) {
     private val mediaStoreScanner = MediaStoreScanner(context)
     private val ffmpegScanner = FFmpegScanner(context)
 
-    fun scan(): Flow<ScanProgress> = flow {
+    fun scan(quickScan: Boolean = false): Flow<ScanProgress> = flow {
         emit(ScanProgress.Scanning)
         try {
             val allSongs = mutableListOf<Song>()
             val scannedPaths = mutableSetOf<String>()
 
             // Step 1: MediaStore 快速索引
-            emit(ScanProgress.Progress(1, 2, "MediaStore"))
+            emit(ScanProgress.Progress(1, if (quickScan) 1 else 2, "MediaStore"))
             val mediaStoreSongs = mediaStoreScanner.scan(scannedPaths)
             allSongs.addAll(mediaStoreSongs)
             scannedPaths.addAll(mediaStoreSongs.map { it.path })
 
-            // Step 2: FFmpeg 补充扫描（扫描外部存储常见音乐目录）
-            emit(ScanProgress.Progress(2, 2, "FFmpeg"))
-            val commonMusicDirs = listOf(
-                "/storage/emulated/0/Music",
-                "/storage/emulated/0/Download",
-                "/storage/emulated/0/"
-            ).filter { java.io.File(it).exists() }
-            val ffmpegSongs = ffmpegScanner.scan(commonMusicDirs, scannedPaths)
-            allSongs.addAll(ffmpegSongs)
+            if (!quickScan) {
+                // Step 2: FFmpeg 补充扫描（扫描外部存储常见音乐目录）
+                emit(ScanProgress.Progress(2, 2, "FFmpeg"))
+                val commonMusicDirs = listOf(
+                    "/storage/emulated/0/Music",
+                    "/storage/emulated/0/Download",
+                    "/storage/emulated/0/"
+                ).filter { java.io.File(it).exists() }
+                val ffmpegSongs = ffmpegScanner.scan(commonMusicDirs, scannedPaths)
+                allSongs.addAll(ffmpegSongs)
+            }
 
             emit(ScanProgress.Completed(allSongs.size, allSongs))
         } catch (e: Exception) {

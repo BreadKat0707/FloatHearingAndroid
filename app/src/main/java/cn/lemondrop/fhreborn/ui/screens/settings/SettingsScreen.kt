@@ -379,7 +379,12 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
 
                 // 播放器
                 SettingItem("", "播放器", null, null, SettingType.Info),
-                SettingItem("player_bg", "播放器页面背景", "专辑图取色的流体（暗）", null, SettingType.Selection(listOf(Option("专辑图取色的流体（暗）", "专辑图取色的流体（暗）"), Option("专辑图取色的流体（亮）", "专辑图取色的流体（亮）"), Option("纯色", "纯色"), Option("自定义图片", "自定义图片"))), "专辑图取色的流体（暗）"),
+                SettingItem("player_bg", "播放器页面背景", "旋转流体背景（跟随app颜色模式）", null, SettingType.Selection(listOf(
+                    Option("rotating_fluid", "旋转流体背景（跟随app颜色模式）"),
+                    Option("agsl_fluid", "AGSL流体背景（跟随app颜色模式）"),
+                    Option("cover_blur", "专辑封面模糊（跟随app颜色模式）"),
+                    Option("default_color", "默认背景色（跟随app颜色模式）")
+                )), "rotating_fluid"),
                 SettingItem("cover_radius", "封面圆角大小调整", "调整播放器专辑封面的圆角大小", null, SettingType.Slider(0f, 24f, 23), 12),
                 SettingItem("cover_crop", "封面裁剪", "将不规则尺寸的封面以正方形显示", null, SettingType.Toggle, true),
                 SettingItem("show_playmode_queue", "显示播放模式和播放列表", "显示在播放控制两侧", null, SettingType.Toggle, true),

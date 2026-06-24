@@ -81,6 +81,8 @@ import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.FlyoutMenu
+import cn.lemondrop.fhreborn.ui.components.FlyoutMenuItem
 import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
@@ -89,9 +91,9 @@ import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
+import cn.lemondrop.fhreborn.util.PermissionUtils
 import cn.lemondrop.clover.CloverBottomNavbar
 import cn.lemondrop.clover.CloverBottomSheet
-import cn.lemondrop.clover.CloverFlyout
 import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.clover.CloverNavItem
 import cn.lemondrop.clover.CloverNavigationRail
@@ -148,6 +150,12 @@ fun LibraryScreen(
     val sortOrder by viewModel.sortOrder.collectAsState()
     val hiddenFolders by viewModel.hiddenFolders.collectAsState(initial = emptySet())
 
+    // 启动时自动快速刷新音乐库（仅 MediaStore，需要存储/音频权限）
+    val hasStoragePermission = PermissionUtils.hasStoragePermission(context)
+    LaunchedEffect(hasStoragePermission) {
+        viewModel.autoScanIfNeeded(hasStoragePermission)
+    }
+
     var isSearching by remember { mutableStateOf(false) }
     var selectedNavIndex by remember { mutableIntStateOf(0) }
     var showDrawer by remember { mutableStateOf(false) }
@@ -168,7 +176,7 @@ fun LibraryScreen(
 
     // 底部控件高度
     val miniPlayBarHeight = 72.dp
-    val navBarHeight = 72.dp
+    val navBarHeight = 64.dp
     val acrylicHeight = navBarHeight + CloverSizes.titleBarHeight + navBarPadding
     val bottomControlsHeight = miniPlayBarHeight + 8.dp + acrylicHeight + 16.dp
 
@@ -367,8 +375,7 @@ fun LibraryScreen(
                     items = navItems,
                     selectedIndex = selectedNavIndex,
                     onItemSelected = { selectedNavIndex = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    backgroundColor = null
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 CloverTitleBar(
@@ -444,6 +451,7 @@ fun LibraryScreen(
     TitleBarFlyoutMenu(
         visible = showTitleBarMenu,
         onDismiss = { showTitleBarMenu = false },
+        hazeState = drawerHazeState,
         onSortClick = { showSortSheet = true },
         onMultiSelectClick = { /* TODO: multi-select */ },
         onScrollToTop = {
@@ -898,65 +906,27 @@ private fun ArtistItem(artist: LibraryViewModel.Artist) {
 private fun TitleBarFlyoutMenu(
     visible: Boolean,
     onDismiss: () -> Unit,
+    hazeState: HazeState,
     onSortClick: () -> Unit = {},
     onMultiSelectClick: () -> Unit = {},
     onScrollToTop: () -> Unit = {},
     onLocateCurrent: () -> Unit = {},
     onLayoutToggle: () -> Unit = {}
 ) {
-    BackHandler(enabled = visible) {
-        onDismiss()
-    }
+    val items = listOf(
+        FlyoutMenuItem("排序", Lucide.ArrowUpDown) { onSortClick() },
+        FlyoutMenuItem("多选", Lucide.ListChecks) { onMultiSelectClick() },
+        FlyoutMenuItem("回到顶部", Lucide.ArrowUp) { onScrollToTop() },
+        FlyoutMenuItem("定位当前播放", Lucide.Music) { onLocateCurrent() },
+        FlyoutMenuItem("列表布局", Lucide.LayoutList) { onLayoutToggle() }
+    )
 
-    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
-
-    CloverFlyout(
+    FlyoutMenu(
         visible = visible,
-        onDismiss = onDismiss
-    ) {
-        CloverMenuItem(
-            label = "排序",
-            icon = Lucide.ArrowUpDown,
-            onClick = {
-                onDismiss()
-                onSortClick()
-            }
-        )
-        CloverMenuItem(
-            label = "多选",
-            icon = Lucide.ListChecks,
-            onClick = {
-                onDismiss()
-                onMultiSelectClick()
-            }
-        )
-        CloverMenuItem(
-            label = "回到顶部",
-            icon = Lucide.ArrowUp,
-            onClick = {
-                onDismiss()
-                onScrollToTop()
-            }
-        )
-        CloverMenuItem(
-            label = "定位当前播放",
-            icon = Lucide.Music,
-            onClick = {
-                onDismiss()
-                onLocateCurrent()
-            }
-        )
-        CloverMenuItem(
-            label = "列表布局",
-            icon = Lucide.LayoutList,
-            onClick = {
-                onDismiss()
-                onLayoutToggle()
-            }
-        )
-
-        Spacer(modifier = Modifier.height(navBarPadding + 4.dp))
-    }
+        onDismiss = onDismiss,
+        items = items,
+        hazeState = hazeState
+    )
 }
 
 // ===== 浏览路径 — 文件管理器式层级浏览 =====

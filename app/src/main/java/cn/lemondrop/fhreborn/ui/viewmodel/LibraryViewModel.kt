@@ -132,6 +132,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val _scanProgress = MutableStateFlow<ScanProgress>(ScanProgress.Idle)
     val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
+    private var hasAutoScanned = false
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -181,6 +183,23 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             _scanProgress.value = ScanProgress.Scanning
             scanner.scan().collect { progress ->
+                _scanProgress.value = progress
+                if (progress is ScanProgress.Completed && progress.songs.isNotEmpty()) {
+                    repository.insertSongs(progress.songs)
+                }
+            }
+        }
+    }
+
+    /**
+     * App 启动时自动快速刷新：只扫 MediaStore，不重复 FFmpeg 全目录，避免拖慢启动。
+     */
+    fun autoScanIfNeeded(hasStoragePermission: Boolean) {
+        if (hasAutoScanned || !hasStoragePermission) return
+        hasAutoScanned = true
+        viewModelScope.launch {
+            _scanProgress.value = ScanProgress.Scanning
+            scanner.scan(quickScan = true).collect { progress ->
                 _scanProgress.value = progress
                 if (progress is ScanProgress.Completed && progress.songs.isNotEmpty()) {
                     repository.insertSongs(progress.songs)

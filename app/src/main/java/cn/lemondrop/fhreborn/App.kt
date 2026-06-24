@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,6 +30,7 @@ import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.theme.FloatHearingTheme
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
+import cn.lemondrop.fhreborn.ui.screens.demo.MicaDemoScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderBrowserScreen
 import cn.lemondrop.fhreborn.ui.screens.ideas.IdeasScreen
 import cn.lemondrop.fhreborn.ui.screens.library.LibraryScreen
@@ -51,6 +53,7 @@ sealed class Screen(val route: String) {
     data object Player : Screen("player")
     data object HazeDemo : Screen("haze_demo")
     data object CloverDemo : Screen("clover_demo")
+    data object MicaDemo : Screen("mica_demo")
 }
 
 @Composable
@@ -80,6 +83,13 @@ fun FHRebornApp() {
     )
 
     var showPlayer by remember { mutableStateOf(false) }
+
+    // 通知栏/媒体控件等外部入口要求打开播放器页面
+    LaunchedEffect(playerViewModel) {
+        playerViewModel.openPlayerEvent.collect {
+            showPlayer = true
+        }
+    }
 
     // 检测是否有上次的崩溃日志
     var showCrashReport by remember { mutableStateOf(CrashHandler.hasCrashLog(context)) }
@@ -203,6 +213,12 @@ fun FHRebornApp() {
 
             composable(Screen.CloverDemo.route) {
                 cn.lemondrop.fhreborn.ui.screens.demo.CloverDemoScreen(
+                    onBack = { navController.navigateUp() }
+                )
+            }
+
+            composable(Screen.MicaDemo.route) {
+                MicaDemoScreen(
                     onBack = { navController.navigateUp() }
                 )
             }

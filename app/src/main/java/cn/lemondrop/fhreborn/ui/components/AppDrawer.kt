@@ -20,6 +20,7 @@ import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Music
+import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Timer
 import com.composables.icons.lucide.Zap
@@ -135,6 +136,14 @@ fun AppDrawer(
             route = Screen.HazeDemo.route,
             label = "Haze Demo",
             icon = Lucide.Zap,
+            currentRoute = currentRoute,
+            onNavigate = onNavigate,
+            onDismiss = onDismiss
+        )
+        DrawerNavItem(
+            route = Screen.MicaDemo.route,
+            label = "Mica Demo",
+            icon = Lucide.Palette,
             currentRoute = currentRoute,
             onNavigate = onNavigate,
             onDismiss = onDismiss
