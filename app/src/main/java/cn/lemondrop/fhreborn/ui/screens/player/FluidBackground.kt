@@ -48,7 +48,7 @@ import kotlin.math.sqrt
 fun FluidBackground(
     songId: Long?,
     isPlaying: Boolean,
-    isDarkTheme: Boolean = isSystemInDarkTheme(),
+    isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current

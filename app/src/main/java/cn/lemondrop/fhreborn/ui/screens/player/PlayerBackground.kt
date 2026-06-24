@@ -4,12 +4,15 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
-import android.graphics.RenderEffect
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.RuntimeShader
 import android.graphics.Shader
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
+import android.view.Choreographer
+import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -42,9 +45,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
@@ -174,7 +177,6 @@ private fun AgslFluidBackgroundImpl(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     var bitmap by remember(songId) { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(songId) {
@@ -193,76 +195,13 @@ private fun AgslFluidBackgroundImpl(
         contentAlignment = Alignment.Center
     ) {
         bitmap?.let { bmp ->
-            val imageBitmap = remember(bmp) { bmp.asImageBitmap() }
-
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                val wPx = with(density) { maxWidth.toPx() }
-                val hPx = with(density) { maxHeight.toPx() }
-
-                data class AgslState(val shader: RuntimeShader, val effect: androidx.compose.ui.graphics.RenderEffect)
-
-                val state = remember(bmp, wPx, hPx) {
-                    val bitmapShader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-                    val matrix = android.graphics.Matrix()
-                    val scale = maxOf(
-                        wPx / bmp.width.coerceAtLeast(1).toFloat(),
-                        hPx / bmp.height.coerceAtLeast(1).toFloat()
-                    )
-                    matrix.setScale(scale, scale)
-                    val dx = (wPx - bmp.width * scale) * 0.5f
-                    val dy = (hPx - bmp.height * scale) * 0.5f
-                    matrix.postTranslate(dx, dy)
-                    bitmapShader.setLocalMatrix(matrix)
-
-                    val runtime = RuntimeShader(
-                        """
-                        uniform shader image;
-                        uniform float time;
-                        uniform vec2 resolution;
-
-                        half4 main(float2 coord) {
-                            vec2 uv = coord / resolution;
-                            float wave1 = sin(uv.y * 10.0 + time * 1.5) * 0.02;
-                            float wave2 = cos(uv.x * 8.0 + time * 1.2) * 0.015;
-                            float wave3 = sin((uv.x + uv.y) * 6.0 + time * 0.7) * 0.01;
-                            vec2 distorted = uv + vec2(wave1 + wave3, wave2 + wave3);
-                            return image.eval(distorted * resolution);
-                        }
-                        """.trimIndent()
-                    )
-                    runtime.setInputShader("image", bitmapShader)
-                    runtime.setFloatUniform("resolution", wPx, hPx)
-                    AgslState(
-                        shader = runtime,
-                        effect = RenderEffect.createShaderEffect(runtime).asComposeRenderEffect()
-                    )
-                }
-
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            this.renderEffect = state.effect
-                        }
-                        .blur(40.dp)
-                )
-
-                // 时间推进：直接改 shader uniform，不需要重组 RenderEffect
-                LaunchedEffect(state.shader) {
-                    var t = 0f
-                    while (isActive) {
-                        t += 0.016f
-                        state.shader.setFloatUniform("time", t)
-                        delay(16)
-                    }
-                }
-            }
+            AndroidView(
+                factory = { AgslFluidView(it) },
+                update = { it.setBitmap(bmp) },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(60.dp)
+            )
         }
         Box(
             modifier = Modifier
@@ -283,6 +222,112 @@ fun AgslFluidBackground(
     } else {
         // 低版本回退到旋转流体
         FluidBackground(songId, isPlaying = true, isDarkTheme = isDarkTheme, modifier = modifier)
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private class AgslFluidView @JvmOverloads constructor(
+    context: Context,
+    attrs: android.util.AttributeSet? = null
+) : View(context, attrs) {
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var runtimeShader: RuntimeShader? = null
+    private var bitmap: Bitmap? = null
+    private val choreographer = Choreographer.getInstance()
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            invalidate()
+            choreographer.postFrameCallback(this)
+        }
+    }
+    private val startTime = SystemClock.elapsedRealtime()
+
+    private val shaderCode = """
+        uniform shader image;
+        uniform float time;
+        uniform vec2 resolution;
+
+        // 简单伪噪声
+        float noise(vec2 p) {
+            return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+
+        half4 main(float2 coord) {
+            vec2 uv = coord / resolution;
+            vec2 center = uv - 0.5;
+            float len = length(center);
+            float angle = atan(center.y, center.x);
+
+            // 旋转波纹
+            float swirl = sin(len * 18.0 - time * 2.2) * 0.035;
+            float wave = sin(angle * 6.0 + time * 1.3) * 0.025;
+            vec2 distorted = uv + vec2(
+                cos(angle) * swirl - sin(angle) * wave,
+                sin(angle) * swirl + cos(angle) * wave
+            );
+
+            // 横向/纵向流动
+            distorted.x += sin(distorted.y * 14.0 + time * 1.6) * 0.02;
+            distorted.y += cos(distorted.x * 12.0 + time * 1.1) * 0.02;
+
+            // 轻微湍流
+            distorted += (noise(distorted * 8.0 + time) - 0.5) * 0.012;
+
+            return image.eval(distorted * resolution);
+        }
+    """.trimIndent()
+
+    fun setBitmap(bmp: Bitmap) {
+        if (bitmap == bmp) return
+        bitmap = bmp
+        runtimeShader = null
+        requestLayout()
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        updateShader()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val shader = runtimeShader ?: return
+        val seconds = (SystemClock.elapsedRealtime() - startTime) / 1000f
+        shader.setFloatUniform("time", seconds)
+        shader.setFloatUniform("resolution", width.toFloat(), height.toFloat())
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        choreographer.postFrameCallback(frameCallback)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        choreographer.removeFrameCallback(frameCallback)
+    }
+
+    private fun updateShader() {
+        val bmp = bitmap ?: return
+        val w = width.toFloat().coerceAtLeast(1f)
+        val h = height.toFloat().coerceAtLeast(1f)
+
+        val bitmapShader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val matrix = android.graphics.Matrix()
+        val scale = maxOf(w / bmp.width, h / bmp.height)
+        matrix.setScale(scale, scale)
+        val dx = (w - bmp.width * scale) * 0.5f
+        val dy = (h - bmp.height * scale) * 0.5f
+        matrix.postTranslate(dx, dy)
+        bitmapShader.setLocalMatrix(matrix)
+
+        val runtime = RuntimeShader(shaderCode)
+        runtime.setInputShader("image", bitmapShader)
+        runtime.setFloatUniform("resolution", w, h)
+        runtimeShader = runtime
+        paint.shader = runtime
     }
 }
 

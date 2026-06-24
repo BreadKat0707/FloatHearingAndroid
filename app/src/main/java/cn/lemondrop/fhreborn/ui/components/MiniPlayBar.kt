@@ -6,7 +6,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.ui.screens.player.FluidBackground
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
@@ -106,7 +106,7 @@ fun MiniPlayBar(
     val isPlaying by playerViewModel.isPlaying.collectAsState()
     val position by playerViewModel.currentPosition.collectAsState()
     val duration by playerViewModel.duration.collectAsState()
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = LocalAppDarkTheme.current
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.6f)
     val targetBlendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
@@ -135,6 +135,7 @@ fun MiniPlayBar(
             FluidBackground(
                 songId = currentSong?.id,
                 isPlaying = isPlaying,
+                isDarkTheme = isDarkTheme,
                 modifier = Modifier.fillMaxSize()
             )
 

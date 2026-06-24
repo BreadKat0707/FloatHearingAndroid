@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.theme.FloatHearingTheme
+import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
+import cn.lemondrop.clover.CloverTheme
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
 import cn.lemondrop.fhreborn.ui.screens.demo.MicaDemoScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderBrowserScreen
@@ -120,8 +123,10 @@ fun FHRebornApp() {
         }
     }
 
-    FloatHearingTheme(darkTheme = isDarkTheme) {
-        Box(modifier = Modifier.fillMaxSize()) {
+    CompositionLocalProvider(LocalAppDarkTheme provides isDarkTheme) {
+        CloverTheme(darkTheme = isDarkTheme) {
+        FloatHearingTheme(darkTheme = isDarkTheme) {
+            Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
                 startDestination = if (isOnboardingCompleted == true) Screen.Library.route else Screen.Onboarding.route,
@@ -246,6 +251,8 @@ fun FHRebornApp() {
                     showCrashReport = false
                 }
             )
+        }
+        }
         }
     }
     }

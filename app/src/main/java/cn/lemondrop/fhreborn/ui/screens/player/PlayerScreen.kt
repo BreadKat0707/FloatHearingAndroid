@@ -9,7 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -160,7 +160,7 @@ fun PlayerScreen(
     val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues()
 
     // 流体背景上的前景色（深色用白，浅色用黑）
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = LocalAppDarkTheme.current
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
     val fluidOnColorTertiary = if (isDarkTheme) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
@@ -706,7 +706,7 @@ private fun CustomProgressBar(
     var dragProgress by remember { mutableFloatStateOf(progress) }
     var isDragging by remember { mutableStateOf(false) }
     val displayProgress = if (isDragging) dragProgress else progress
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = LocalAppDarkTheme.current
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
 
     Box(
@@ -791,7 +791,7 @@ private fun PlayerIcon(
     contentDescription: String,
     modifier: Modifier = Modifier
 ) {
-    val isDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = LocalAppDarkTheme.current
     val iconColor = if (isDarkTheme) {
         Color.White.copy(alpha = 0.6f)
     } else {
