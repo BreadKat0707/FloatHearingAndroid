@@ -24,12 +24,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverTitleBar
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -59,11 +65,33 @@ fun MainScaffold(
     val hazeState = remember { HazeState() }
     var showDrawer by remember { mutableStateOf(false) }
 
-    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    // 用 decorView 的 root window insets 同步初始化导航栏高度，避免 Compose WindowInsets 第一帧为 0 导致底栏跳动
+    val initialNavBarPadding = remember(density) {
+        with(density) {
+            val decorView = (context as? android.app.Activity)?.window?.decorView
+            val rootInsets = decorView?.let { ViewCompat.getRootWindowInsets(it) }
+            val bottom = rootInsets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+            bottom.toDp()
+        }
+    }
+    val composeNavBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues()
+        .calculateBottomPadding()
+    val navBarPadding = maxOf(initialNavBarPadding, composeNavBarPadding)
     val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding()
 
-    val barHazeBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-    val barHazeTintColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val isDarkTheme = LocalAppDarkTheme.current
+    val barHazeBackgroundColor = if (isDarkTheme) {
+        Color.Black.copy(alpha = 0.35f)
+    } else {
+        Color.White.copy(alpha = 0.70f)
+    }
+    val barHazeTintColor = if (isDarkTheme) {
+        Color.Black.copy(alpha = 0.45f)
+    } else {
+        Color.White.copy(alpha = 0.55f)
+    }
 
     val miniPlayBarHeight = 64.dp
     val acrylicBarHeight = CloverSizes.titleBarHeight +

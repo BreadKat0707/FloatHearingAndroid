@@ -71,6 +71,7 @@ fun FHRebornApp() {
     if (isOnboardingCompleted == null) return
 
     val themeMode by appSettingsRepository.themeMode.collectAsState(initial = "system")
+    val useDynamicColor by appSettingsRepository.useDynamicColor.collectAsState(initial = false)
     val isSystemDark = isSystemInDarkTheme()
     val isDarkTheme = when (themeMode) {
         "light" -> false
@@ -125,7 +126,7 @@ fun FHRebornApp() {
 
     CompositionLocalProvider(LocalAppDarkTheme provides isDarkTheme) {
         CloverTheme(darkTheme = isDarkTheme) {
-        FloatHearingTheme(darkTheme = isDarkTheme) {
+        FloatHearingTheme(darkTheme = isDarkTheme, useDynamicColor = useDynamicColor) {
             Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,

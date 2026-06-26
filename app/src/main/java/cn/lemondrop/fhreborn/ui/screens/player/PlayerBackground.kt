@@ -14,14 +14,15 @@ import android.os.SystemClock
 import android.view.Choreographer
 import android.view.View
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,7 +44,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
@@ -127,14 +127,6 @@ fun CoverBlurBackground(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
-    var bitmap by remember(songId) { mutableStateOf<Bitmap?>(null) }
-
-    LaunchedEffect(songId) {
-        withContext(Dispatchers.IO) {
-            bitmap = loadPlayerCoverBitmap(context, songId)
-        }
-    }
 
     val baseBg = if (isDarkTheme) Color.Black else Color.White
     val overlay = if (isDarkTheme) Color.Black.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.55f)
@@ -145,20 +137,34 @@ fun CoverBlurBackground(
             .background(baseBg),
         contentAlignment = Alignment.Center
     ) {
-        bitmap?.let { bmp ->
-            val imageBitmap = remember(bmp) { bmp.asImageBitmap() }
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val containerSize = maxWidth.coerceAtLeast(maxHeight)
-                val imageSize = containerSize * sqrt(2f) * 1.1f
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(imageSize)
-                        .blur(80.dp)
-                        .graphicsLayer { alpha = 0.85f }
-                )
+        Crossfade(
+            targetState = songId,
+            animationSpec = tween(600, easing = FastOutSlowInEasing),
+            label = "cover_blur_bg"
+        ) { currentSongId ->
+            var bitmap by remember(currentSongId) { mutableStateOf<Bitmap?>(null) }
+
+            LaunchedEffect(currentSongId) {
+                withContext(Dispatchers.IO) {
+                    bitmap = loadPlayerCoverBitmap(context, currentSongId)
+                }
+            }
+
+            bitmap?.let { bmp ->
+                val imageBitmap = remember(bmp) { bmp.asImageBitmap() }
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val containerSize = maxWidth.coerceAtLeast(maxHeight)
+                    val imageSize = containerSize * sqrt(2f) * 1.1f
+                    Image(
+                        bitmap = imageBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(imageSize)
+                            .blur(80.dp)
+                            .graphicsLayer { alpha = 0.85f }
+                    )
+                }
             }
         }
         Box(
@@ -177,13 +183,6 @@ private fun AgslFluidBackgroundImpl(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var bitmap by remember(songId) { mutableStateOf<Bitmap?>(null) }
-
-    LaunchedEffect(songId) {
-        withContext(Dispatchers.IO) {
-            bitmap = loadPlayerCoverBitmap(context, songId)
-        }
-    }
 
     val baseBg = if (isDarkTheme) Color.Black else Color.White
     val overlay = if (isDarkTheme) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.5f)
@@ -194,14 +193,28 @@ private fun AgslFluidBackgroundImpl(
             .background(baseBg),
         contentAlignment = Alignment.Center
     ) {
-        bitmap?.let { bmp ->
-            AndroidView(
-                factory = { AgslFluidView(it) },
-                update = { it.setBitmap(bmp) },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(60.dp)
-            )
+        Crossfade(
+            targetState = songId,
+            animationSpec = tween(600, easing = FastOutSlowInEasing),
+            label = "agsl_fluid_bg"
+        ) { currentSongId ->
+            var bitmap by remember(currentSongId) { mutableStateOf<Bitmap?>(null) }
+
+            LaunchedEffect(currentSongId) {
+                withContext(Dispatchers.IO) {
+                    bitmap = loadPlayerCoverBitmap(context, currentSongId)
+                }
+            }
+
+            bitmap?.let { bmp ->
+                AndroidView(
+                    factory = { AgslFluidView(it) },
+                    update = { it.setBitmap(bmp) },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(60.dp)
+                )
+            }
         }
         Box(
             modifier = Modifier

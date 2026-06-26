@@ -37,7 +37,7 @@ class OnboardingViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             _isScanning.value = true
 
-            scanner.scan().collect { progress ->
+            scanner.scan(quickScan = true).collect { progress ->
                 _scanProgress.value = progress
                 if (progress is ScanProgress.Completed && progress.songs.isNotEmpty()) {
                     mediaRepository.insertSongs(progress.songs)

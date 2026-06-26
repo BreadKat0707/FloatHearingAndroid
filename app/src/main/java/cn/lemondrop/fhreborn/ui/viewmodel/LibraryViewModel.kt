@@ -198,6 +198,15 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         if (hasAutoScanned || !hasStoragePermission) return
         hasAutoScanned = true
         viewModelScope.launch {
+            refreshMediaStore()
+        }
+    }
+
+    /**
+     * 手动从 MediaStore 刷新：读取系统媒体库中的音频文件变动（新增/删除/元数据修改）。
+     */
+    fun refreshMediaStore() {
+        viewModelScope.launch {
             _scanProgress.value = ScanProgress.Scanning
             scanner.scan(quickScan = true).collect { progress ->
                 _scanProgress.value = progress

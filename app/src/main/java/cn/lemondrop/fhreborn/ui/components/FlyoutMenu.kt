@@ -1,6 +1,15 @@
 package cn.lemondrop.fhreborn.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -61,12 +70,6 @@ fun FlyoutMenu(
     hazeState: HazeState? = null,
     modifier: Modifier = Modifier
 ) {
-    if (!visible) return
-
-    BackHandler {
-        onDismiss()
-    }
-
     val isDark = isCloverDark()
     val solidBg = if (isDark) Color(0xFF2B2B2B) else Color(0xFFF3F3F3)
     val scrim = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.15f)
@@ -74,57 +77,81 @@ fun FlyoutMenu(
         .calculateBottomPadding()
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 遮罩：点击空白处关闭
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(scrim)
-                .clickable(
-                    interactionSource = null,
-                    indication = null,
-                    onClick = onDismiss
-                )
-        )
+        BackHandler(enabled = visible) {
+            onDismiss()
+        }
 
-        // 菜单面板：右下角、导航栏上方
+        // 遮罩：仅淡入淡出
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(180))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(scrim)
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = onDismiss
+                    )
+            )
+        }
+
+        // 菜单面板：带缩放 + 上滑 + 淡入
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = navBarPadding, end = 4.dp),
             contentAlignment = Alignment.BottomEnd
         ) {
-            val panelModifier = Modifier
-                .width(210.dp)
-                .clip(RoundedCornerShape(CloverSizes.menuCornerRadius))
-
-            Column(
-                modifier = if (hazeState != null) {
-                    panelModifier
-                        .hazeEffect(state = hazeState) {
-                            blurRadius = 60.dp
-                            backgroundColor = solidBg.copy(alpha = 0.15f)
-                            tints = listOf(HazeTint(solidBg.copy(alpha = 0.25f)))
-                            noiseFactor = 0.12f
-                        }
-                } else {
-                    panelModifier.background(solidBg)
-                }
-                    .clickable(
-                        interactionSource = null,
-                        indication = null,
-                        onClick = {}
-                    )
-                    .padding(vertical = 10.dp)
+            AnimatedVisibility(
+                visible = visible,
+                enter = scaleIn(
+                    initialScale = 0.85f,
+                    animationSpec = tween(250, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(200)) +
+                        slideInVertically(animationSpec = tween(250)) { it / 3 },
+                exit = scaleOut(
+                    targetScale = 0.85f,
+                    animationSpec = tween(180)
+                ) + fadeOut(animationSpec = tween(150)) +
+                        slideOutVertically(animationSpec = tween(180)) { it / 3 }
             ) {
-                items.forEach { item ->
-                    CloverMenuItem(
-                        label = item.label,
-                        icon = item.icon,
-                        onClick = {
-                            onDismiss()
-                            item.onClick()
-                        }
-                    )
+                val panelModifier = Modifier
+                    .width(210.dp)
+                    .clip(RoundedCornerShape(CloverSizes.menuCornerRadius))
+
+                Column(
+                    modifier = if (hazeState != null) {
+                        panelModifier
+                            .hazeEffect(state = hazeState) {
+                                blurRadius = 60.dp
+                                backgroundColor = solidBg.copy(alpha = 0.15f)
+                                tints = listOf(HazeTint(solidBg.copy(alpha = 0.25f)))
+                                noiseFactor = 0.12f
+                            }
+                    } else {
+                        panelModifier.background(solidBg)
+                    }
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = {}
+                        )
+                        .padding(4.dp)
+                ) {
+                    items.forEach { item ->
+                        CloverMenuItem(
+                            label = item.label,
+                            icon = item.icon,
+                            onClick = {
+                                onDismiss()
+                                item.onClick()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -142,12 +169,6 @@ fun FlyoutMenu(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    if (!visible) return
-
-    BackHandler {
-        onDismiss()
-    }
-
     val isDark = isCloverDark()
     val solidBg = if (isDark) Color(0xFF2B2B2B) else Color(0xFFF3F3F3)
     val scrim = if (isDark) Color.Black.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.15f)
@@ -155,16 +176,26 @@ fun FlyoutMenu(
         .calculateBottomPadding()
 
     Box(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(scrim)
-                .clickable(
-                    interactionSource = null,
-                    indication = null,
-                    onClick = onDismiss
-                )
-        )
+        BackHandler(enabled = visible) {
+            onDismiss()
+        }
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(180))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(scrim)
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = onDismiss
+                    )
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -172,30 +203,44 @@ fun FlyoutMenu(
                 .padding(bottom = navBarPadding, end = 4.dp),
             contentAlignment = Alignment.BottomEnd
         ) {
-            val panelModifier = Modifier
-                .width(210.dp)
-                .clip(RoundedCornerShape(CloverSizes.menuCornerRadius))
-
-            Column(
-                modifier = if (hazeState != null) {
-                    panelModifier
-                        .hazeEffect(state = hazeState) {
-                            blurRadius = 60.dp
-                            backgroundColor = solidBg.copy(alpha = 0.15f)
-                            tints = listOf(HazeTint(solidBg.copy(alpha = 0.25f)))
-                            noiseFactor = 0.12f
-                        }
-                } else {
-                    panelModifier.background(solidBg)
-                }
-                    .clickable(
-                        interactionSource = null,
-                        indication = null,
-                        onClick = {}
-                    )
-                    .padding(vertical = 10.dp)
+            AnimatedVisibility(
+                visible = visible,
+                enter = scaleIn(
+                    initialScale = 0.85f,
+                    animationSpec = tween(250, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(200)) +
+                        slideInVertically(animationSpec = tween(250)) { it / 3 },
+                exit = scaleOut(
+                    targetScale = 0.85f,
+                    animationSpec = tween(180)
+                ) + fadeOut(animationSpec = tween(150)) +
+                        slideOutVertically(animationSpec = tween(180)) { it / 3 }
             ) {
-                content()
+                val panelModifier = Modifier
+                    .width(210.dp)
+                    .clip(RoundedCornerShape(CloverSizes.menuCornerRadius))
+
+                Column(
+                    modifier = if (hazeState != null) {
+                        panelModifier
+                            .hazeEffect(state = hazeState) {
+                                blurRadius = 60.dp
+                                backgroundColor = solidBg.copy(alpha = 0.15f)
+                                tints = listOf(HazeTint(solidBg.copy(alpha = 0.25f)))
+                                noiseFactor = 0.12f
+                            }
+                    } else {
+                        panelModifier.background(solidBg)
+                    }
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = {}
+                        )
+                        .padding(4.dp)
+                ) {
+                    content()
+                }
             }
         }
     }

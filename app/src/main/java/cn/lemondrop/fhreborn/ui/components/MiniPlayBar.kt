@@ -37,7 +37,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.fhreborn.ui.screens.player.FluidBackground
+import cn.lemondrop.fhreborn.ui.screens.player.PlayerBackground
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
@@ -132,10 +132,9 @@ fun MiniPlayBar(
                 .fillMaxSize()
                 .clip(RoundedCornerShape(FluentLargeCorner))
         ) {
-            FluidBackground(
+            PlayerBackground(
                 songId = currentSong?.id,
                 isPlaying = isPlaying,
-                isDarkTheme = isDarkTheme,
                 modifier = Modifier.fillMaxSize()
             )
 

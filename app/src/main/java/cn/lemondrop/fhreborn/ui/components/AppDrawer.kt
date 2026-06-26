@@ -1,8 +1,11 @@
 package cn.lemondrop.fhreborn.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -58,7 +61,10 @@ fun AppDrawer(
         hazeTints = CloverHazeDefaults.tints(
             baseColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.40f)
         )
-    ) {
+) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {
         // 主页面导航
         DrawerNavItem(
             route = Screen.Library.route,
@@ -148,6 +154,7 @@ fun AppDrawer(
             onNavigate = onNavigate,
             onDismiss = onDismiss
         )
+        }
     }
 }
 

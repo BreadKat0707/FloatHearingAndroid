@@ -15,6 +15,7 @@ import io.github.composefluent.FluentTheme
 import io.github.composefluent.darkColors
 import io.github.composefluent.lightColors
 
+// 保留原 Fluent 回退色板，但默认已改用 AppColors
 private val LightColorScheme = lightColorScheme(
     primary = FluentLightColors.primary,
     onPrimary = FluentLightColors.onPrimary,
@@ -51,17 +52,18 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun FloatHearingTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    useDynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     val colorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        else -> if (darkTheme) DarkColorScheme else LightColorScheme
+        else -> if (darkTheme) AppDarkColorScheme else AppLightColorScheme
     }
 
-    // 用 Material3 动态颜色的 primary 作为 compose-fluent 的 accent
+    // 用当前 Material3 primary 作为 compose-fluent 的 accent
     val fluentColors = remember(colorScheme.primary, darkTheme) {
         if (darkTheme) darkColors(accent = colorScheme.primary)
         else lightColors(accent = colorScheme.primary)

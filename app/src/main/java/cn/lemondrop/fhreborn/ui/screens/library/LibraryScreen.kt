@@ -113,12 +113,14 @@ import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.MapPin
 import com.composables.icons.lucide.Menu
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Pause
 import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.Repeat
+import com.composables.icons.lucide.RotateCcw
 import com.composables.icons.lucide.Shuffle
 import com.composables.icons.lucide.SkipForward
 
@@ -149,6 +151,7 @@ fun LibraryScreen(
     val sortField by viewModel.sortField.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
     val hiddenFolders by viewModel.hiddenFolders.collectAsState(initial = emptySet())
+    val currentSong by playerViewModel.currentSong.collectAsState()
 
     // 启动时自动快速刷新音乐库（仅 MediaStore，需要存储/音频权限）
     val hasStoragePermission = PermissionUtils.hasStoragePermission(context)
@@ -167,6 +170,7 @@ fun LibraryScreen(
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showTitleBarMenu by remember { mutableStateOf(false) }
+    var pendingLocateSongId by remember { mutableStateOf<Long?>(null) }
 
     val displaySongs = if (searchQuery.isNotBlank()) searchResults else songs
 
@@ -181,6 +185,18 @@ fun LibraryScreen(
     val bottomControlsHeight = miniPlayBarHeight + 8.dp + acrylicHeight + 16.dp
 
     val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
+
+    // 定位当前播放：切到“歌曲”标签后滚动到对应项
+    LaunchedEffect(pendingLocateSongId, displaySongs) {
+        val targetId = pendingLocateSongId ?: return@LaunchedEffect
+        val index = displaySongs.indexOfFirst { it.id == targetId }
+        if (index >= 0) {
+            val headerCount = (if (isSearching) 1 else 0) + 1
+            listState.animateScrollToItem(headerCount + index)
+            pendingLocateSongId = null
+        }
+    }
+
     val drawerHazeState = remember { HazeState() }
     val barHazeBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
     val barHazeTintColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -453,12 +469,16 @@ fun LibraryScreen(
         onDismiss = { showTitleBarMenu = false },
         hazeState = drawerHazeState,
         onSortClick = { showSortSheet = true },
+        onRefreshClick = { viewModel.refreshMediaStore() },
         onMultiSelectClick = { /* TODO: multi-select */ },
         onScrollToTop = {
             // TODO: 回到顶部
         },
         onLocateCurrent = {
-            // TODO: 定位当前播放位置
+            currentSong?.let { song ->
+                selectedNavIndex = 0
+                pendingLocateSongId = song.id
+            }
         },
         onLayoutToggle = {
             // TODO: 切换列表布局
@@ -908,16 +928,18 @@ private fun TitleBarFlyoutMenu(
     onDismiss: () -> Unit,
     hazeState: HazeState,
     onSortClick: () -> Unit = {},
+    onRefreshClick: () -> Unit = {},
     onMultiSelectClick: () -> Unit = {},
     onScrollToTop: () -> Unit = {},
     onLocateCurrent: () -> Unit = {},
     onLayoutToggle: () -> Unit = {}
 ) {
     val items = listOf(
+        FlyoutMenuItem("刷新", Lucide.RotateCcw) { onRefreshClick() },
         FlyoutMenuItem("排序", Lucide.ArrowUpDown) { onSortClick() },
         FlyoutMenuItem("多选", Lucide.ListChecks) { onMultiSelectClick() },
         FlyoutMenuItem("回到顶部", Lucide.ArrowUp) { onScrollToTop() },
-        FlyoutMenuItem("定位当前播放", Lucide.Music) { onLocateCurrent() },
+        FlyoutMenuItem("定位当前播放", Lucide.MapPin) { onLocateCurrent() },
         FlyoutMenuItem("列表布局", Lucide.LayoutList) { onLayoutToggle() }
     )
 
