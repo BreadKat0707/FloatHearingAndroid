@@ -27,8 +27,7 @@ import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import cn.lemondrop.clover.material.cloverAcrylic
 import dev.chrisbanes.haze.hazeSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -124,12 +123,6 @@ import com.composables.icons.lucide.RotateCcw
 import com.composables.icons.lucide.Shuffle
 import com.composables.icons.lucide.SkipForward
 
-/**
- * 媒体库页面 — 底部倒置布局（PRD 规范）
- *
- * 从上到下（屏幕底部方向）：
- * 浮动 MiniPlayBar → 底部导航栏 → 标题栏（最底部，单手可达）
- */
 @Composable
 fun LibraryScreen(
     currentRoute: String,
@@ -198,8 +191,6 @@ fun LibraryScreen(
     }
 
     val drawerHazeState = remember { HazeState() }
-    val barHazeBackgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-    val barHazeTintColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
 
     val isCompact = cloverIsCompactWidth()
 
@@ -376,12 +367,7 @@ fun LibraryScreen(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .hazeEffect(state = drawerHazeState) {
-                        blurRadius = 40.dp
-                        backgroundColor = barHazeBackgroundColor
-                        tints = listOf(HazeTint(barHazeTintColor))
-                        noiseFactor = 0.1f
-                    }
+                    .cloverAcrylic(state = drawerHazeState)
                     .pointerInput(Unit) {
                         // 拦截亚克力面板空白区域的点击，不触发后面列表项的点击
                         detectTapGestures(onTap = { })

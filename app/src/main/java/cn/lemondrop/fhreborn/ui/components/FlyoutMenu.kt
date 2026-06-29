@@ -32,9 +32,8 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.isCloverDark
+import cn.lemondrop.clover.material.cloverAcrylic
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 
 /**
  * 通用 Flyout 菜单项
@@ -126,12 +125,11 @@ fun FlyoutMenu(
                 Column(
                     modifier = if (hazeState != null) {
                         panelModifier
-                            .hazeEffect(state = hazeState) {
+                            .cloverAcrylic(
+                                state = hazeState,
+                                backgroundColor = solidBg.copy(alpha = 0.15f),
                                 blurRadius = 60.dp
-                                backgroundColor = solidBg.copy(alpha = 0.15f)
-                                tints = listOf(HazeTint(solidBg.copy(alpha = 0.25f)))
-                                noiseFactor = 0.12f
-                            }
+                            )
                     } else {
                         panelModifier.background(solidBg)
                     }
@@ -223,12 +221,11 @@ fun FlyoutMenu(
                 Column(
                     modifier = if (hazeState != null) {
                         panelModifier
-                            .hazeEffect(state = hazeState) {
+                            .cloverAcrylic(
+                                state = hazeState,
+                                backgroundColor = solidBg.copy(alpha = 0.15f),
                                 blurRadius = 60.dp
-                                backgroundColor = solidBg.copy(alpha = 0.15f)
-                                tints = listOf(HazeTint(solidBg.copy(alpha = 0.25f)))
-                                noiseFactor = 0.12f
-                            }
+                            )
                     } else {
                         panelModifier.background(solidBg)
                     }

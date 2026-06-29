@@ -371,6 +371,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("", "主题与颜色", null, null, SettingType.Info),
                 SettingItem("theme_mode", "颜色模式", "深色 / 浅色 / 跟随系统", null, SettingType.Selection(listOf(Option("system", "跟随系统"), Option("light", "浅色"), Option("dark", "深色"))), "system"),
                 SettingItem("accent_color", "主题颜色", "紫色", Lucide.Palette, SettingType.Selection(listOf(Option("默认", "默认"), Option("蓝", "蓝"), Option("绿", "绿"), Option("紫", "紫"), Option("橙", "橙"), Option("粉", "粉"), Option("红", "红"), Option("青", "青"))), "紫"),
+                SettingItem("dynamic_color", "Material You 动态取色", "跟随系统的壁纸取色使用monet取色", Lucide.Palette, SettingType.Toggle, false),
 
                 // 主界面
                 SettingItem("", "主界面", null, null, SettingType.Info),
@@ -379,12 +380,12 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
 
                 // 播放器
                 SettingItem("", "播放器", null, null, SettingType.Info),
-                SettingItem("player_bg", "播放器页面背景", "旋转流体背景（跟随app颜色模式）", null, SettingType.Selection(listOf(
+                SettingItem("player_bg", "播放器页面背景", "专辑封面模糊（跟随app颜色模式）", null, SettingType.Selection(listOf(
                     Option("rotating_fluid", "旋转流体背景（跟随app颜色模式）"),
                     Option("agsl_fluid", "AGSL流体背景（跟随app颜色模式）"),
                     Option("cover_blur", "专辑封面模糊（跟随app颜色模式）"),
                     Option("default_color", "默认背景色（跟随app颜色模式）")
-                )), "rotating_fluid"),
+                )), "cover_blur"),
                 SettingItem("cover_radius", "封面圆角大小调整", "调整播放器专辑封面的圆角大小", null, SettingType.Slider(0f, 24f, 23), 12),
                 SettingItem("cover_crop", "封面裁剪", "将不规则尺寸的封面以正方形显示", null, SettingType.Toggle, true),
                 SettingItem("show_playmode_queue", "显示播放模式和播放列表", "显示在播放控制两侧", null, SettingType.Toggle, true),
@@ -410,7 +411,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("power_save_mode", "节电模式", "降低后台刷新和动画以延长续航", Lucide.Zap, SettingType.Toggle, false),
                 SettingItem("keep_in_background", "保持后台播放", "允许应用在后台持续播放", null, SettingType.Toggle, true),
                 SettingItem("stop_on_task_removed", "移除任务时停止", "从最近任务划掉后停止播放", null, SettingType.Toggle, false),
-                SettingItem("wake_lock", "唤醒锁", "防止屏幕关闭时中断播放", null, SettingType.Toggle, true),
+                SettingItem("wake_lock", "唤醒锁", "播放器页面保持屏幕常亮", null, SettingType.Toggle, true),
 
                 // 自动行为
                 SettingItem("", "自动行为", null, null, SettingType.Info),
@@ -420,20 +421,11 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("auto_resume", "中断后自动恢复", "来电或通知结束后自动恢复播放", null, SettingType.Toggle, true),
                 SettingItem("gapless_playback", "无缝播放", "消除歌曲间的间隙", null, SettingType.Toggle, true),
 
-                // 封面与取色
-                SettingItem("", "封面与取色", null, null, SettingType.Info),
-                SettingItem("cover_extract_color", "封面取色", "从专辑封面提取主题色用于流体背景", Lucide.Palette, SettingType.Toggle, true),
-                SettingItem("cover_extract_mode", "取色模式", "鲜艳 / 柔和 / 暗色 / 亮色", null, SettingType.Selection(listOf(Option("鲜艳", "鲜艳"), Option("柔和", "柔和"), Option("暗色", "暗色"), Option("亮色", "亮色"), Option("自适应", "自适应"))), "自适应"),
-                SettingItem("cover_fallback_color", "默认主题色", "无封面时的备用颜色", null, SettingType.Selection(listOf(Option("默认", "默认"), Option("蓝", "蓝"), Option("绿", "绿"), Option("紫", "紫"), Option("橙", "橙"), Option("粉", "粉"), Option("红", "红"), Option("青", "青"))), "默认"),
-                SettingItem("cover_blur_radius", "封面模糊半径", "流体背景的模糊强度", null, SettingType.Slider(0f, 64f, 63), 32),
-
                 // 常用功能
                 SettingItem("sleep_timer", "睡眠定时器", "设定时间后自动停止播放", Lucide.Clock, SettingType.Selection(listOf(Option("关闭", "关闭"), Option("15分钟", "15分钟"), Option("30分钟", "30分钟"), Option("45分钟", "45分钟"), Option("60分钟", "60分钟"), Option("自定义", "自定义"))), "关闭"),
                 SettingItem("skip_silence", "跳过静音", "自动跳过歌曲开头的静音部分", null, SettingType.Toggle, false),
                 SettingItem("gesture_control", "手势控制", "播放页左滑下首 / 右滑上首", null, SettingType.Toggle, true),
-                SettingItem("mini_lyric", "迷你歌词", "播放页显示当前歌词行", null, SettingType.Toggle, true),
-                SettingItem("lockscreen_controls", "锁屏控制", "在锁屏界面显示播放控制", null, SettingType.Toggle, true),
-                SettingItem("media_session_artwork", "媒体会话封面", "在通知和锁屏显示专辑封面", null, SettingType.Toggle, true)
+                SettingItem("mini_lyric", "迷你歌词", "播放页显示当前歌词行", null, SettingType.Toggle, true)
             )
         ),
         cn.lemondrop.fhreborn.data.model.SettingCategory(

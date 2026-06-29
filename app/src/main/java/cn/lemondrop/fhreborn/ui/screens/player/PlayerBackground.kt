@@ -64,7 +64,7 @@ sealed class PlayerBackgroundType(val key: String) {
             AgslFluid.key -> AgslFluid
             CoverBlur.key -> CoverBlur
             DefaultColor.key -> DefaultColor
-            else -> RotatingFluid
+            else -> CoverBlur
         }
     }
 }
@@ -77,8 +77,8 @@ fun PlayerBackground(
 ) {
     val context = LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
-    val bgKey by repository.getString("player_bg", PlayerBackgroundType.RotatingFluid.key)
-        .collectAsState(initial = PlayerBackgroundType.RotatingFluid.key)
+    val bgKey by repository.getString("player_bg", PlayerBackgroundType.CoverBlur.key)
+        .collectAsState(initial = PlayerBackgroundType.CoverBlur.key)
     val type = remember(bgKey) { PlayerBackgroundType.fromKey(bgKey) }
 
     // 跟随 app 主题（而不是系统）判断深浅

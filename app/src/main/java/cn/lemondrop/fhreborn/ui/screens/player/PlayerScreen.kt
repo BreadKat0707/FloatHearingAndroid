@@ -5,6 +5,7 @@ package cn.lemondrop.fhreborn.ui.screens.player
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -43,15 +44,13 @@ import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +75,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import android.app.Activity
+import android.view.WindowManager
+import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -84,7 +86,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.FileProvider
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
@@ -122,7 +123,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.min
+import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 fun PlayerScreen(
@@ -133,6 +134,18 @@ fun PlayerScreen(
     val context = LocalContext.current
     val settingsRepository = remember { SettingsRepository(context) }
     val lyricAlignCenter by settingsRepository.isLyricAlignCenter.collectAsState(initial = false)
+
+    val appSettingsRepository = remember { AppSettingsRepository(context) }
+    val keepScreenOn by appSettingsRepository.wakeLock.collectAsState(initial = true)
+    DisposableEffect(keepScreenOn) {
+        val window = (context as? Activity)?.window
+        if (keepScreenOn) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -154,6 +167,7 @@ fun PlayerScreen(
 
     val queueProgress = remember { Animatable(0f) }
     val isQueueOpen by remember { derivedStateOf { queueProgress.value > 0.5f } }
+    val lyricsBackProgress = remember { Animatable(0f) }
     val lyricsProgress by animateFloatAsState(
         targetValue = if (showLyrics) 1f else 0f,
         animationSpec = tween(400, easing = FastOutSlowInEasing),
@@ -180,6 +194,24 @@ fun PlayerScreen(
     // 进入动画：从屏幕底部滑入
     LaunchedEffect(Unit) {
         offsetY.animateTo(0f, animationSpec = tween(350, easing = FastOutSlowInEasing))
+    }
+
+    // 播放器页返回：预测返回手势驱动页面下滑收起
+    PredictiveBackHandler(
+        enabled = !showLyrics && !isQueueOpen && !showMore && !showTimer && !showCoverViewer
+    ) { progress ->
+        try {
+            progress.collect { event ->
+                val p = event.progress.coerceIn(0f, 1f)
+                offsetY.snapTo(p * screenHeightPx)
+            }
+            scope.launch {
+                offsetY.animateTo(screenHeightPx, tween(250))
+                onBack()
+            }
+        } catch (_: CancellationException) {
+            scope.launch { offsetY.animateTo(0f, tween(200)) }
+        }
     }
 
     val dragOffsetY = offsetY.value
@@ -281,6 +313,8 @@ fun PlayerScreen(
             }
     ) {
         SharedTransitionLayout {
+            val sharedTransitionScope = this@SharedTransitionLayout
+
             // 播放器背景（根据设置选择：旋转流体 / AGSL 流体 / 封面模糊 / 默认颜色）
         PlayerBackground(
             songId = currentSong?.id,
@@ -292,7 +326,7 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart
         ) {
-            // 播放器主内容：随队列呼出向上滑走；打开歌词时淡出
+            // 播放器主内容：随队列呼出向上滑走；打开歌词时非共享元素淡出
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -300,7 +334,6 @@ fun PlayerScreen(
                         scaleX = scale
                         scaleY = scale
                         translationY = -queueProgress.value * screenHeightPx
-                        alpha = 1f - lyricsProgress
                     }
                     .padding(
                         top = statusBarPadding.calculateTopPadding(),
@@ -313,7 +346,8 @@ fun PlayerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .height(48.dp)
+                        .graphicsLayer { alpha = 1f - lyricsProgress },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -440,11 +474,16 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // 歌曲信息
-                Column(modifier = Modifier.fillMaxWidth()) {
+                // 歌曲信息（与歌词页底部面板共享元素过渡）
+                val songInfoSourceModifier = with(sharedTransitionScope) {
+                    Modifier.sharedElementWithCallerManagedVisibility(
+                        sharedContentState = rememberSharedContentState(key = "player_song_info"),
+                        visible = true
+                    )
+                }
+                Column(modifier = songInfoSourceModifier.fillMaxWidth()) {
                     Text(
                         text = currentSong?.title ?: "未在播放",
-                        modifier = Modifier.fluidBlend(targetBlendMode),
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         color = fluidOnColorSecondary,
                         maxLines = 1,
@@ -453,7 +492,6 @@ fun PlayerScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = currentSong?.let { "${it.artist} - ${it.album}" } ?: "选择一首歌曲开始",
-                        modifier = Modifier.fluidBlend(targetBlendMode),
                         style = MaterialTheme.typography.bodyLarge,
                         color = fluidOnColorTertiary,
                         maxLines = 1,
@@ -471,6 +509,7 @@ fun PlayerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer { alpha = 1f - lyricsProgress }
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -535,36 +574,21 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 进度条
-                val safeDuration = duration.coerceAtLeast(1L)
-                val progressValue = (position.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
-
-                CustomProgressBar(
-                    progress = progressValue,
-                    onProgressChange = { fraction ->
-                        viewModel.seekTo((fraction * safeDuration).toLong())
-                    },
-                    blendMode = targetBlendMode,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatDuration(position),
-                        modifier = Modifier.fluidBlend(targetBlendMode),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = fluidOnColorTertiary
+                // 进度条（与歌词页底部面板共享元素过渡）
+                val progressSourceModifier = with(sharedTransitionScope) {
+                    Modifier.sharedElementWithCallerManagedVisibility(
+                        sharedContentState = rememberSharedContentState(key = "player_progress"),
+                        visible = true
                     )
-                    Text(
-                        text = formatDuration(duration),
-                        modifier = Modifier.fluidBlend(targetBlendMode),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = fluidOnColorTertiary
+                }
+                Column(modifier = progressSourceModifier.fillMaxWidth()) {
+                    PlayerProgressSlider(
+                        position = position,
+                        duration = duration,
+                        onProgressChange = { fraction ->
+                            viewModel.seekTo((fraction * duration.coerceAtLeast(1L)).toLong())
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
@@ -572,7 +596,9 @@ fun PlayerScreen(
 
                 // 播放控制
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = 1f - lyricsProgress },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -626,7 +652,9 @@ fun PlayerScreen(
 
                 // 底部操作栏
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = 1f - lyricsProgress },
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     FluentIconButton(onClick = { /* TODO: 音频输出 */ }) {
@@ -670,10 +698,11 @@ fun PlayerScreen(
                     }
                 }
 
-                // 上划打开播放队列
+                // 上划打开播放队列（仅箭头，位于播放队列图标上方）
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer { alpha = 1f - lyricsProgress }
                         .clickable(
                             interactionSource = null,
                             indication = null,
@@ -682,25 +711,28 @@ fun PlayerScreen(
                         .padding(vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Lucide.ChevronUp,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = fluidOnColorTertiary
-                        )
-                        Text(
-                            text = "播放队列",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = fluidOnColorTertiary
-                        )
-                    }
+                    Icon(
+                        imageVector = Lucide.ChevronUp,
+                        contentDescription = "上划打开播放队列",
+                        modifier = Modifier.size(20.dp),
+                        tint = fluidOnColorTertiary
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
             // 播放队列：从底部滑入
+            PredictiveBackHandler(enabled = isQueueOpen) { progress ->
+                try {
+                    progress.collect { event ->
+                        queueProgress.snapTo((1f - event.progress).coerceIn(0f, 1f))
+                    }
+                    closeQueue()
+                } catch (_: CancellationException) {
+                    scope.launch { queueProgress.animateTo(1f, tween(200)) }
+                }
+            }
             if (queueProgress.value > 0f) {
                 PlayerQueueScreen(
                     queue = queue,
@@ -756,41 +788,59 @@ fun PlayerScreen(
             )
         }
 
-        // 更多菜单弹窗
+        // 歌词弹窗（无歌词时也显示，提示“暂无歌词”并保留底部面板）
+        PredictiveBackHandler(enabled = showLyrics) { progress ->
+            try {
+                progress.collect { event ->
+                    lyricsBackProgress.snapTo(event.progress.coerceIn(0f, 1f))
+                }
+                showLyrics = false
+                lyricsBackProgress.snapTo(0f)
+            } catch (_: CancellationException) {
+                scope.launch { lyricsBackProgress.animateTo(0f, tween(200)) }
+            }
+        }
+        AnimatedVisibility(
+            visible = showLyrics,
+            enter = fadeIn(tween(250)),
+            exit = fadeOut(tween(200))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = 1f - lyricsBackProgress.value
+                        translationY = lyricsBackProgress.value * 100.dp.toPx()
+                    }
+            ) {
+                LyricSheet(
+                    lyrics = lyrics,
+                    currentPosition = position,
+                    isDarkTheme = isDarkTheme,
+                    song = currentSong,
+                    coverBitmap = currentCoverBitmap,
+                    duration = duration,
+                    onDismiss = { showLyrics = false },
+                    onSeek = { time ->
+                        viewModel.seekTo(time)
+                    },
+                    onMoreClick = {
+                        // 在歌词页上直接弹出更多菜单，不退出歌词页
+                        showMore = true
+                    },
+                    animatedVisibilityScope = this@AnimatedVisibility,
+                    sharedTransitionScope = this@SharedTransitionLayout
+                )
+            }
+        }
+
+        // 更多菜单弹窗（放在歌词弹窗之后，确保显示在歌词层之上）
         if (showMore) {
             BackHandler { showMore = false }
             PlayerMoreSheet(
                 onDismiss = { showMore = false },
                 onTimerClick = { showTimer = true },
                 onShareClick = { shareCurrentSong(context, currentSong) }
-            )
-        }
-
-        // 歌词弹窗
-        val currentLyrics = lyrics
-        AnimatedVisibility(
-            visible = showLyrics && currentLyrics != null,
-            enter = fadeIn(tween(250)),
-            exit = fadeOut(tween(200))
-        ) {
-            BackHandler(enabled = showLyrics) { showLyrics = false }
-            LyricSheet(
-                lyrics = currentLyrics ?: return@AnimatedVisibility,
-                currentPosition = position,
-                isDarkTheme = isDarkTheme,
-                song = currentSong,
-                coverBitmap = currentCoverBitmap,
-                duration = duration,
-                onDismiss = { showLyrics = false },
-                onSeek = { time ->
-                    viewModel.seekTo(time)
-                },
-                onMoreClick = {
-                    showLyrics = false
-                    showMore = true
-                },
-                animatedVisibilityScope = this,
-                sharedTransitionScope = this@SharedTransitionLayout
             )
         }
 
@@ -808,61 +858,110 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun CustomProgressBar(
-    progress: Float,
+private fun PlayerProgressSlider(
+    position: Long,
+    duration: Long,
     onProgressChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-    blendMode: BlendMode = BlendMode.Plus
+    modifier: Modifier = Modifier
 ) {
+    val safeDuration = duration.coerceAtLeast(1L)
+    val progress = (position.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
     var dragProgress by remember { mutableFloatStateOf(progress) }
     var isDragging by remember { mutableStateOf(false) }
     val displayProgress = if (isDragging) dragProgress else progress
     val isDarkTheme = LocalAppDarkTheme.current
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
+    val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
     val accentColor = MaterialTheme.colorScheme.primary
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(24.dp)
-            .fluidBlend(blendMode)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { isDragging = true },
-                    onDragEnd = {
-                        isDragging = false
-                        onProgressChange(dragProgress)
-                    },
-                    onHorizontalDrag = { change, _ ->
-                        change.consume()
-                        val newProgress = (change.position.x / size.width).coerceIn(0f, 1f)
-                        dragProgress = newProgress
-                    }
-                )
-            },
-        contentAlignment = Alignment.CenterStart
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        // 拖动时显示目标时间（位于进度条中上方）
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(fluidOnColor.copy(alpha = 0.2f))
-        )
+                .height(20.dp)
+        ) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isDragging,
+                enter = fadeIn(tween(100)),
+                exit = fadeOut(tween(100))
+            ) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.weight(dragProgress))
+                    Text(
+                        text = formatDuration((dragProgress * safeDuration).toLong()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = fluidOnColorSecondary,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.weight(1f - dragProgress))
+                }
+            }
+        }
 
         Box(
             modifier = Modifier
-                .fillMaxWidth(displayProgress)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(accentColor.copy(alpha = 0.9f))
-        )
+                .fillMaxWidth()
+                .height(24.dp)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            isDragging = true
+                            dragProgress = progress
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            onProgressChange(dragProgress)
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            val newProgress = (change.position.x / size.width).coerceIn(0f, 1f)
+                            dragProgress = newProgress
+                        }
+                    )
+                },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(fluidOnColor.copy(alpha = 0.2f))
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(displayProgress)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(accentColor.copy(alpha = 0.9f))
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = formatDuration(position),
+                style = MaterialTheme.typography.labelSmall,
+                color = fluidOnColorSecondary
+            )
+            Text(
+                text = formatDuration(duration),
+                style = MaterialTheme.typography.labelSmall,
+                color = fluidOnColorSecondary
+            )
+        }
     }
 }
 
 @Composable
 private fun LyricSheet(
-    lyrics: SyncedLyrics,
+    lyrics: SyncedLyrics?,
     currentPosition: Long,
     isDarkTheme: Boolean,
     song: Song?,
@@ -907,24 +1006,43 @@ private fun LyricSheet(
                 )
         )
 
-        // 大歌词：通过包装层隔离进度状态，避免在主线程重组过程中直接写状态导致循环
-        KaraokeLyricsViewWrapper(
-            lyrics = lyrics,
-            currentPosition = currentPosition,
-            listState = listState,
-            isDarkTheme = isDarkTheme,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = statusBarPadding + 8.dp,
-                    start = 6.dp,
-                    end = 6.dp,
-                    bottom = navBarPadding + 60.dp
-                ),
-            onLineClicked = { line ->
-                onSeek(line.start.toLong())
+        if (lyrics != null) {
+            // 大歌词：通过包装层隔离进度状态，避免在主线程重组过程中直接写状态导致循环
+            KaraokeLyricsViewWrapper(
+                lyrics = lyrics,
+                currentPosition = currentPosition,
+                listState = listState,
+                isDarkTheme = isDarkTheme,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = statusBarPadding + 8.dp,
+                        start = 6.dp,
+                        end = 6.dp,
+                        bottom = navBarPadding + 60.dp
+                    ),
+                onLineClicked = { line ->
+                    onSeek(line.start.toLong())
+                }
+            )
+        } else {
+            // 无歌词提示
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = statusBarPadding + 8.dp,
+                        bottom = navBarPadding + 140.dp
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "暂无歌词",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = fluidOnColor.copy(alpha = 0.5f)
+                )
             }
-        )
+        }
 
         // 底部固定面板：小封面 + 歌曲信息 + 三点菜单 + 进度条（无背景，左右与歌词对齐 28.dp）
         Column(
@@ -983,8 +1101,18 @@ private fun LyricSheet(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
+                val songInfoTargetModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "player_song_info"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    }
+                } else {
+                    Modifier
+                }
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = songInfoTargetModifier.weight(1f)
                 ) {
                     Text(
                         text = song?.title ?: "未在播放",
@@ -1014,31 +1142,60 @@ private fun LyricSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            val progressTargetModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                with(sharedTransitionScope) {
+                    Modifier.sharedElement(
+                        sharedContentState = rememberSharedContentState(key = "player_progress"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                }
+            } else {
+                Modifier
+            }
             val progress = if (duration > 0) currentPosition / duration.toFloat() else 0f
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(onSurface.copy(alpha = 0.2f))
-                    .pointerInput(duration) {
-                        detectHorizontalDragGestures(
-                            onDragStart = {},
-                            onHorizontalDrag = { change, _ ->
-                                change.consume()
-                                val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                                onSeek((fraction * duration).toLong())
-                            },
-                            onDragEnd = {}
-                        )
-                    }
-            ) {
+            Column(modifier = progressTargetModifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(progress)
+                        .fillMaxWidth()
                         .height(4.dp)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(onSurface.copy(alpha = 0.2f))
+                        .pointerInput(duration) {
+                            detectHorizontalDragGestures(
+                                onDragStart = {},
+                                onHorizontalDrag = { change, _ ->
+                                    change.consume()
+                                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                    onSeek((fraction * duration).toLong())
+                                },
+                                onDragEnd = {}
+                            )
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .height(4.dp)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatDuration(currentPosition),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = onSurface.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = formatDuration(duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = onSurface.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
     }

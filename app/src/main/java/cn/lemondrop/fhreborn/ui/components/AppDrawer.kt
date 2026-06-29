@@ -2,7 +2,6 @@ package cn.lemondrop.fhreborn.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverBottomSheet
-import cn.lemondrop.clover.CloverHazeDefaults
 import cn.lemondrop.clover.CloverMenuItem
+import cn.lemondrop.clover.material.CloverMaterial
 import cn.lemondrop.fhreborn.Screen
 import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.Clover
@@ -58,8 +57,8 @@ fun AppDrawer(
         onDismiss = onDismiss,
         modifier = modifier,
         hazeState = hazeState,
-        hazeTints = CloverHazeDefaults.tints(
-            baseColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.40f)
+        hazeTints = CloverMaterial.Acrylic.tints(
+            baseColor = MaterialTheme.colorScheme.surface
         )
 ) {
         Column(

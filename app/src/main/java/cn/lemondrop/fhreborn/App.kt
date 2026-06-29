@@ -125,7 +125,7 @@ fun FHRebornApp() {
     }
 
     CompositionLocalProvider(LocalAppDarkTheme provides isDarkTheme) {
-        CloverTheme(darkTheme = isDarkTheme) {
+        CloverTheme(darkTheme = isDarkTheme, dynamicColor = useDynamicColor) {
         FloatHearingTheme(darkTheme = isDarkTheme, useDynamicColor = useDynamicColor) {
             Box(modifier = Modifier.fillMaxSize()) {
             NavHost(

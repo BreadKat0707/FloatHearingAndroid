@@ -25,7 +25,7 @@ class AppSettingsRepository(private val context: Context) {
     val themeMode: Flow<String> = dataStore.data.map { it[stringPreferencesKey("theme_mode")] ?: "system" }
     suspend fun setThemeMode(value: String) = dataStore.edit { it[stringPreferencesKey("theme_mode")] = value }
 
-    val useDynamicColor: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("dynamic_color")] ?: true }
+    val useDynamicColor: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("dynamic_color")] ?: false }
     suspend fun setUseDynamicColor(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("dynamic_color")] = value }
 
     val accentColor: Flow<String> = dataStore.data.map { it[stringPreferencesKey("accent_color")] ?: "default" }
@@ -40,6 +40,9 @@ class AppSettingsRepository(private val context: Context) {
 
     val skipSilence: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("skip_silence")] ?: false }
     suspend fun setSkipSilence(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("skip_silence")] = value }
+
+    val wakeLock: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("wake_lock")] ?: true }
+    suspend fun setWakeLock(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("wake_lock")] = value }
 
     // ========== 输出 ==========
     val audioOutputDevice: Flow<String> = dataStore.data.map { it[stringPreferencesKey("audio_output")] ?: "auto" }

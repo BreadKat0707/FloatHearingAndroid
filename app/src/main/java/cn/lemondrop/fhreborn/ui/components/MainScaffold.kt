@@ -24,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -34,14 +33,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverTitleBar
+import cn.lemondrop.clover.material.cloverAcrylic
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
-import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import io.github.composefluent.component.Icon
 
@@ -80,18 +77,6 @@ fun MainScaffold(
         .calculateBottomPadding()
     val navBarPadding = maxOf(initialNavBarPadding, composeNavBarPadding)
     val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding()
-
-    val isDarkTheme = LocalAppDarkTheme.current
-    val barHazeBackgroundColor = if (isDarkTheme) {
-        Color.Black.copy(alpha = 0.35f)
-    } else {
-        Color.White.copy(alpha = 0.70f)
-    }
-    val barHazeTintColor = if (isDarkTheme) {
-        Color.Black.copy(alpha = 0.45f)
-    } else {
-        Color.White.copy(alpha = 0.55f)
-    }
 
     val miniPlayBarHeight = 64.dp
     val acrylicBarHeight = CloverSizes.titleBarHeight +
@@ -142,12 +127,7 @@ fun MainScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .hazeEffect(state = hazeState) {
-                    blurRadius = 40.dp
-                    backgroundColor = barHazeBackgroundColor
-                    tints = listOf(HazeTint(barHazeTintColor))
-                    noiseFactor = 0.1f
-                }
+                .cloverAcrylic(state = hazeState)
                 .pointerInput(Unit) {
                     // 拦截亚克力面板空白区域的点击，不触发后面列表项的点击
                     detectTapGestures(onTap = { })

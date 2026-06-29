@@ -1,5 +1,6 @@
 package cn.lemondrop.fhreborn.ui.screens.demo
 
+import cn.lemondrop.clover.LocalCloverColorScheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverButton
 import cn.lemondrop.clover.CloverCheckbox
 import cn.lemondrop.clover.CloverCircularProgressIndicator
-import cn.lemondrop.clover.CloverColors
 import cn.lemondrop.clover.CloverDialog
 import cn.lemondrop.clover.CloverDropdownMenu
 import cn.lemondrop.clover.CloverDropdownMenuItem
@@ -92,12 +92,18 @@ fun CloverDemoScreen(
     var showFlyout by remember { mutableStateOf(false) }
 
     CloverTheme(darkTheme = isDemoDark) {
-        val isDark = isCloverDark()
-        val bgColor = if (isDark) CloverColors.backgroundDark else CloverColors.backgroundLight
+        val colorScheme = LocalCloverColorScheme.current
+        val bgColor = colorScheme.background
 
         var selectedSongIndex by remember { mutableIntStateOf(2) }
         var playingSongIndex by remember { mutableIntStateOf(1) }
         var switchState by remember { mutableStateOf(true) }
+        var showAdaptiveScaffoldDemo by remember { mutableStateOf(false) }
+
+        if (showAdaptiveScaffoldDemo) {
+            AdaptiveScaffoldDemoScreen(onBack = { showAdaptiveScaffoldDemo = false })
+            return@CloverTheme
+        }
 
         Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
             CloverRevealHost(modifier = Modifier.fillMaxSize()) {
@@ -119,6 +125,22 @@ fun CloverDemoScreen(
                     )
                 }
 
+                item {
+                    CloverListItem(
+                        modifier = Modifier.cloverRevealItem(),
+                        title = "AdaptiveScaffold 演示",
+                        subtitle = "布局策略 / 导航形态 / 栏位材质",
+                        onClick = { showAdaptiveScaffoldDemo = true },
+                        trailing = {
+                            Icon(
+                                imageVector = Lucide.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    )
+                }
+
                 item { Spacer(modifier = Modifier.height(CloverSpacing.md)) }
             item {
                 Column(
@@ -129,12 +151,12 @@ fun CloverDemoScreen(
                     Text(
                         text = "Clover Design",
                         style = MaterialTheme.typography.headlineMedium,
-                        color = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight
+                        color = colorScheme.onSurface
                     )
                     Text(
                         text = "列表组件样式演示",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -174,7 +196,7 @@ fun CloverDemoScreen(
                             Icon(
                                 imageVector = Lucide.EllipsisVertical,
                                 contentDescription = "更多",
-                                tint = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight,
+                                tint = colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(CloverSizes.iconSmall)
                             )
                         }
@@ -197,13 +219,13 @@ fun CloverDemoScreen(
                             modifier = Modifier
                                 .size(CloverSizes.coverSmall)
                                 .clip(RoundedCornerShape(CloverSizes.avatarCornerRadius))
-                                .background(if (isDark) CloverColors.surfaceVariantDark else CloverColors.surfaceVariantLight),
+                                .background(colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = artist.name.take(1).uppercase(),
                                 style = MaterialTheme.typography.titleMedium,
-                                color = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+                                color = colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -265,8 +287,7 @@ fun CloverDemoScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .background(
-                                            if (isDark) CloverColors.surfaceVariantDark
-                                            else CloverColors.surfaceVariantLight
+                                            colorScheme.surfaceVariant
                                         )
                                         .clip(RoundedCornerShape(CloverSizes.avatarCornerRadius)),
                                     contentAlignment = Alignment.Center
@@ -274,8 +295,7 @@ fun CloverDemoScreen(
                                     Text(
                                         text = artist.name.take(1).uppercase(),
                                         style = MaterialTheme.typography.titleMedium,
-                                        color = if (isDark) CloverColors.onSurfaceVariantDark
-                                        else CloverColors.onSurfaceVariantLight
+                                        color = colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -297,7 +317,7 @@ fun CloverDemoScreen(
                         Icon(
                             imageVector = Lucide.Palette,
                             contentDescription = null,
-                            tint = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight,
+                            tint = colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(CloverSizes.iconMedium)
                         )
                     },
@@ -319,7 +339,7 @@ fun CloverDemoScreen(
                         Icon(
                             imageVector = Lucide.Info,
                             contentDescription = null,
-                            tint = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight,
+                            tint = colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(CloverSizes.iconMedium)
                         )
                     },
@@ -327,7 +347,7 @@ fun CloverDemoScreen(
                         Icon(
                             imageVector = Lucide.ChevronRight,
                             contentDescription = null,
-                            tint = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+                            tint = colorScheme.onSurfaceVariant
                         )
                     }
                 )
@@ -546,7 +566,7 @@ fun CloverDemoScreen(
         ) {
             Text(
                 text = "点击返回",
-                color = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight,
+                color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.clickable { onBack() }
             )
         }
