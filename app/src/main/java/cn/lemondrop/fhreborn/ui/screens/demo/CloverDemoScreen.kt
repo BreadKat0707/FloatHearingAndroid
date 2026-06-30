@@ -1,5 +1,12 @@
 package cn.lemondrop.fhreborn.ui.screens.demo
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.with
 import cn.lemondrop.clover.LocalCloverColorScheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,6 +50,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import cn.lemondrop.clover.CloverButton
 import cn.lemondrop.clover.CloverCheckbox
 import cn.lemondrop.clover.CloverCircularProgressIndicator
@@ -554,6 +565,11 @@ fun CloverDemoScreen(
                 }
             }
 
+            item { Spacer(modifier = Modifier.height(CloverSpacing.lg)) }
+
+            item { CloverSectionHeader(title = "共享元素过渡") }
+            item { SharedElementDemoSection() }
+
             item { Spacer(modifier = Modifier.height(navBarPadding + CloverSpacing.xl)) }
         }
         }
@@ -626,4 +642,132 @@ private data class DemoAlbum(
 private data class DemoContributor(
     val name: String,
     val role: String
+)
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun SharedElementDemoSection() {
+    val colorScheme = LocalCloverColorScheme.current
+    var selectedAlbum: DemoAlbum? by remember { mutableStateOf(null) }
+
+    SharedTransitionLayout(modifier = Modifier.fillMaxWidth()) {
+        val sharedTransitionScope = this@SharedTransitionLayout
+
+        AnimatedContent(
+            targetState = selectedAlbum,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "shared_album"
+        ) { targetAlbum ->
+            if (targetAlbum == null) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md),
+                    contentPadding = PaddingValues(horizontal = CloverSizes.listOuterHorizontalPadding)
+                ) {
+                    items(sampleSharedAlbums.size) { index ->
+                        val album = sampleSharedAlbums[index]
+                        Column(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .clip(RoundedCornerShape(CloverSizes.coverCornerRadius))
+                                .clickable { selectedAlbum = album }
+                        ) {
+                            with(sharedTransitionScope) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f)
+                                        .sharedElementWithCallerManagedVisibility(
+                                            sharedContentState = rememberSharedContentState(key = "album-cover-${album.title}"),
+                                            visible = true
+                                        )
+                                        .clip(RoundedCornerShape(CloverSizes.coverCornerRadius))
+                                        .background(album.coverColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Lucide.Music,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(CloverSizes.iconMedium)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(CloverSpacing.sm))
+                            Text(
+                                text = album.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = album.year,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = CloverSizes.listOuterHorizontalPadding)
+
+                ) {
+                    with(sharedTransitionScope) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .sharedElementWithCallerManagedVisibility(
+                                    sharedContentState = rememberSharedContentState(key = "album-cover-${targetAlbum.title}"),
+                                    visible = true
+                                )
+                                .clip(RoundedCornerShape(CloverSizes.coverCornerRadius))
+                                .background(targetAlbum.coverColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Lucide.Music,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(64.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(CloverSpacing.md))
+                    Text(
+                        text = targetAlbum.title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        text = targetAlbum.year,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(CloverSpacing.md))
+                    Text(
+                        text = "这是一段示例描述，演示共享元素过渡效果：点击上方的专辑卡片，封面会平滑形变到详情页。标题和年份使用淡入淡出切换。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(CloverSpacing.md))
+                    CloverButton(
+                        text = "返回列表",
+                        onClick = { selectedAlbum = null }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val sampleSharedAlbums = listOf(
+    DemoAlbum("Discovery", "2001", Color(0xFF448AFF)),
+    DemoAlbum("Random Access Memories", "2013", Color(0xFFFFAB40)),
+    DemoAlbum("Homework", "1997", Color(0xFF7C4DFF)),
+    DemoAlbum("Human After All", "2005", Color(0xFF69F0AE))
 )

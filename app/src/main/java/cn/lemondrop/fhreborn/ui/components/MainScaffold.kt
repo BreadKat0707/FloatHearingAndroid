@@ -1,6 +1,5 @@
 package cn.lemondrop.fhreborn.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +63,7 @@ fun MainScaffold(
 
     val context = LocalContext.current
     val density = LocalDensity.current
+
     // 用 decorView 的 root window insets 同步初始化导航栏高度，避免 Compose WindowInsets 第一帧为 0 导致底栏跳动
     val initialNavBarPadding = remember(density) {
         with(density) {
@@ -101,14 +101,15 @@ fun MainScaffold(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
     ) {
-        // 页面主体作为 Haze 源：占满全屏，内容可延伸至底栏下方
+        // 页面主体作为 Haze 源：背景层置于源内最底，亚克力才能模糊到背景；
+        // 同时给内容提供不透明底（纯色/图片），消除透明窗口下的滚动拖影与内容叠叠。
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .hazeSource(state = hazeState)
         ) {
+            AppBackgroundLayer(Modifier.fillMaxSize())
             content(contentPadding, bottomOverlayHeight)
         }
 
@@ -155,7 +156,8 @@ fun MainScaffold(
             onDismiss = { showDrawer = false },
             currentRoute = currentRoute,
             onNavigate = onNavigate,
-            hazeState = hazeState
+            hazeState = hazeState,
+            onScheduledPauseClick = { playerViewModel.showScheduledPause() }
         )
     }
 }

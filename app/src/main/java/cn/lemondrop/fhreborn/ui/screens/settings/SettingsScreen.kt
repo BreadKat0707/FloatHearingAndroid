@@ -55,7 +55,6 @@ import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.BrainCircuit
 import com.composables.icons.lucide.ChevronRight
-import com.composables.icons.lucide.Clock
 import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.Ear
 import com.composables.icons.lucide.FolderOpen
@@ -85,29 +84,36 @@ fun SettingsScreen(
     )
 
     val selectedCategory by viewModel.selectedCategory.collectAsState()
+    var showBackground by remember { mutableStateOf(false) }
 
-    // 拦截系统返回键：在分类详情页时先回到设置主页，避免直接退出
-    BackHandler(enabled = selectedCategory != null) {
+    // 拦截系统返回键：背景子页优先返回，其次分类详情页回到设置主页，避免直接退出
+    BackHandler(enabled = showBackground) {
+        showBackground = false
+    }
+    BackHandler(enabled = selectedCategory != null && !showBackground) {
         viewModel.navigateBack()
     }
 
     val titleText: @Composable () -> Unit = {
         Text(
-            text = when (selectedCategory) {
-                null -> "设置"
-                "language" -> "语言"
-                "personalize" -> "个性化"
-                "features" -> "功能"
-                "output" -> "输出"
-                "lyrics" -> "歌词"
-                "library" -> "媒体库"
-                "accessibility" -> "无障碍"
-                "plugins" -> "扩展与插件"
-                "data" -> "数据管理"
-                "experimental" -> "实验性选项"
-                "developer" -> "开发者选项"
-                "about" -> "关于"
-                else -> "设置"
+            text = when {
+                showBackground -> "背景"
+                else -> when (selectedCategory) {
+                    null -> "设置"
+                    "language" -> "语言"
+                    "personalize" -> "个性化"
+                    "features" -> "功能"
+                    "output" -> "输出"
+                    "lyrics" -> "歌词"
+                    "library" -> "媒体库"
+                    "accessibility" -> "无障碍"
+                    "plugins" -> "扩展与插件"
+                    "data" -> "数据管理"
+                    "experimental" -> "实验性选项"
+                    "developer" -> "开发者选项"
+                    "about" -> "关于"
+                    else -> "设置"
+                }
             },
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
@@ -121,37 +127,42 @@ fun SettingsScreen(
         title = titleText,
         onPlayerClick = onPlayerClick
     ) { paddingValues, bottomOverlayHeight ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding()),
-            contentPadding = PaddingValues(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (selectedCategory == null) {
-                // 设置主页：分类列表
-                items(buildCategories(), key = { it.key }) { category ->
-                    CategoryItem(
-                        category = category,
-                        onClick = { viewModel.selectCategory(category.key) }
-                    )
-                }
-            } else {
-                // 分类详情页
-                val category = buildCategories().find { it.key == selectedCategory }
-                if (category != null) {
-                    items(category.items) { item ->
-                        SettingItemRow(
-                            item = item,
-                            viewModel = viewModel
+        if (showBackground) {
+            BackgroundSettingsContent(viewModel)
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = paddingValues.calculateTopPadding()),
+                contentPadding = PaddingValues(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (selectedCategory == null) {
+                    // 设置主页：分类列表
+                    items(buildCategories(), key = { it.key }) { category ->
+                        CategoryItem(
+                            category = category,
+                            onClick = { viewModel.selectCategory(category.key) }
                         )
                     }
+                } else {
+                    // 分类详情页
+                    val category = buildCategories().find { it.key == selectedCategory }
+                    if (category != null) {
+                        items(category.items) { item ->
+                            SettingItemRow(
+                                item = item,
+                                viewModel = viewModel,
+                                onNavigationClick = { if (it.key == "main_bg") showBackground = true }
+                            )
+                        }
+                    }
                 }
-            }
 
-            // 底部占位，让最后一项可以滚动到亚克力底栏上方
-            item {
-                Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
+                // 底部占位，让最后一项可以滚动到亚克力底栏上方
+                item {
+                    Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
+                }
             }
         }
     }
@@ -162,12 +173,12 @@ private fun CategoryItem(
     category: cn.lemondrop.fhreborn.data.model.SettingCategory,
     onClick: () -> Unit
 ) {
-    ListItem(
+    cn.lemondrop.fhreborn.ui.components.FhListItem(
+        title = category.title,
         onClick = onClick,
-        icon = category.icon?.let {
-            { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(22.dp)) }
+        leading = category.icon?.let {
+            { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         },
-        text = { Text(text = category.title) },
         trailing = {
             Icon(
                 imageVector = Lucide.ChevronRight,
@@ -181,7 +192,8 @@ private fun CategoryItem(
 @Composable
 private fun SettingItemRow(
     item: SettingItem,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    onNavigationClick: ((SettingItem) -> Unit)? = null
 ) {
     // 根据类型只读取对应的值，避免类型转换崩溃
     val toggleValue by when (item.type) {
@@ -292,24 +304,18 @@ private fun SettingItemRow(
             )
         }
     } else {
-        ListItem(
+        cn.lemondrop.fhreborn.ui.components.FhListItem(
+            title = item.title,
+            subtitle = item.description,
             onClick = {
                 when (item.type) {
                     is SettingType.Toggle -> viewModel.toggleSetting(item)
                     is SettingType.Selection -> showSelectionDialog = true
-                    else -> {}
+                    else -> onNavigationClick?.invoke(item)
                 }
             },
-            icon = item.icon?.let {
-                { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp)) }
-            },
-            text = {
-                Column {
-                    Text(text = item.title)
-                    if (item.description != null) {
-                        Text(text = item.description)
-                    }
-                }
+            leading = item.icon?.let {
+                { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             },
             trailing = {
                 when (item.type) {
@@ -376,7 +382,8 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 // 主界面
                 SettingItem("", "主界面", null, null, SettingType.Info),
                 SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
-                SettingItem("main_bg", "主页面背景", "默认（跟随系统变换）", null, SettingType.Selection(listOf(Option("默认（跟随系统变换）", "默认（跟随系统变换）"), Option("纯色", "纯色"), Option("自定义图片", "自定义图片"))), "默认（跟随系统变换）"),
+                SettingItem("main_bg", "主页面背景", "纯色 / 自选图片 / 云母", null, SettingType.Navigation),
+                SettingItem("predictive_back", "预测性返回手势", "返回时预览上一页（实验，可能有异常）", null, SettingType.Toggle, false),
 
                 // 播放器
                 SettingItem("", "播放器", null, null, SettingType.Info),
@@ -422,7 +429,6 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("gapless_playback", "无缝播放", "消除歌曲间的间隙", null, SettingType.Toggle, true),
 
                 // 常用功能
-                SettingItem("sleep_timer", "睡眠定时器", "设定时间后自动停止播放", Lucide.Clock, SettingType.Selection(listOf(Option("关闭", "关闭"), Option("15分钟", "15分钟"), Option("30分钟", "30分钟"), Option("45分钟", "45分钟"), Option("60分钟", "60分钟"), Option("自定义", "自定义"))), "关闭"),
                 SettingItem("skip_silence", "跳过静音", "自动跳过歌曲开头的静音部分", null, SettingType.Toggle, false),
                 SettingItem("gesture_control", "手势控制", "播放页左滑下首 / 右滑上首", null, SettingType.Toggle, true),
                 SettingItem("mini_lyric", "迷你歌词", "播放页显示当前歌词行", null, SettingType.Toggle, true)

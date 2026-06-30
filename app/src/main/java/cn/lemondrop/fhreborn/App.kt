@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -42,6 +43,7 @@ import cn.lemondrop.fhreborn.ui.screens.player.PlayerScreen
 import cn.lemondrop.fhreborn.ui.screens.playlists.PlaylistsScreen
 import cn.lemondrop.fhreborn.ui.screens.settings.SettingsScreen
 import cn.lemondrop.fhreborn.ui.screens.statistics.StatisticsScreen
+import cn.lemondrop.fhreborn.ui.components.ScheduledPauseDialog
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.CrashHandler
 
@@ -54,7 +56,6 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object Statistics : Screen("statistics")
     data object Player : Screen("player")
-    data object HazeDemo : Screen("haze_demo")
     data object CloverDemo : Screen("clover_demo")
     data object MicaDemo : Screen("mica_demo")
 }
@@ -95,6 +96,12 @@ fun FHRebornApp() {
         }
     }
 
+    // 计划暂停对话框（全局托管，可从播放页/任意抽屉打开）
+    val showScheduledPause by playerViewModel.showScheduledPauseDialog.collectAsState()
+    val timerRemaining by playerViewModel.timerRemaining.collectAsState()
+    val isEndOfSongTimer by playerViewModel.isEndOfSongTimer.collectAsState()
+    val pauseAfterCurrentSong by playerViewModel.pauseAfterCurrentSong.collectAsState()
+
     // 检测是否有上次的崩溃日志
     var showCrashReport by remember { mutableStateOf(CrashHandler.hasCrashLog(context)) }
     val crashLog by remember(showCrashReport) {
@@ -104,12 +111,16 @@ fun FHRebornApp() {
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
     val isAtHome = currentRoute == Screen.Library.route
 
-    // 统一处理系统返回键（支持预测返回手势）：
+    // 预测性返回手势开关（实验功能，默认关闭）
+    val predictiveBack by appSettingsRepository.getBoolean("predictive_back", false)
+        .collectAsState(initial = false)
+
+    // 统一处理系统返回键：
     // 1. 播放器页打开时先关闭播放器
     // 2. 崩溃报告弹窗打开时先关闭弹窗
     // 3. 非首页时返回上一页；无法返回时结束 Activity
-    PredictiveBackHandler(enabled = showPlayer || showCrashReport || !isAtHome) { progress ->
-        progress.collect { }
+    val backEnabled = showPlayer || showCrashReport || !isAtHome
+    val handleBack: () -> Unit = {
         when {
             showPlayer -> showPlayer = false
             showCrashReport -> {
@@ -121,6 +132,17 @@ fun FHRebornApp() {
                     (context as? android.app.Activity)?.finish()
                 }
             }
+        }
+    }
+    // 开关开启时用预测性返回手势（保留上一页预览），关闭时用普通返回
+    if (predictiveBack) {
+        PredictiveBackHandler(enabled = backEnabled) { progress ->
+            progress.collect { }
+            handleBack()
+        }
+    } else {
+        BackHandler(enabled = backEnabled) {
+            handleBack()
         }
     }
 
@@ -175,12 +197,10 @@ fun FHRebornApp() {
                 )
             }
 
-            composable(Screen.FolderBrowser.route) { backStackEntry ->
+            composable(Screen.FolderBrowser.route) {
                 FolderBrowserScreen(
-                    currentRoute = backStackEntry.destination.route ?: Screen.FolderBrowser.route,
-                    onNavigate = topLevelNavigate,
-                    onPlayerClick = { showPlayer = true },
-                    playerViewModel = playerViewModel
+                    playerViewModel = playerViewModel,
+                    onBack = { navController.navigateUp() }
                 )
             }
 
@@ -211,12 +231,6 @@ fun FHRebornApp() {
                 )
             }
 
-            composable(Screen.HazeDemo.route) {
-                cn.lemondrop.fhreborn.ui.screens.demo.HazeDemoScreen(
-                    onBack = { navController.navigateUp() }
-                )
-            }
-
             composable(Screen.CloverDemo.route) {
                 cn.lemondrop.fhreborn.ui.screens.demo.CloverDemoScreen(
                     onBack = { navController.navigateUp() }
@@ -235,6 +249,20 @@ fun FHRebornApp() {
             PlayerScreen(
                 playerViewModel = playerViewModel,
                 onBack = { showPlayer = false }
+            )
+        }
+
+        // 计划暂停对话框（全局托管）
+        if (showScheduledPause) {
+            ScheduledPauseDialog(
+                timerRemaining = timerRemaining,
+                isEndOfSongTimer = isEndOfSongTimer,
+                pauseAfterCurrentSong = pauseAfterCurrentSong,
+                onSetTimer = { playerViewModel.setTimer(it) },
+                onSetEndOfSong = { playerViewModel.setEndOfSongTimer() },
+                onSetPauseAfterCurrentSong = { playerViewModel.setPauseAfterCurrentSong(it) },
+                onCancel = { playerViewModel.cancelTimer() },
+                onDismiss = { playerViewModel.hideScheduledPause() }
             )
         }
 

@@ -60,6 +60,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // 主页面背景为「云母」时按需开启窗口壁纸透出，切走立即关闭
+        lifecycleScope.launch {
+            appSettingsRepository.bgType.collect { type ->
+                applyWallpaperMode(type == "mica")
+            }
+        }
+
         setContent {
             FHRebornApp()
         }
@@ -68,6 +75,20 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         applyEdgeToEdgeWithDelay(currentThemeMode)
+    }
+
+    /**
+     * 主页面背景为「云母」时把窗口背景置为透明，让主题常开的 `windowShowWallpaper` 透出系统壁纸；
+     * 其余背景类型恢复不透明的主题背景色。
+     */
+    private fun applyWallpaperMode(enable: Boolean) {
+        if (enable) {
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        } else {
+            val tv = android.util.TypedValue()
+            theme.resolveAttribute(android.R.attr.colorBackground, tv, true)
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(tv.data))
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

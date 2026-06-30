@@ -25,7 +25,6 @@ import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Timer
-import com.composables.icons.lucide.Zap
 import dev.chrisbanes.haze.HazeState
 
 /**
@@ -36,6 +35,7 @@ import dev.chrisbanes.haze.HazeState
  * @param currentRoute 当前路由，用于高亮当前项
  * @param onNavigate 导航回调；非页面项通过 onExtraClick 处理
  * @param hazeState Haze 状态
+ * @param onScheduledPauseClick 点击“计划暂停”菜单项的回调
  * @param modifier 外部 modifier
  */
 @Composable
@@ -45,6 +45,7 @@ fun AppDrawer(
     currentRoute: String,
     onNavigate: (String) -> Unit,
     hazeState: HazeState,
+    onScheduledPauseClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler(enabled = visible) {
@@ -125,22 +126,17 @@ fun AppDrawer(
             onClick = onDismiss
         )
         CloverMenuItem(
-            label = "定时播放",
+            label = "计划暂停",
             icon = Lucide.Timer,
-            onClick = onDismiss
+            onClick = {
+                onDismiss()
+                onScheduledPauseClick()
+            }
         )
         DrawerNavItem(
             route = Screen.CloverDemo.route,
             label = "Clover Demo",
             icon = Lucide.Clover,
-            currentRoute = currentRoute,
-            onNavigate = onNavigate,
-            onDismiss = onDismiss
-        )
-        DrawerNavItem(
-            route = Screen.HazeDemo.route,
-            label = "Haze Demo",
-            icon = Lucide.Zap,
             currentRoute = currentRoute,
             onNavigate = onNavigate,
             onDismiss = onDismiss

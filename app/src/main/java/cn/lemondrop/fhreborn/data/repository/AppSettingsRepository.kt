@@ -81,6 +81,28 @@ class AppSettingsRepository(private val context: Context) {
     val hideSystemUi: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("hide_system_ui")] ?: false }
     suspend fun setHideSystemUi(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("hide_system_ui")] = value }
 
+    // ========== 主页面背景 ==========
+    val bgType: Flow<String> = dataStore.data.map { it[stringPreferencesKey("bg_type")] ?: "color" }
+    suspend fun setBgType(value: String) = dataStore.edit { it[stringPreferencesKey("bg_type")] = value }
+
+    val bgColor: Flow<String> = dataStore.data.map { it[stringPreferencesKey("bg_color")] ?: "" }
+    suspend fun setBgColor(value: String) = dataStore.edit { it[stringPreferencesKey("bg_color")] = value }
+
+    val bgImagePath: Flow<String> = dataStore.data.map { it[stringPreferencesKey("bg_image_path")] ?: "" }
+    suspend fun setBgImagePath(value: String) = dataStore.edit { it[stringPreferencesKey("bg_image_path")] = value }
+
+    val bgImageBrightness: Flow<Int> = dataStore.data.map { it[intPreferencesKey("bg_image_brightness")] ?: 100 }
+    suspend fun setBgImageBrightness(value: Int) = dataStore.edit { it[intPreferencesKey("bg_image_brightness")] = value }
+
+    val bgImageBlur: Flow<Int> = dataStore.data.map { it[intPreferencesKey("bg_image_blur")] ?: 0 }
+    suspend fun setBgImageBlur(value: Int) = dataStore.edit { it[intPreferencesKey("bg_image_blur")] = value }
+
+    val bgMicaBlur: Flow<Int> = dataStore.data.map { it[intPreferencesKey("bg_mica_blur")] ?: 80 }
+    suspend fun setBgMicaBlur(value: Int) = dataStore.edit { it[intPreferencesKey("bg_mica_blur")] = value }
+
+    val bgMicaAlt: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("bg_mica_alt")] ?: false }
+    suspend fun setBgMicaAlt(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("bg_mica_alt")] = value }
+
     // ========== 无障碍 ==========
     val largeText: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("large_text")] ?: false }
     suspend fun setLargeText(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("large_text")] = value }

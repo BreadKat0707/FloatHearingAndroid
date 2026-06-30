@@ -4,4 +4,14 @@
     <style name="Theme.FloatHearing" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">?android:attr/colorBackground</item>
     </style>
+
+    <style name="Theme.FloatHearing.Main" parent="Theme.FloatHearing">
+        <item name="android:windowShowWallpaper">true</item>
+    </style>
+
+    <!-- 实验：让窗口透出系统壁纸（含动态壁纸），零壁纸读取权限 -->
+    <style name="Theme.FloatHearing.WallpaperProbe" parent="Theme.FloatHearing">
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
 </resources>

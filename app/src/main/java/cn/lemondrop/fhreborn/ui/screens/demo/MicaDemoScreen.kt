@@ -1,6 +1,10 @@
 package cn.lemondrop.fhreborn.ui.screens.demo
 
+import android.content.Intent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
+import cn.lemondrop.fhreborn.WallpaperProbeActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,10 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverMica
-import cn.lemondrop.clover.CloverMicaAlt
-import cn.lemondrop.clover.WallpaperLoadStrategy
-import cn.lemondrop.clover.rememberWallpaperBitmap
+import cn.lemondrop.clover.material.CloverMicaSurface
+import cn.lemondrop.clover.material.WallpaperLoadStrategy
+import cn.lemondrop.clover.material.rememberWallpaperBitmap
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
@@ -55,6 +58,27 @@ fun MicaDemoScreen(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
+
+            // 实验入口：windowShowWallpaper 直透壁纸（独立透明 Activity）
+            val context = LocalContext.current
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .clickable {
+                        context.startActivity(Intent(context, WallpaperProbeActivity::class.java))
+                    },
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                )
+            ) {
+                Text(
+                    text = "▶ 打开「windowShowWallpaper 直透壁纸」实验",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
 
             Text(
                 text = "壁纸获取方式对比",
@@ -97,7 +121,7 @@ fun MicaDemoScreen(
                 title = "Mica",
                 description = "以桌面壁纸为基底，重度模糊后叠加上主题色 tint 与噪点。"
             ) {
-                CloverMica(modifier = Modifier.fillMaxSize()) {
+                CloverMicaSurface(modifier = Modifier.fillMaxSize()) {
                     DemoContent("Mica 背景区域")
                 }
             }
@@ -108,7 +132,7 @@ fun MicaDemoScreen(
                 title = "Mica Alt",
                 description = "同样基于壁纸模糊，但主题色 tint 与噪点更强，视觉层次更重。"
             ) {
-                CloverMicaAlt(modifier = Modifier.fillMaxSize()) {
+                CloverMicaSurface(modifier = Modifier.fillMaxSize(), isAlt = true) {
                     DemoContent("Mica Alt 背景区域")
                 }
             }

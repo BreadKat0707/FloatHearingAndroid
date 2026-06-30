@@ -1,48 +1,36 @@
 package cn.lemondrop.fhreborn.ui.screens.folderbrowser
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
+import android.app.Application
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.lemondrop.fhreborn.ui.screens.library.FolderBrowserOverlay
+import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
-import io.github.composefluent.component.Text
 
+/**
+ * 浏览路径页面：直接复用媒体库的文件管理器式覆盖层（FolderBrowserOverlay），
+ * 自行从 LibraryViewModel 取全部歌曲构建文件树。
+ *
+ * 这样从任意页面进入「浏览路径」都显示真正的文件夹浏览，而非占位页。
+ */
 @Composable
 fun FolderBrowserScreen(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
-    onPlayerClick: () -> Unit,
-    playerViewModel: PlayerViewModel
+    playerViewModel: PlayerViewModel,
+    onBack: () -> Unit
 ) {
-    MainScaffold(
+    val context = LocalContext.current
+    val viewModel: LibraryViewModel = viewModel(
+        factory = LibraryViewModel.Factory(context.applicationContext as Application)
+    )
+    val songs by viewModel.songs.collectAsState(initial = emptyList())
+
+    FolderBrowserOverlay(
+        songs = songs,
+        initialPath = emptyList(),
         playerViewModel = playerViewModel,
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        title = {
-            Text(
-                text = "浏览路径",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        },
-        onPlayerClick = onPlayerClick
-    ) { paddingValues, bottomOverlayHeight ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "浏览路径页面（占位）",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+        onDismiss = onBack
+    )
 }

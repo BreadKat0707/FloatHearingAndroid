@@ -6,11 +6,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
-import com.composables.icons.lucide.Clock
 import com.composables.icons.lucide.FolderPlus
 import com.composables.icons.lucide.Gauge
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Share2
+import com.composables.icons.lucide.Timer
 import com.composables.icons.lucide.Volume2
 
 private data class MoreMenuItem(
@@ -29,7 +29,7 @@ fun PlayerMoreSheet(
     onShareClick: () -> Unit = {}
 ) {
     val menuItems = listOf(
-        MoreMenuItem("睡眠定时器", Lucide.Clock, onTimerClick),
+        MoreMenuItem("计划暂停", Lucide.Timer, onTimerClick),
         MoreMenuItem("音频输出", Lucide.Volume2, onAudioOutputClick),
         MoreMenuItem("添加到歌单", Lucide.FolderPlus, onAddToPlaylistClick),
         MoreMenuItem("倍速", Lucide.Gauge, onSpeedClick),

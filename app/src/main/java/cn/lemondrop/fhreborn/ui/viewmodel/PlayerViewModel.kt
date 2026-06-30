@@ -79,6 +79,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _endOfSongTimer = MutableStateFlow(false)
     val isEndOfSongTimer: StateFlow<Boolean> = _endOfSongTimer.asStateFlow()
 
+    // 计时到点后是否等当前曲目播完再暂停
+    private val _pauseAfterCurrentSong = MutableStateFlow(false)
+    val pauseAfterCurrentSong: StateFlow<Boolean> = _pauseAfterCurrentSong.asStateFlow()
+
+    // 计划暂停对话框显示状态（全局托管）
+    private val _showScheduledPauseDialog = MutableStateFlow(false)
+    val showScheduledPauseDialog: StateFlow<Boolean> = _showScheduledPauseDialog.asStateFlow()
+
     private val _lyrics = MutableStateFlow<SyncedLyrics?>(null)
     val lyrics: StateFlow<SyncedLyrics?> = _lyrics.asStateFlow()
 
@@ -209,6 +217,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 if (playbackState == Player.STATE_ENDED && _endOfSongTimer.value) {
                     mediaController?.pause()
                     _endOfSongTimer.value = false
+                    _pauseAfterCurrentSong.value = false
                 }
             }
 
@@ -357,7 +366,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 delay(1000)
             }
             if (_timerRemaining.value <= 0) {
-                mediaController?.pause()
+                if (_pauseAfterCurrentSong.value) {
+                    // 到点改为“播完当前曲目再停”，由 STATE_ENDED 处理实际暂停
+                    _endOfSongTimer.value = true
+                } else {
+                    mediaController?.pause()
+                }
                 _timerRemaining.value = 0
             }
         }
@@ -369,10 +383,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         _endOfSongTimer.value = true
     }
 
+    fun setPauseAfterCurrentSong(enabled: Boolean) {
+        _pauseAfterCurrentSong.value = enabled
+    }
+
+    fun showScheduledPause() {
+        _showScheduledPauseDialog.value = true
+    }
+
+    fun hideScheduledPause() {
+        _showScheduledPauseDialog.value = false
+    }
+
     fun cancelTimer() {
         timerJob?.cancel()
         _timerRemaining.value = 0
         _endOfSongTimer.value = false
+        _pauseAfterCurrentSong.value = false
     }
 
     private fun recordPlayTime() {

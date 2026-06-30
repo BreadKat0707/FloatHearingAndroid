@@ -6,13 +6,16 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
@@ -20,6 +23,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
@@ -72,6 +76,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -81,6 +86,7 @@ import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.FileProvider
@@ -155,11 +161,9 @@ fun PlayerScreen(
     val shuffleMode by viewModel.shuffleMode.collectAsState()
     val queue by viewModel.queue.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
-    val timerRemaining by viewModel.timerRemaining.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
     val currentLyricIndex by viewModel.currentLyricIndex.collectAsState()
 
-    var showTimer by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
     var showCoverViewer by remember { mutableStateOf(false) }
@@ -168,11 +172,6 @@ fun PlayerScreen(
     val queueProgress = remember { Animatable(0f) }
     val isQueueOpen by remember { derivedStateOf { queueProgress.value > 0.5f } }
     val lyricsBackProgress = remember { Animatable(0f) }
-    val lyricsProgress by animateFloatAsState(
-        targetValue = if (showLyrics) 1f else 0f,
-        animationSpec = tween(400, easing = FastOutSlowInEasing),
-        label = "lyricsProgress"
-    )
 
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -198,7 +197,7 @@ fun PlayerScreen(
 
     // 播放器页返回：预测返回手势驱动页面下滑收起
     PredictiveBackHandler(
-        enabled = !showLyrics && !isQueueOpen && !showMore && !showTimer && !showCoverViewer
+        enabled = !showLyrics && !isQueueOpen && !showMore && !showCoverViewer
     ) { progress ->
         try {
             progress.collect { event ->
@@ -322,6 +321,45 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
 
+        // 歌词返回手势：驱动 showLyrics 关闭，退出形变交给 AnimatedContent
+        PredictiveBackHandler(enabled = showLyrics) { progress ->
+            try {
+                progress.collect { event ->
+                    lyricsBackProgress.snapTo(event.progress.coerceIn(0f, 1f))
+                }
+                showLyrics = false
+                lyricsBackProgress.snapTo(0f)
+            } catch (_: CancellationException) {
+                scope.launch { lyricsBackProgress.animateTo(0f, tween(200)) }
+            }
+        }
+
+        AnimatedContent(
+            targetState = showLyrics,
+            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
+            label = "player_to_lyrics",
+            modifier = Modifier.fillMaxSize()
+        ) { isLyrics ->
+            if (isLyrics) {
+                LyricSheet(
+                    lyrics = lyrics,
+                    currentPosition = position,
+                    isDarkTheme = isDarkTheme,
+                    song = currentSong,
+                    coverBitmap = currentCoverBitmap,
+                    duration = duration,
+                    onDismiss = { showLyrics = false },
+                    onSeek = { time ->
+                        viewModel.seekTo(time)
+                    },
+                    onMoreClick = {
+                        // 在歌词页上直接弹出更多菜单，不退出歌词页
+                        showMore = true
+                    },
+                    animatedVisibilityScope = this@AnimatedContent,
+                    sharedTransitionScope = sharedTransitionScope
+                )
+            } else {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart
@@ -346,8 +384,7 @@ fun PlayerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .graphicsLayer { alpha = 1f - lyricsProgress },
+                        .height(48.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -406,11 +443,11 @@ fun PlayerScreen(
                         label = "coverHeight"
                     )
 
-                    val coverModifier = with(this@SharedTransitionLayout) {
+                    val coverModifier = with(sharedTransitionScope) {
                         Modifier
-                            .sharedElementWithCallerManagedVisibility(
+                            .sharedElement(
                                 sharedContentState = rememberSharedContentState(key = "player_cover"),
-                                visible = true
+                                animatedVisibilityScope = this@AnimatedContent
                             )
                             .size(coverWidth, coverHeight)
                             .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
@@ -476,9 +513,9 @@ fun PlayerScreen(
 
                 // 歌曲信息（与歌词页底部面板共享元素过渡）
                 val songInfoSourceModifier = with(sharedTransitionScope) {
-                    Modifier.sharedElementWithCallerManagedVisibility(
+                    Modifier.sharedElement(
                         sharedContentState = rememberSharedContentState(key = "player_song_info"),
-                        visible = true
+                        animatedVisibilityScope = this@AnimatedContent
                     )
                 }
                 Column(modifier = songInfoSourceModifier.fillMaxWidth()) {
@@ -487,7 +524,11 @@ fun PlayerScreen(
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         color = fluidOnColorSecondary,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.graphicsLayer {
+                            compositingStrategy = CompositingStrategy.Offscreen
+                            blendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
+                        }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -509,7 +550,6 @@ fun PlayerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer { alpha = 1f - lyricsProgress }
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -576,20 +616,66 @@ fun PlayerScreen(
 
                 // 进度条（与歌词页底部面板共享元素过渡）
                 val progressSourceModifier = with(sharedTransitionScope) {
-                    Modifier.sharedElementWithCallerManagedVisibility(
+                    Modifier.sharedElement(
                         sharedContentState = rememberSharedContentState(key = "player_progress"),
-                        visible = true
+                        animatedVisibilityScope = this@AnimatedContent
                     )
                 }
-                Column(modifier = progressSourceModifier.fillMaxWidth()) {
+                var isSeekDragging by remember { mutableStateOf(false) }
+                var seekDragProgress by remember { mutableFloatStateOf(0f) }
+                var seekSliderWidth by remember { mutableIntStateOf(0) }
+                val seekBubbleText = remember(isSeekDragging, seekDragProgress) {
+                    if (isSeekDragging) formatDuration((seekDragProgress * duration.coerceAtLeast(1L)).toLong()) else ""
+                }
+
+                Box(modifier = progressSourceModifier.fillMaxWidth()) {
                     PlayerProgressSlider(
                         position = position,
                         duration = duration,
                         onProgressChange = { fraction ->
                             viewModel.seekTo((fraction * duration.coerceAtLeast(1L)).toLong())
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        onDragStateChange = { dragging, progress ->
+                            isSeekDragging = dragging
+                            seekDragProgress = progress
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { coordinates ->
+                                seekSliderWidth = coordinates.size.width
+                            }
                     )
+
+                    // 拖动进度时悬浮显示目标时间
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = isSeekDragging,
+                        enter = fadeIn(tween(100)) + scaleIn(tween(100), initialScale = 0.9f),
+                        exit = fadeOut(tween(100)) + scaleOut(tween(100), targetScale = 0.9f),
+                        modifier = Modifier.offset(
+                            y = (-28).dp,
+                            x = with(LocalDensity.current) {
+                                ((seekDragProgress * seekSliderWidth) - (seekSliderWidth * 0.1f).coerceAtLeast(30f))
+                                    .toDp()
+                            }
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isDarkTheme) Color.Black.copy(alpha = 0.7f)
+                                    else Color.White.copy(alpha = 0.9f)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = seekBubbleText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = fluidOnColorSecondary
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -597,8 +683,7 @@ fun PlayerScreen(
                 // 播放控制
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { alpha = 1f - lyricsProgress },
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -650,11 +735,29 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // 上划打开播放队列（整排底栏图标上方居中）
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = { openQueue() }
+                        )
+                        .padding(vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PlayerIcon(
+                        imageVector = Lucide.ChevronUp,
+                        contentDescription = "上划打开播放队列",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
                 // 底部操作栏
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { alpha = 1f - lyricsProgress },
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     FluentIconButton(onClick = { /* TODO: 音频输出 */ }) {
@@ -696,27 +799,6 @@ fun PlayerScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                }
-
-                // 上划打开播放队列（仅箭头，位于播放队列图标上方）
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { alpha = 1f - lyricsProgress }
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            onClick = { openQueue() }
-                        )
-                        .padding(vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Lucide.ChevronUp,
-                        contentDescription = "上划打开播放队列",
-                        modifier = Modifier.size(20.dp),
-                        tint = fluidOnColorTertiary
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -767,70 +849,6 @@ fun PlayerScreen(
                 )
             }
         }
-
-        // 定时弹窗
-        val isEndOfSongTimer by viewModel.isEndOfSongTimer.collectAsState(initial = false)
-        if (showTimer) {
-            BackHandler { showTimer = false }
-            TimerSheet(
-                currentMinutes = (timerRemaining / 1000 / 60).toInt(),
-                isEndOfSongTimer = isEndOfSongTimer,
-                onDismiss = { showTimer = false },
-                onSetTimer = { minutes ->
-                    viewModel.setTimer(minutes)
-                },
-                onSetEndOfSongTimer = {
-                    viewModel.setEndOfSongTimer()
-                },
-                onCancelTimer = {
-                    viewModel.cancelTimer()
-                }
-            )
-        }
-
-        // 歌词弹窗（无歌词时也显示，提示“暂无歌词”并保留底部面板）
-        PredictiveBackHandler(enabled = showLyrics) { progress ->
-            try {
-                progress.collect { event ->
-                    lyricsBackProgress.snapTo(event.progress.coerceIn(0f, 1f))
-                }
-                showLyrics = false
-                lyricsBackProgress.snapTo(0f)
-            } catch (_: CancellationException) {
-                scope.launch { lyricsBackProgress.animateTo(0f, tween(200)) }
-            }
-        }
-        AnimatedVisibility(
-            visible = showLyrics,
-            enter = fadeIn(tween(250)),
-            exit = fadeOut(tween(200))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        alpha = 1f - lyricsBackProgress.value
-                        translationY = lyricsBackProgress.value * 100.dp.toPx()
-                    }
-            ) {
-                LyricSheet(
-                    lyrics = lyrics,
-                    currentPosition = position,
-                    isDarkTheme = isDarkTheme,
-                    song = currentSong,
-                    coverBitmap = currentCoverBitmap,
-                    duration = duration,
-                    onDismiss = { showLyrics = false },
-                    onSeek = { time ->
-                        viewModel.seekTo(time)
-                    },
-                    onMoreClick = {
-                        // 在歌词页上直接弹出更多菜单，不退出歌词页
-                        showMore = true
-                    },
-                    animatedVisibilityScope = this@AnimatedVisibility,
-                    sharedTransitionScope = this@SharedTransitionLayout
-                )
             }
         }
 
@@ -839,7 +857,7 @@ fun PlayerScreen(
             BackHandler { showMore = false }
             PlayerMoreSheet(
                 onDismiss = { showMore = false },
-                onTimerClick = { showTimer = true },
+                onTimerClick = { viewModel.showScheduledPause() },
                 onShareClick = { shareCurrentSong(context, currentSong) }
             )
         }
@@ -862,6 +880,7 @@ private fun PlayerProgressSlider(
     position: Long,
     duration: Long,
     onProgressChange: (Float) -> Unit,
+    onDragStateChange: (isDragging: Boolean, dragProgress: Float) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val safeDuration = duration.coerceAtLeast(1L)
@@ -872,33 +891,13 @@ private fun PlayerProgressSlider(
     val isDarkTheme = LocalAppDarkTheme.current
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
-    val accentColor = MaterialTheme.colorScheme.primary
+
+    LaunchedEffect(isDragging, dragProgress) {
+        onDragStateChange(isDragging, dragProgress)
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // 拖动时显示目标时间（位于进度条中上方）
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(20.dp)
-        ) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = isDragging,
-                enter = fadeIn(tween(100)),
-                exit = fadeOut(tween(100))
-            ) {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(modifier = Modifier.weight(dragProgress))
-                    Text(
-                        text = formatDuration((dragProgress * safeDuration).toLong()),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = fluidOnColorSecondary,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.weight(1f - dragProgress))
-                }
-            }
-        }
-
+        // 进度条本体（拖动时目标时间由父级悬浮显示，不内嵌在此）
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -935,7 +934,14 @@ private fun PlayerProgressSlider(
                     .fillMaxWidth(displayProgress)
                     .height(6.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(accentColor.copy(alpha = 0.9f))
+                    .drawBehind {
+                        // 前景用黑/白（跟随浅/深色）+ 混合模式，与底层流体背景融合，不用 primary 实色
+                        drawRect(
+                            color = fluidOnColor,
+                            alpha = 0.6f,
+                            blendMode = if (isDarkTheme) BlendMode.Overlay else BlendMode.Multiply
+                        )
+                    }
             )
         }
 
@@ -970,8 +976,8 @@ private fun LyricSheet(
     onDismiss: () -> Unit,
     onSeek: (Long) -> Unit,
     onMoreClick: () -> Unit,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
-    sharedTransitionScope: SharedTransitionScope? = null
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
+    sharedTransitionScope: SharedTransitionScope
 ) {
     val listState = rememberLazyListState()
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
@@ -1063,19 +1069,12 @@ private fun LyricSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 小封面（与主封面共享元素过渡）
-                val smallCoverModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier
-                            .sharedElement(
-                                sharedContentState = rememberSharedContentState(key = "player_cover"),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            )
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .shadow(8.dp, RoundedCornerShape(12.dp))
-                    }
-                } else {
+                val smallCoverModifier = with(sharedTransitionScope) {
                     Modifier
+                        .sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "player_cover"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
                         .size(64.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .shadow(8.dp, RoundedCornerShape(12.dp))
@@ -1101,15 +1100,11 @@ private fun LyricSheet(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                val songInfoTargetModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            sharedContentState = rememberSharedContentState(key = "player_song_info"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                    }
-                } else {
-                    Modifier
+                val songInfoTargetModifier = with(sharedTransitionScope) {
+                    Modifier.sharedElement(
+                        sharedContentState = rememberSharedContentState(key = "player_song_info"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
                 }
                 Column(
                     modifier = songInfoTargetModifier.weight(1f)
@@ -1142,60 +1137,24 @@ private fun LyricSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            val progressTargetModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = "player_progress"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-                }
-            } else {
-                Modifier
+            val progressTargetModifier = with(sharedTransitionScope) {
+                Modifier.sharedElement(
+                    sharedContentState = rememberSharedContentState(key = "player_progress"),
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
             }
-            val progress = if (duration > 0) currentPosition / duration.toFloat() else 0f
-            Column(modifier = progressTargetModifier.fillMaxWidth()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(onSurface.copy(alpha = 0.2f))
-                        .pointerInput(duration) {
-                            detectHorizontalDragGestures(
-                                onDragStart = {},
-                                onHorizontalDrag = { change, _ ->
-                                    change.consume()
-                                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                                    onSeek((fraction * duration).toLong())
-                                },
-                                onDragEnd = {}
-                            )
-                        }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progress)
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatDuration(currentPosition),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = onSurface.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = formatDuration(duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = onSurface.copy(alpha = 0.7f)
-                    )
-                }
+            Column(
+                modifier = progressTargetModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                PlayerProgressSlider(
+                    position = currentPosition,
+                    duration = duration,
+                    onProgressChange = { fraction ->
+                        onSeek((fraction * duration.coerceAtLeast(1L)).toLong())
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

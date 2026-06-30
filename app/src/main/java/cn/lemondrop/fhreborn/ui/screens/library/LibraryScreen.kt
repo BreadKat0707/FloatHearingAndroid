@@ -79,7 +79,9 @@ import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import cn.lemondrop.fhreborn.scanner.ScanProgress
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.FlyoutMenu
 import cn.lemondrop.fhreborn.ui.components.FlyoutMenuItem
 import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
@@ -120,6 +122,7 @@ import com.composables.icons.lucide.Pause
 import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.Repeat
 import com.composables.icons.lucide.RotateCcw
+import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Shuffle
 import com.composables.icons.lucide.SkipForward
 
@@ -229,6 +232,14 @@ fun LibraryScreen(
     }
 
     val titleActions: @Composable RowScope.() -> Unit = {
+        FluentIconButton(onClick = { /* TODO: 搜索 */ }) {
+            Icon(
+                imageVector = Lucide.Search,
+                contentDescription = "搜索",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        }
         FluentIconButton(onClick = { /* TODO: 全部顺序循环 */ }) {
             Icon(
                 imageVector = Lucide.Repeat,
@@ -259,8 +270,7 @@ fun LibraryScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .fillMaxSize(),
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -342,8 +352,9 @@ fun LibraryScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isCompact) {
-            // drawerHazeState 源：页面主体内容
+            // drawerHazeState 源：背景层置于源内最底，亚克力才能模糊到背景，并给内容提供不透明底
             Box(modifier = Modifier.fillMaxSize().hazeSource(state = drawerHazeState)) {
+                AppBackgroundLayer(Modifier.fillMaxSize())
                 libraryBody(
                     PaddingValues(
                         top = statusBarPadding.calculateTopPadding() + 8.dp,
@@ -391,42 +402,45 @@ fun LibraryScreen(
                 )
             }
         } else {
-            // 大屏幕：左侧 NavigationRail + 顶部 TopAppBar
-            Row(modifier = Modifier.fillMaxSize()) {
-                CloverNavigationRail(
-                    items = navItems,
-                    selectedIndex = selectedNavIndex,
-                    onItemSelected = { selectedNavIndex = it },
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .statusBarsPadding()
-                )
-
-                Column(modifier = Modifier.weight(1f)) {
-                    CloverTopAppBar(
-                        title = titleText,
-                        navigationIcon = menuButton,
-                        actions = titleActions,
-                        modifier = Modifier.statusBarsPadding()
+            // 大屏幕：左侧 NavigationRail + 顶部 TopAppBar；背景层垫底
+            Box(modifier = Modifier.fillMaxSize()) {
+                AppBackgroundLayer(Modifier.fillMaxSize())
+                Row(modifier = Modifier.fillMaxSize()) {
+                    CloverNavigationRail(
+                        items = navItems,
+                        selectedIndex = selectedNavIndex,
+                        onItemSelected = { selectedNavIndex = it },
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .statusBarsPadding()
                     )
 
-                    Box(modifier = Modifier.weight(1f)) {
-                        libraryBody(
-                            PaddingValues(
-                                top = 8.dp,
-                                bottom = navBarPadding + 8.dp
-                            ),
-                            miniPlayBarHeight + 32.dp
+                    Column(modifier = Modifier.weight(1f)) {
+                        CloverTopAppBar(
+                            title = titleText,
+                            navigationIcon = menuButton,
+                            actions = titleActions,
+                            modifier = Modifier.statusBarsPadding()
                         )
 
-                        MiniPlayBar(
-                            playerViewModel = playerViewModel,
-                            onClick = onPlayerClick,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .padding(bottom = navBarPadding + 8.dp)
-                        )
+                        Box(modifier = Modifier.weight(1f)) {
+                            libraryBody(
+                                PaddingValues(
+                                    top = 8.dp,
+                                    bottom = navBarPadding + 8.dp
+                                ),
+                                miniPlayBarHeight + 32.dp
+                            )
+
+                            MiniPlayBar(
+                                playerViewModel = playerViewModel,
+                                onClick = onPlayerClick,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                                    .padding(bottom = navBarPadding + 8.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -446,7 +460,8 @@ fun LibraryScreen(
                 onNavigate(route)
             }
         },
-        hazeState = drawerHazeState
+        hazeState = drawerHazeState,
+        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     )
 
     // 标题栏 Flyout 菜单（浮动于底部栏之上）
@@ -766,64 +781,45 @@ private fun SongItem(
         else -> 0.dp
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // 左侧指示条区域
-        Box(
-            modifier = Modifier
-                .padding(end = 12.dp)
-                .width(3.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (indicatorHeight > 0.dp) {
-                Box(
-                    modifier = Modifier
-                        .width(3.dp)
-                        .height(indicatorHeight)
-                        .clip(RoundedCornerShape(1.5.dp))
-                        .background(MaterialTheme.colorScheme.primary)
+    FhListItem(
+        title = song.title,
+        subtitle = "${song.artist} - ${song.album}",
+        onClick = onClick,
+        leading = {
+            // 左侧指示条区域
+            Box(
+                modifier = Modifier
+                    .padding(end = 12.dp)
+                    .width(3.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (indicatorHeight > 0.dp) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(indicatorHeight)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+
+            SongCoverImage(
+                songId = song.id,
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        trailing = {
+            FluentIconButton(onClick = onMoreClick) {
+                Icon(
+                    imageVector = Lucide.EllipsisVertical,
+                    contentDescription = "更多",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-
-        SongCoverImage(
-            songId = song.id,
-            modifier = Modifier.size(48.dp)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "${song.artist} - ${song.album}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        FluentIconButton(onClick = onMoreClick) {
-            Icon(
-                imageVector = Lucide.EllipsisVertical,
-                contentDescription = "更多",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    )
 }
 
 @Composable
@@ -973,7 +969,7 @@ private fun buildFileTree(songs: List<Song>): FileNode {
 }
 
 @Composable
-private fun FolderBrowserOverlay(
+internal fun FolderBrowserOverlay(
     songs: List<Song>,
     initialPath: List<String> = emptyList(),
     playerViewModel: PlayerViewModel,
@@ -1022,8 +1018,10 @@ private fun FolderBrowserOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
     ) {
+        // 覆盖层底部铺统一背景，避免透出下方媒体库
+        AppBackgroundLayer(Modifier.fillMaxSize())
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -1144,37 +1142,27 @@ private fun FileBrowserItemRow(
     item: FileNode,
     onClick: () -> Unit
 ) {
-    ListItem(
+    FhListItem(
+        title = item.name,
+        subtitle = if (!item.isDirectory && item.song != null) {
+            "${item.song.artist} · ${formatDuration(item.song.duration)}"
+        } else null,
         onClick = onClick,
-        icon = {
+        leading = {
             Icon(
                 imageVector = if (item.isDirectory) Lucide.FolderOpen else Lucide.Music,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        },
-        text = {
-            Column {
-                Text(
-                    text = item.name,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (!item.isDirectory && item.song != null) {
-                    Text(
-                        text = "${item.song.artist} · ${formatDuration(item.song.duration)}",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
         },
         trailing = if (item.isDirectory) {
             {
                 Icon(
                     imageVector = Lucide.ChevronRight,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else null
