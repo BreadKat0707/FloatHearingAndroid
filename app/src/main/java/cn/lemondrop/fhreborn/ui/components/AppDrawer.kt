@@ -15,7 +15,6 @@ import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.clover.material.CloverMaterial
 import cn.lemondrop.fhreborn.Screen
 import com.composables.icons.lucide.Activity
-import com.composables.icons.lucide.Clover
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Headphones
 import com.composables.icons.lucide.Lightbulb
@@ -132,14 +131,6 @@ fun AppDrawer(
                 onDismiss()
                 onScheduledPauseClick()
             }
-        )
-        DrawerNavItem(
-            route = Screen.CloverDemo.route,
-            label = "Clover Demo",
-            icon = Lucide.Clover,
-            currentRoute = currentRoute,
-            onNavigate = onNavigate,
-            onDismiss = onDismiss
         )
         DrawerNavItem(
             route = Screen.MicaDemo.route,

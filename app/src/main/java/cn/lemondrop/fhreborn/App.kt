@@ -56,7 +56,6 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object Statistics : Screen("statistics")
     data object Player : Screen("player")
-    data object CloverDemo : Screen("clover_demo")
     data object MicaDemo : Screen("mica_demo")
 }
 
@@ -228,12 +227,6 @@ fun FHRebornApp() {
                     onNavigate = topLevelNavigate,
                     onPlayerClick = { showPlayer = true },
                     playerViewModel = playerViewModel
-                )
-            }
-
-            composable(Screen.CloverDemo.route) {
-                cn.lemondrop.fhreborn.ui.screens.demo.CloverDemoScreen(
-                    onBack = { navController.navigateUp() }
                 )
             }
 

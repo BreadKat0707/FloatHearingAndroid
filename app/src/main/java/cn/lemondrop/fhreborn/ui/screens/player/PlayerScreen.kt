@@ -1,7 +1,8 @@
-@file:OptIn(ExperimentalSharedTransitionApi::class)
+@file:OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
 
 package cn.lemondrop.fhreborn.ui.screens.player
 
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -40,7 +41,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +57,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -163,6 +171,17 @@ fun PlayerScreen(
     val currentIndex by viewModel.currentIndex.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
     val currentLyricIndex by viewModel.currentLyricIndex.collectAsState()
+
+    // 横屏 / 大屏（Expanded 宽度，≥840dp）时启用左右双栏布局；竖屏保持单栏
+    val configuration = LocalConfiguration.current
+    val activity = context as? Activity
+    val widthSizeClass = activity?.let { calculateWindowSizeClass(it).widthSizeClass }
+    val isExpandedWidth = widthSizeClass == WindowWidthSizeClass.Expanded
+    val isCompactLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && !isExpandedWidth
+    val isTwoPane = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || isExpandedWidth
+
+    // 刘海/挖孔屏安全区（左右上下都避开）
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
 
     var showLyrics by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
@@ -334,6 +353,133 @@ fun PlayerScreen(
             }
         }
 
+        if (isTwoPane) {
+            // 横屏 / 大屏：左右双栏。左栏播放控件，右栏歌词；竖屏走下方单栏分支。
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(cutoutPadding)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = -queueProgress.value * screenHeightPx
+                    }
+            ) {
+                val coverSizeMultiplier by animateFloatAsState(
+                    targetValue = if (isCompactLandscape) 1f else if (isPlaying) 1f else 0.92f,
+                    animationSpec = tween(200, easing = FastOutSlowInEasing),
+                    label = "coverSizeMultiplierTwoPane"
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(0.48f)
+                        .fillMaxHeight()
+                        .padding(
+                            top = statusBarPadding.calculateTopPadding(),
+                            bottom = navBarPadding
+                        )
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 手机横屏：封面与歌曲信息同一行；大屏/pad：垂直排列
+                    if (isCompactLandscape) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PlayerCoverSection(
+                                currentSong = currentSong,
+                                currentCoverBitmap = currentCoverBitmap,
+                                coverSizeMultiplier = coverSizeMultiplier,
+                                isDarkTheme = isDarkTheme,
+                                targetBlendMode = targetBlendMode,
+                                onLongClickCover = { showCoverViewer = true },
+                                onCoverBitmapLoaded = { currentCoverBitmap = it },
+                                modifier = Modifier
+                                    .width(120.dp)
+                                    .aspectRatio(1f),
+                                useSharedTransition = false
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            PlayerSongInfoSection(
+                                currentSong = currentSong,
+                                isDarkTheme = isDarkTheme,
+                                useSharedTransition = false,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    } else {
+                        PlayerCoverSection(
+                            currentSong = currentSong,
+                            currentCoverBitmap = currentCoverBitmap,
+                            coverSizeMultiplier = coverSizeMultiplier,
+                            isDarkTheme = isDarkTheme,
+                            targetBlendMode = targetBlendMode,
+                            onLongClickCover = { showCoverViewer = true },
+                            onCoverBitmapLoaded = { currentCoverBitmap = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            useSharedTransition = false
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        PlayerSongInfoSection(
+                            currentSong = currentSong,
+                            isDarkTheme = isDarkTheme,
+                            useSharedTransition = false
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    PlayerProgressSection(
+                        position = position,
+                        duration = duration,
+                        viewModel = viewModel,
+                        isDarkTheme = isDarkTheme,
+                        useSharedTransition = false
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    PlayerControlsSection(
+                        isPlaying = isPlaying,
+                        isShuffle = shuffleMode,
+                        repeatMode = repeatMode,
+                        viewModel = viewModel
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    PlayerBottomActionsSection(
+                        openQueue = { openQueue() },
+                        onShowMore = { showMore = true },
+                        isDarkTheme = isDarkTheme
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(0.52f)
+                        .fillMaxHeight()
+                        .padding(
+                            top = statusBarPadding.calculateTopPadding(),
+                            bottom = navBarPadding,
+                            end = 24.dp
+                        )
+                ) {
+                    PlayerLyricsPane(
+                        lyrics = lyrics,
+                        currentPosition = position,
+                        currentLyricIndex = currentLyricIndex,
+                        isDarkTheme = isDarkTheme,
+                        onLineClicked = { line -> viewModel.seekTo(line.start.toLong()) }
+                    )
+                }
+            }
+        } else {
         AnimatedContent(
             targetState = showLyrics,
             transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
@@ -361,7 +507,9 @@ fun PlayerScreen(
                 )
             } else {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(cutoutPadding),
             contentAlignment = Alignment.TopStart
         ) {
             // 播放器主内容：随队列呼出向上滑走；打开歌词时非共享元素淡出
@@ -404,452 +552,132 @@ fun PlayerScreen(
                     animationSpec = tween(200, easing = FastOutSlowInEasing),
                     label = "coverSizeMultiplier"
                 )
-                BoxWithConstraints(
+                PlayerCoverSection(
+                    currentSong = currentSong,
+                    currentCoverBitmap = currentCoverBitmap,
+                    coverSizeMultiplier = coverSizeMultiplier,
+                    isDarkTheme = isDarkTheme,
+                    targetBlendMode = targetBlendMode,
+                    onLongClickCover = { showCoverViewer = true },
+                    onCoverBitmapLoaded = { currentCoverBitmap = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val (baseCoverWidth, baseCoverHeight) = with(density) {
-                        val bmp = currentCoverBitmap
-                        if (bmp != null) {
-                            val maxWPx = maxWidth.toPx()
-                            val maxHPx = maxHeight.toPx()
-                            val aspect = bmp.width.toFloat() / bmp.height.toFloat()
-                            val fitW: Float
-                            val fitH: Float
-                            if (maxWPx / maxHPx > aspect) {
-                                fitH = maxHPx
-                                fitW = fitH * aspect
-                            } else {
-                                fitW = maxWPx
-                                fitH = fitW / aspect
-                            }
-                            fitW.toDp() to fitH.toDp()
-                        } else {
-                            val size = maxWidth.coerceAtMost(maxHeight)
-                            size to size
-                        }
-                    }
-
-                    val coverWidth by animateDpAsState(
-                        targetValue = baseCoverWidth * coverSizeMultiplier,
-                        animationSpec = tween(300, easing = FastOutSlowInEasing),
-                        label = "coverWidth"
-                    )
-                    val coverHeight by animateDpAsState(
-                        targetValue = baseCoverHeight * coverSizeMultiplier,
-                        animationSpec = tween(300, easing = FastOutSlowInEasing),
-                        label = "coverHeight"
-                    )
-
-                    val coverModifier = with(sharedTransitionScope) {
-                        Modifier
-                            .sharedElement(
-                                sharedContentState = rememberSharedContentState(key = "player_cover"),
-                                animatedVisibilityScope = this@AnimatedContent
-                            )
-                            .size(coverWidth, coverHeight)
-                            .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
-                            .clip(RoundedCornerShape(FluentLargeCorner))
-                            .combinedClickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {},
-                                onLongClick = {
-                                    currentCoverBitmap?.let { showCoverViewer = true }
-                                }
-                            )
-                    }
-                    Box(
-                        modifier = coverModifier,
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Crossfade(
-                            targetState = currentSong?.id,
-                            animationSpec = tween(350, easing = FastOutSlowInEasing),
-                            label = "cover_crossfade"
-                        ) { songId ->
-                            var bitmap by remember(songId) { mutableStateOf<ImageBitmap?>(null) }
-                            LaunchedEffect(songId) {
-                                bitmap = null
-                                songId?.let { id ->
-                                    withContext(Dispatchers.IO) {
-                                        bitmap = try {
-                                            val uri = Uri.parse("content://media/external/audio/media/$id/albumart")
-                                            context.contentResolver.openInputStream(uri)?.use { stream ->
-                                                BitmapFactory.decodeStream(stream)?.asImageBitmap()
-                                            }
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                    }
-                                }
-                            }
-
-                            // 把当前显示封面同步给查看器，避免长按后再加载
-                            LaunchedEffect(bitmap) {
-                                if (songId == currentSong?.id) {
-                                    currentCoverBitmap = bitmap
-                                }
-                            }
-
-                            val bmp = bitmap
-                            if (bmp != null) {
-                                Image(
-                                    bitmap = bmp,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                PlaceholderCoverContent()
-                            }
-                        }
-                    }
-                }
+                    useSharedTransition = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this@AnimatedContent
+                )
 
                 Spacer(modifier = Modifier.height(28.dp))
 
                 // 歌曲信息（与歌词页底部面板共享元素过渡）
-                val songInfoSourceModifier = with(sharedTransitionScope) {
-                    Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = "player_song_info"),
-                        animatedVisibilityScope = this@AnimatedContent
-                    )
-                }
-                Column(modifier = songInfoSourceModifier.fillMaxWidth()) {
-                    Text(
-                        text = currentSong?.title ?: "未在播放",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        color = fluidOnColorSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.graphicsLayer {
-                            compositingStrategy = CompositingStrategy.Offscreen
-                            blendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = currentSong?.let { "${it.artist} - ${it.album}" } ?: "选择一首歌曲开始",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = fluidOnColorTertiary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                PlayerSongInfoSection(
+                    currentSong = currentSong,
+                    isDarkTheme = isDarkTheme,
+                    useSharedTransition = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this@AnimatedContent
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // 歌词预览（两行）始终留占位
-                val lyricLines = lyrics?.lines ?: emptyList()
-                val currentLine = lyricLines.getOrNull(currentLyricIndex.coerceAtLeast(0))
-                val nextLine = lyricLines.getOrNull((currentLyricIndex + 1).coerceAtMost(lyricLines.lastIndex))
-                val lyricTextAlign = if (lyricAlignCenter) TextAlign.Center else TextAlign.Start
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { showLyrics = true }
-                        ),
-                    horizontalAlignment = if (lyricAlignCenter) Alignment.CenterHorizontally else Alignment.Start
-                ) {
-                    if (lyricLines.isNotEmpty() && currentLine != null) {
-                        Text(
-                            text = currentLine.lyricContent(),
-                            modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = fluidOnColorSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = lyricTextAlign
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        val translation = currentLine.lyricTranslation()
-                        if (!translation.isNullOrEmpty()) {
-                            Text(
-                                text = translation,
-                                modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = fluidOnColorSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = lyricTextAlign
-                            )
-                        } else if (nextLine != null) {
-                            Text(
-                                text = nextLine.lyricContent(),
-                                modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = fluidOnColorSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = lyricTextAlign
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "暂无歌词",
-                            modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = fluidOnColorHint,
-                            maxLines = 1,
-                            textAlign = lyricTextAlign
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "点击导入歌词",
-                            modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = fluidOnColorVeryHint,
-                            maxLines = 1,
-                            textAlign = lyricTextAlign
-                        )
-                    }
-                }
+                PlayerLyricsPreviewSection(
+                    lyrics = lyrics,
+                    currentLyricIndex = currentLyricIndex,
+                    lyricAlignCenter = lyricAlignCenter,
+                    fluidOnColorSecondary = fluidOnColorSecondary,
+                    fluidOnColorHint = fluidOnColorHint,
+                    fluidOnColorVeryHint = fluidOnColorVeryHint,
+                    targetBlendMode = targetBlendMode,
+                    onClick = { showLyrics = true }
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // 进度条（与歌词页底部面板共享元素过渡）
-                val progressSourceModifier = with(sharedTransitionScope) {
-                    Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = "player_progress"),
-                        animatedVisibilityScope = this@AnimatedContent
-                    )
-                }
-                var isSeekDragging by remember { mutableStateOf(false) }
-                var seekDragProgress by remember { mutableFloatStateOf(0f) }
-                var seekSliderWidth by remember { mutableIntStateOf(0) }
-                val seekBubbleText = remember(isSeekDragging, seekDragProgress) {
-                    if (isSeekDragging) formatDuration((seekDragProgress * duration.coerceAtLeast(1L)).toLong()) else ""
-                }
-
-                Box(modifier = progressSourceModifier.fillMaxWidth()) {
-                    PlayerProgressSlider(
-                        position = position,
-                        duration = duration,
-                        onProgressChange = { fraction ->
-                            viewModel.seekTo((fraction * duration.coerceAtLeast(1L)).toLong())
-                        },
-                        onDragStateChange = { dragging, progress ->
-                            isSeekDragging = dragging
-                            seekDragProgress = progress
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onGloballyPositioned { coordinates ->
-                                seekSliderWidth = coordinates.size.width
-                            }
-                    )
-
-                    // 拖动进度时悬浮显示目标时间
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = isSeekDragging,
-                        enter = fadeIn(tween(100)) + scaleIn(tween(100), initialScale = 0.9f),
-                        exit = fadeOut(tween(100)) + scaleOut(tween(100), targetScale = 0.9f),
-                        modifier = Modifier.offset(
-                            y = (-28).dp,
-                            x = with(LocalDensity.current) {
-                                ((seekDragProgress * seekSliderWidth) - (seekSliderWidth * 0.1f).coerceAtLeast(30f))
-                                    .toDp()
-                            }
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (isDarkTheme) Color.Black.copy(alpha = 0.7f)
-                                    else Color.White.copy(alpha = 0.9f)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = seekBubbleText,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = fluidOnColorSecondary
-                            )
-                        }
-                    }
-                }
+                PlayerProgressSection(
+                    position = position,
+                    duration = duration,
+                    viewModel = viewModel,
+                    isDarkTheme = isDarkTheme,
+                    useSharedTransition = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this@AnimatedContent
+                )
 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // 播放控制
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FluentIconButton(onClick = { viewModel.toggleShuffle() }) {
-                        PlayerIcon(
-                            imageVector = Lucide.Shuffle,
-                            contentDescription = "随机播放",
-                            modifier = Modifier.size(24.dp),
-                            enabled = shuffleMode
-                        )
-                    }
-
-                    FluentIconButton(onClick = { viewModel.previous() }) {
-                        PlayerIcon(
-                            imageVector = Lucide.SkipBack,
-                            contentDescription = "上一首",
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { viewModel.playPause() }) {
-                        PlayerIcon(
-                            imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
-                            contentDescription = if (isPlaying) "暂停" else "播放",
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { viewModel.next() }) {
-                        PlayerIcon(
-                            imageVector = Lucide.SkipForward,
-                            contentDescription = "下一首",
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { viewModel.toggleRepeatMode() }) {
-                        PlayerIcon(
-                            imageVector = when (repeatMode) {
-                                Player.REPEAT_MODE_ONE -> Lucide.Repeat1
-                                else -> Lucide.Repeat
-                            },
-                            contentDescription = "循环模式",
-                            modifier = Modifier.size(24.dp),
-                            enabled = repeatMode != Player.REPEAT_MODE_OFF
-                        )
-                    }
-                }
+                PlayerControlsSection(
+                    isPlaying = isPlaying,
+                    isShuffle = shuffleMode,
+                    repeatMode = repeatMode,
+                    viewModel = viewModel
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 上划打开播放队列（整排底栏图标上方居中）
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            onClick = { openQueue() }
-                        )
-                        .padding(vertical = 2.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PlayerIcon(
-                        imageVector = Lucide.ChevronUp,
-                        contentDescription = "上划打开播放队列",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                // 底部操作栏
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    FluentIconButton(onClick = { /* TODO: 音频输出 */ }) {
-                        PlayerIcon(
-                            imageVector = Lucide.Volume2,
-                            contentDescription = "音频输出",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { /* TODO: 添加到歌单 */ }) {
-                        PlayerIcon(
-                            imageVector = Lucide.FolderPlus,
-                            contentDescription = "添加到歌单",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { openQueue() }) {
-                        PlayerIcon(
-                            imageVector = Lucide.ListMusic,
-                            contentDescription = "播放队列",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { /* TODO: 倍速 */ }) {
-                        PlayerIcon(
-                            imageVector = Lucide.Gauge,
-                            contentDescription = "倍速",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    FluentIconButton(onClick = { showMore = true }) {
-                        PlayerIcon(
-                            imageVector = Lucide.EllipsisVertical,
-                            contentDescription = "更多",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
+                // 上划打开播放队列 + 底部操作栏
+                PlayerBottomActionsSection(
+                    openQueue = { openQueue() },
+                    onShowMore = { showMore = true },
+                    isDarkTheme = isDarkTheme
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // 播放队列：从底部滑入
-            PredictiveBackHandler(enabled = isQueueOpen) { progress ->
-                try {
-                    progress.collect { event ->
-                        queueProgress.snapTo((1f - event.progress).coerceIn(0f, 1f))
-                    }
-                    closeQueue()
-                } catch (_: CancellationException) {
-                    scope.launch { queueProgress.animateTo(1f, tween(200)) }
-                }
-            }
-            if (queueProgress.value > 0f) {
-                PlayerQueueScreen(
-                    queue = queue,
-                    currentIndex = currentIndex,
-                    onBack = { closeQueue() },
-                    onItemClick = { index ->
-                        viewModel.seekTo(index)
-                        closeQueue()
-                    },
-                    onRemove = { index ->
-                        viewModel.removeFromQueue(index)
-                    },
-                    onCloseDrag = { dragAmount ->
-                        scope.launch {
-                            queueProgress.snapTo(
-                                (queueProgress.value - dragAmount / screenHeightPx).coerceIn(0f, 1f)
-                            )
-                        }
-                    },
-                    onCloseDragEnd = {
-                        scope.launch {
-                            if (queueProgress.value > 0.5f) {
-                                queueProgress.animateTo(1f, tween(200))
-                            } else {
-                                queueProgress.animateTo(0f, tween(200))
-                            }
-                        }
-                    },
-                    modifier = Modifier.graphicsLayer {
-                        translationY = (1f - queueProgress.value) * screenHeightPx
-                    }
-                )
-            }
+            // 播放队列已移至单栏/双栏分支之后，见下方共用覆盖层
         }
             }
+        }
+        }
+
+        // 播放队列：从底部滑入（单栏/双栏共用，全屏浮于上方）
+        PredictiveBackHandler(enabled = isQueueOpen) { progress ->
+            try {
+                progress.collect { event ->
+                    queueProgress.snapTo((1f - event.progress).coerceIn(0f, 1f))
+                }
+                closeQueue()
+            } catch (_: CancellationException) {
+                scope.launch { queueProgress.animateTo(1f, tween(200)) }
+            }
+        }
+        if (queueProgress.value > 0f) {
+            PlayerQueueScreen(
+                queue = queue,
+                currentIndex = currentIndex,
+                onBack = { closeQueue() },
+                onItemClick = { index ->
+                    viewModel.seekTo(index)
+                    closeQueue()
+                },
+                onRemove = { index ->
+                    viewModel.removeFromQueue(index)
+                },
+                onCloseDrag = { dragAmount ->
+                    scope.launch {
+                        queueProgress.snapTo(
+                            (queueProgress.value - dragAmount / screenHeightPx).coerceIn(0f, 1f)
+                        )
+                    }
+                },
+                onCloseDragEnd = {
+                    scope.launch {
+                        if (queueProgress.value > 0.5f) {
+                            queueProgress.animateTo(1f, tween(200))
+                        } else {
+                            queueProgress.animateTo(0f, tween(200))
+                        }
+                    }
+                },
+                modifier = Modifier.graphicsLayer {
+                    translationY = (1f - queueProgress.value) * screenHeightPx
+                }
+            )
         }
 
         // 更多菜单弹窗（放在歌词弹窗之后，确保显示在歌词层之上）
@@ -941,6 +769,7 @@ private fun PlayerProgressSlider(
                             alpha = 0.6f,
                             blendMode = if (isDarkTheme) BlendMode.Overlay else BlendMode.Multiply
                         )
+                        
                     }
             )
         }
@@ -1286,5 +1115,504 @@ private fun PlaceholderCoverContent() {
             style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
         )
+    }
+}
+
+@Composable
+private fun PlayerCoverSection(
+    currentSong: Song?,
+    currentCoverBitmap: ImageBitmap?,
+    coverSizeMultiplier: Float,
+    isDarkTheme: Boolean,
+    targetBlendMode: BlendMode,
+    onLongClickCover: () -> Unit,
+    onCoverBitmapLoaded: (ImageBitmap?) -> Unit,
+    modifier: Modifier = Modifier,
+    useSharedTransition: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    BoxWithConstraints(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        val (baseCoverWidth, baseCoverHeight) = with(density) {
+            val bmp = currentCoverBitmap
+            if (bmp != null) {
+                val maxWPx = maxWidth.toPx()
+                val maxHPx = maxHeight.toPx()
+                val aspect = bmp.width.toFloat() / bmp.height.toFloat()
+                val fitW: Float
+                val fitH: Float
+                if (maxWPx / maxHPx > aspect) {
+                    fitH = maxHPx
+                    fitW = fitH * aspect
+                } else {
+                    fitW = maxWPx
+                    fitH = fitW / aspect
+                }
+                fitW.toDp() to fitH.toDp()
+            } else {
+                val size = maxWidth.coerceAtMost(maxHeight)
+                size to size
+            }
+        }
+
+        val coverWidth by animateDpAsState(
+            targetValue = baseCoverWidth * coverSizeMultiplier,
+            animationSpec = tween(300, easing = FastOutSlowInEasing),
+            label = "coverWidth"
+        )
+        val coverHeight by animateDpAsState(
+            targetValue = baseCoverHeight * coverSizeMultiplier,
+            animationSpec = tween(300, easing = FastOutSlowInEasing),
+            label = "coverHeight"
+        )
+
+        val baseCoverModifier = Modifier
+            .size(coverWidth, coverHeight)
+            .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
+            .clip(RoundedCornerShape(FluentLargeCorner))
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+                onLongClick = {
+                    if (currentCoverBitmap != null) onLongClickCover()
+                }
+            )
+        val coverModifier = if (useSharedTransition && sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier
+                    .sharedElement(
+                        sharedContentState = rememberSharedContentState(key = "player_cover"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                    .then(baseCoverModifier)
+            }
+        } else {
+            baseCoverModifier
+        }
+        Box(
+            modifier = coverModifier,
+            contentAlignment = Alignment.Center
+        ) {
+            Crossfade(
+                targetState = currentSong?.id,
+                animationSpec = tween(350, easing = FastOutSlowInEasing),
+                label = "cover_crossfade"
+            ) { songId ->
+                var bitmap by remember(songId) { mutableStateOf<ImageBitmap?>(null) }
+                LaunchedEffect(songId) {
+                    bitmap = null
+                    songId?.let { id ->
+                        withContext(Dispatchers.IO) {
+                            bitmap = try {
+                                val uri = Uri.parse("content://media/external/audio/media/$id/albumart")
+                                context.contentResolver.openInputStream(uri)?.use { stream ->
+                                    BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                                }
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                    }
+                }
+
+                // 把当前显示封面同步给查看器，避免长按后再加载
+                LaunchedEffect(bitmap) {
+                    if (songId == currentSong?.id) {
+                        onCoverBitmapLoaded(bitmap)
+                    }
+                }
+
+                val bmp = bitmap
+                if (bmp != null) {
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    PlaceholderCoverContent()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerSongInfoSection(
+    currentSong: Song?,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier,
+    useSharedTransition: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
+) {
+    val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
+    val fluidOnColorTertiary = if (isDarkTheme) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
+    val sharedModifier = if (useSharedTransition && sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = "player_song_info"),
+                animatedVisibilityScope = animatedVisibilityScope
+            )
+        }
+    } else {
+        Modifier
+    }
+    Column(modifier = sharedModifier.then(modifier).fillMaxWidth()) {
+        Text(
+            text = currentSong?.title ?: "未在播放",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = fluidOnColorSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.graphicsLayer {
+                compositingStrategy = CompositingStrategy.Offscreen
+                blendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
+            }
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = currentSong?.let { "${it.artist} - ${it.album}" } ?: "选择一首歌曲开始",
+            style = MaterialTheme.typography.bodyLarge,
+            color = fluidOnColorTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun PlayerProgressSection(
+    position: Long,
+    duration: Long,
+    viewModel: PlayerViewModel,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier,
+    useSharedTransition: Boolean = true,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
+) {
+    val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
+    val sharedModifier = if (useSharedTransition && sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = "player_progress"),
+                animatedVisibilityScope = animatedVisibilityScope
+            )
+        }
+    } else {
+        Modifier
+    }
+    var isSeekDragging by remember { mutableStateOf(false) }
+    var seekDragProgress by remember { mutableFloatStateOf(0f) }
+    var seekSliderWidth by remember { mutableIntStateOf(0) }
+    val seekBubbleText = remember(isSeekDragging, seekDragProgress) {
+        if (isSeekDragging) formatDuration((seekDragProgress * duration.coerceAtLeast(1L)).toLong()) else ""
+    }
+
+    Box(modifier = sharedModifier.then(modifier).fillMaxWidth()) {
+        PlayerProgressSlider(
+            position = position,
+            duration = duration,
+            onProgressChange = { fraction ->
+                viewModel.seekTo((fraction * duration.coerceAtLeast(1L)).toLong())
+            },
+            onDragStateChange = { dragging, progress ->
+                isSeekDragging = dragging
+                seekDragProgress = progress
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    seekSliderWidth = coordinates.size.width
+                }
+        )
+
+        // 拖动进度时悬浮显示目标时间
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isSeekDragging,
+            enter = fadeIn(tween(100)) + scaleIn(tween(100), initialScale = 0.9f),
+            exit = fadeOut(tween(100)) + scaleOut(tween(100), targetScale = 0.9f),
+            modifier = Modifier.offset(
+                y = (-28).dp,
+                x = with(LocalDensity.current) {
+                    ((seekDragProgress * seekSliderWidth) - (seekSliderWidth * 0.1f).coerceAtLeast(30f))
+                        .toDp()
+                }
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isDarkTheme) Color.Black.copy(alpha = 0.7f)
+                        else Color.White.copy(alpha = 0.9f)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = seekBubbleText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = fluidOnColorSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerControlsSection(
+    isPlaying: Boolean,
+    isShuffle: Boolean,
+    repeatMode: Int,
+    viewModel: PlayerViewModel,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FluentIconButton(onClick = { viewModel.toggleShuffle() }) {
+            PlayerIcon(
+                imageVector = Lucide.Shuffle,
+                contentDescription = "随机播放",
+                modifier = Modifier.size(24.dp),
+                enabled = isShuffle
+            )
+        }
+
+        FluentIconButton(onClick = { viewModel.previous() }) {
+            PlayerIcon(
+                imageVector = Lucide.SkipBack,
+                contentDescription = "上一首",
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { viewModel.playPause() }) {
+            PlayerIcon(
+                imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
+                contentDescription = if (isPlaying) "暂停" else "播放",
+                modifier = Modifier.size(48.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { viewModel.next() }) {
+            PlayerIcon(
+                imageVector = Lucide.SkipForward,
+                contentDescription = "下一首",
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { viewModel.toggleRepeatMode() }) {
+            PlayerIcon(
+                imageVector = when (repeatMode) {
+                    Player.REPEAT_MODE_ONE -> Lucide.Repeat1
+                    else -> Lucide.Repeat
+                },
+                contentDescription = "循环模式",
+                modifier = Modifier.size(24.dp),
+                enabled = repeatMode != Player.REPEAT_MODE_OFF
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerBottomActionsSection(
+    openQueue: () -> Unit,
+    onShowMore: () -> Unit,
+    isDarkTheme: Boolean
+) {
+    // 上划打开播放队列（整排底栏图标上方居中）
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                onClick = { openQueue() }
+            )
+            .padding(vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        PlayerIcon(
+            imageVector = Lucide.ChevronUp,
+            contentDescription = "上划打开播放队列",
+            modifier = Modifier.size(20.dp)
+        )
+    }
+
+    // 底部操作栏
+    Row(
+        modifier = Modifier
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        FluentIconButton(onClick = { /* TODO: 音频输出 */ }) {
+            PlayerIcon(
+                imageVector = Lucide.Volume2,
+                contentDescription = "音频输出",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { /* TODO: 添加到歌单 */ }) {
+            PlayerIcon(
+                imageVector = Lucide.FolderPlus,
+                contentDescription = "添加到歌单",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { openQueue() }) {
+            PlayerIcon(
+                imageVector = Lucide.ListMusic,
+                contentDescription = "播放队列",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { /* TODO: 倍速 */ }) {
+            PlayerIcon(
+                imageVector = Lucide.Gauge,
+                contentDescription = "倍速",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        FluentIconButton(onClick = { onShowMore() }) {
+            PlayerIcon(
+                imageVector = Lucide.EllipsisVertical,
+                contentDescription = "更多",
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerLyricsPane(
+    lyrics: SyncedLyrics?,
+    currentPosition: Long,
+    currentLyricIndex: Int,
+    isDarkTheme: Boolean,
+    onLineClicked: (ISyncedLine) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val listState = rememberLazyListState()
+    val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
+    if (lyrics != null) {
+        KaraokeLyricsViewWrapper(
+            lyrics = lyrics,
+            currentPosition = currentPosition,
+            listState = listState,
+            isDarkTheme = isDarkTheme,
+            modifier = modifier.fillMaxSize(),
+            onLineClicked = onLineClicked
+        )
+    } else {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "暂无歌词",
+                style = MaterialTheme.typography.headlineSmall,
+                color = fluidOnColor.copy(alpha = 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerLyricsPreviewSection(
+    lyrics: SyncedLyrics?,
+    currentLyricIndex: Int,
+    lyricAlignCenter: Boolean,
+    fluidOnColorSecondary: Color,
+    fluidOnColorHint: Color,
+    fluidOnColorVeryHint: Color,
+    targetBlendMode: BlendMode,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val lyricLines = lyrics?.lines ?: emptyList()
+    val currentLine = lyricLines.getOrNull(currentLyricIndex.coerceAtLeast(0))
+    val nextLine = lyricLines.getOrNull((currentLyricIndex + 1).coerceAtMost(lyricLines.lastIndex))
+    val lyricTextAlign = if (lyricAlignCenter) TextAlign.Center else TextAlign.Start
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onClick() }
+            ),
+        horizontalAlignment = if (lyricAlignCenter) Alignment.CenterHorizontally else Alignment.Start
+    ) {
+        if (lyricLines.isNotEmpty() && currentLine != null) {
+            Text(
+                text = currentLine.lyricContent(),
+                modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
+                style = MaterialTheme.typography.bodyLarge,
+                color = fluidOnColorSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = lyricTextAlign
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            val translation = currentLine.lyricTranslation()
+            if (!translation.isNullOrEmpty()) {
+                Text(
+                    text = translation,
+                    modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = fluidOnColorSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = lyricTextAlign
+                )
+            } else if (nextLine != null) {
+                Text(
+                    text = nextLine.lyricContent(),
+                    modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = fluidOnColorSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = lyricTextAlign
+                )
+            }
+        } else {
+            Text(
+                text = "暂无歌词",
+                modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
+                style = MaterialTheme.typography.bodyLarge,
+                color = fluidOnColorHint,
+                maxLines = 1,
+                textAlign = lyricTextAlign
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "点击导入歌词",
+                modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
+                style = MaterialTheme.typography.bodyMedium,
+                color = fluidOnColorVeryHint,
+                maxLines = 1,
+                textAlign = lyricTextAlign
+            )
+        }
     }
 }
