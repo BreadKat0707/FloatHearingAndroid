@@ -24,6 +24,7 @@ class SettingsRepository(private val context: Context) {
         val HIDDEN_FOLDERS = stringSetPreferencesKey("hidden_folders")
         val SORT_FIELD = stringPreferencesKey("sort_field")
         val SORT_ORDER = stringPreferencesKey("sort_order")
+        val ARTIST_SEPARATORS = stringSetPreferencesKey("artist_separators")
     }
 
     val isOnboardingCompleted: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -62,6 +63,16 @@ class SettingsRepository(private val context: Context) {
 
     val sortOrder: Flow<String?> = dataStore.data.map { prefs ->
         prefs[SORT_ORDER]
+    }
+
+    val artistSeparators: Flow<Set<String>> = dataStore.data.map { prefs ->
+        prefs[ARTIST_SEPARATORS] ?: setOf(" / ")
+    }
+
+    suspend fun setArtistSeparators(separators: Set<String>) {
+        dataStore.edit { prefs ->
+            prefs[ARTIST_SEPARATORS] = separators
+        }
     }
 
     suspend fun setSortField(fieldName: String) {

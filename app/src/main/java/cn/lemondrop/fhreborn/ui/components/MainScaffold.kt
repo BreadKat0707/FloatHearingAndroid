@@ -55,6 +55,7 @@ fun MainScaffold(
     title: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
     bottomBar: @Composable (() -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
     onPlayerClick: () -> Unit,
     content: @Composable (paddingValues: PaddingValues, bottomOverlayHeight: Dp) -> Unit
 ) {
@@ -142,7 +143,7 @@ fun MainScaffold(
 
             CloverTitleBar(
                 title = title,
-                leading = menuButton,
+                leading = navigationIcon ?: menuButton,
                 trailing = actions,
                 modifier = Modifier
                     .fillMaxWidth()

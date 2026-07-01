@@ -13,6 +13,7 @@ import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.scanner.MediaScanner
 import cn.lemondrop.fhreborn.scanner.ScanProgress
+import cn.lemondrop.fhreborn.util.ArtistSplitter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -117,9 +118,15 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             .sortedBy { it.name.lowercase() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val artists: StateFlow<List<Artist>> = songs.map { songList ->
-        songList.groupBy { it.artist }
-            .map { (name, artistSongs) ->
+    val artists: StateFlow<List<Artist>> = combine(
+        songs,
+        settingsRepository.artistSeparators
+    ) { songList, separators ->
+        songList
+            .flatMap { song -> ArtistSplitter.split(song.artist, separators).map { it to song } }
+            .groupBy { it.first }
+            .map { (name, pairs) ->
+                val artistSongs = pairs.map { it.second }
                 Artist(
                     name = name,
                     songCount = artistSongs.size,
@@ -128,6 +135,39 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             }
             .sortedBy { it.name.lowercase() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _artistSeparators = MutableStateFlow<Set<String>>(emptySet())
+    val artistSeparators: StateFlow<Set<String>> = _artistSeparators.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            settingsRepository.artistSeparators.collect {
+                _artistSeparators.value = it
+            }
+        }
+    }
+
+    /** 根据当前分隔符获取某艺术家的歌曲列表。 */
+    fun getArtistSongs(artist: String): List<Song> {
+        val separators = _artistSeparators.value
+        return songs.value.filter { ArtistSplitter.containsArtist(it.artist, artist, separators) }
+    }
+
+    /** 根据当前分隔符获取某艺术家作为主艺术家的专辑列表。 */
+    fun getArtistAlbums(artist: String): List<Album> {
+        return albums.value.filter { it.artist.equals(artist, ignoreCase = true) }
+    }
+
+    /** 根据当前分隔符获取某艺术家参与但不是主艺术家的专辑列表。 */
+    fun getGuestAlbumsForArtist(artist: String): List<Album> {
+        val separators = _artistSeparators.value
+        return albums.value.filter { album ->
+            !album.artist.equals(artist, ignoreCase = true)
+                    && album.songs.any { song ->
+                        ArtistSplitter.containsArtist(song.artist, artist, separators)
+                    }
+        }
+    }
 
     private val _scanProgress = MutableStateFlow<ScanProgress>(ScanProgress.Idle)
     val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()

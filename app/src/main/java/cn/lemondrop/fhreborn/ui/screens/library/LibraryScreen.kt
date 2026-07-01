@@ -92,6 +92,7 @@ import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
+import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PermissionUtils
 import cn.lemondrop.clover.CloverBottomNavbar
 import cn.lemondrop.clover.CloverBottomSheet
@@ -166,6 +167,7 @@ fun LibraryScreen(
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showTitleBarMenu by remember { mutableStateOf(false) }
+    var showArtistChooser by remember { mutableStateOf(false) }
     var pendingLocateSongId by remember { mutableStateOf<Long?>(null) }
 
     val displaySongs = if (searchQuery.isNotBlank()) searchResults else songs
@@ -330,8 +332,18 @@ fun LibraryScreen(
                         showSongMenu = true
                     }
                 )
-                1 -> AlbumsContent(albums = albums)
-                2 -> ArtistsContent(artists = artists)
+                1 -> AlbumsContent(
+                    albums = albums,
+                    onAlbumClick = { album ->
+                        onNavigate(Screen.AlbumDetail.createRoute(album.name, album.artist))
+                    }
+                )
+                2 -> ArtistsContent(
+                    artists = artists,
+                    onArtistClick = { artist ->
+                        onNavigate(Screen.ArtistDetail.createRoute(artist.name))
+                    }
+                )
                 3 -> FoldersContent(
                     songs = displaySongs,
                     hiddenFolders = hiddenFolders,
@@ -522,10 +534,22 @@ fun LibraryScreen(
                 // TODO: 加入歌单
             },
             onViewAlbum = {
-                // TODO: 查看专辑
+                menuSong?.let { s ->
+                    onNavigate(Screen.AlbumDetail.createRoute(s.album, s.albumArtist))
+                }
             },
             onViewArtist = {
-                // TODO: 查看艺术家
+                menuSong?.let { s ->
+                    val separators = viewModel.artistSeparators.value
+                    val artistList = ArtistSplitter.split(s.artist, separators)
+                    if (artistList.size == 1) {
+                        showSongMenu = false
+                        onNavigate(Screen.ArtistDetail.createRoute(artistList.first()))
+                    } else if (artistList.isNotEmpty()) {
+                        showSongMenu = false
+                        showArtistChooser = true
+                    }
+                }
             },
             onGoToFolder = {
                 // TODO: 转至文件夹
@@ -537,6 +561,31 @@ fun LibraryScreen(
                 // TODO: 删除文件
             }
         )
+    }
+
+    // 多艺术家选择器
+    if (showArtistChooser && menuSong != null) {
+        val separators = viewModel.artistSeparators.value
+        val artistList = remember(menuSong, separators) {
+            ArtistSplitter.split(menuSong!!.artist, separators)
+        }
+        BackHandler { showArtistChooser = false }
+        CloverBottomSheet(
+            onDismiss = { showArtistChooser = false },
+            title = "选择艺术家"
+        ) {
+            Column(modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding)) {
+                artistList.forEach { artist ->
+                    FhListItem(
+                        title = artist,
+                        onClick = {
+                            showArtistChooser = false
+                            onNavigate(Screen.ArtistDetail.createRoute(artist))
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -568,7 +617,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.SongsContent(
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(albums: List<LibraryViewModel.Album>) {
+private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
+    albums: List<LibraryViewModel.Album>,
+    onAlbumClick: (LibraryViewModel.Album) -> Unit
+) {
     item {
         Text(
             text = "${albums.size} 张专辑",
@@ -590,6 +642,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(albums:
             rowAlbums.forEach { album ->
                 AlbumItem(
                     album = album,
+                    onClick = { onAlbumClick(album) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -600,7 +653,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(albums:
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(artists: List<LibraryViewModel.Artist>) {
+private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(
+    artists: List<LibraryViewModel.Artist>,
+    onArtistClick: (LibraryViewModel.Artist) -> Unit
+) {
     item {
         Text(
             text = "${artists.size} 位艺术家",
@@ -610,7 +666,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(artist
         )
     }
     items(artists.size, key = { artists[it].name }) { index ->
-        ArtistItem(artist = artists[index])
+        ArtistItem(
+            artist = artists[index],
+            onClick = { onArtistClick(artists[index]) }
+        )
     }
 }
 
@@ -768,7 +827,7 @@ private fun formatDuration(ms: Long): String {
 // ===== 子组件 =====
 
 @Composable
-private fun SongItem(
+internal fun SongItem(
     song: Song,
     isSelected: Boolean,
     isPlaying: Boolean,
@@ -823,12 +882,13 @@ private fun SongItem(
 }
 
 @Composable
-private fun AlbumItem(
+internal fun AlbumItem(
     album: LibraryViewModel.Album,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.clickable(onClick = { /* TODO: open album detail */ }),
+        modifier = modifier.clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         SongCoverImage(
@@ -859,11 +919,14 @@ private fun AlbumItem(
 }
 
 @Composable
-private fun ArtistItem(artist: LibraryViewModel.Artist) {
+private fun ArtistItem(
+    artist: LibraryViewModel.Artist,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = { /* TODO: open artist detail */ })
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

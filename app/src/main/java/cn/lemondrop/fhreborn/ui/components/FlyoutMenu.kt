@@ -125,9 +125,10 @@ fun FlyoutMenu(
                 Column(
                     modifier = if (hazeState != null) {
                         panelModifier
+                            .background(solidBg.copy(alpha = 0.85f))
                             .cloverAcrylic(
                                 state = hazeState,
-                                backgroundColor = solidBg.copy(alpha = 0.15f),
+                                backgroundColor = Color.Transparent,
                                 blurRadius = 60.dp
                             )
                     } else {
@@ -221,9 +222,10 @@ fun FlyoutMenu(
                 Column(
                     modifier = if (hazeState != null) {
                         panelModifier
+                            .background(solidBg.copy(alpha = 0.85f))
                             .cloverAcrylic(
                                 state = hazeState,
-                                backgroundColor = solidBg.copy(alpha = 0.15f),
+                                backgroundColor = Color.Transparent,
                                 blurRadius = 60.dp
                             )
                     } else {

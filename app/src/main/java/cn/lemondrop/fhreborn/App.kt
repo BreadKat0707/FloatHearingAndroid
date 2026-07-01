@@ -1,6 +1,7 @@
 package cn.lemondrop.fhreborn
 
 import android.app.Application
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -14,10 +15,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -33,6 +36,8 @@ import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.theme.FloatHearingTheme
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.clover.CloverTheme
+import cn.lemondrop.fhreborn.ui.screens.album.AlbumDetailScreen
+import cn.lemondrop.fhreborn.ui.screens.artist.ArtistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
 import cn.lemondrop.fhreborn.ui.screens.demo.MicaDemoScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderBrowserScreen
@@ -44,6 +49,7 @@ import cn.lemondrop.fhreborn.ui.screens.playlists.PlaylistsScreen
 import cn.lemondrop.fhreborn.ui.screens.settings.SettingsScreen
 import cn.lemondrop.fhreborn.ui.screens.statistics.StatisticsScreen
 import cn.lemondrop.fhreborn.ui.components.ScheduledPauseDialog
+import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.CrashHandler
 
@@ -57,6 +63,15 @@ sealed class Screen(val route: String) {
     data object Statistics : Screen("statistics")
     data object Player : Screen("player")
     data object MicaDemo : Screen("mica_demo")
+    data object ArtistDetail : Screen("artist/{artistName}") {
+        fun createRoute(artistName: String) = "artist/${Uri.encode(artistName)}"
+    }
+    data object AlbumDetail : Screen("album/{albumName}/{albumArtist}") {
+        fun createRoute(albumName: String, albumArtist: String?): String {
+            val artistPart = if (albumArtist.isNullOrBlank()) "_null_" else Uri.encode(albumArtist)
+            return "album/${Uri.encode(albumName)}/$artistPart"
+        }
+    }
 }
 
 @Composable
@@ -235,13 +250,64 @@ fun FHRebornApp() {
                     onBack = { navController.navigateUp() }
                 )
             }
+
+            composable(
+                route = Screen.AlbumDetail.route,
+                arguments = listOf(
+                    navArgument("albumName") { type = NavType.StringType },
+                    navArgument("albumArtist") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = "_null_"
+                    }
+                )
+            ) { backStackEntry ->
+                val albumName = backStackEntry.arguments?.getString("albumName") ?: ""
+                val rawArtist = backStackEntry.arguments?.getString("albumArtist")
+                val albumArtist = rawArtist?.takeIf { it != "_null_" && it.isNotBlank() }
+                AlbumDetailScreen(
+                    albumName = albumName,
+                    albumArtist = albumArtist,
+                    onBack = { navController.navigateUp() },
+                    playerViewModel = playerViewModel
+                )
+            }
+
+            composable(
+                route = Screen.ArtistDetail.route,
+                arguments = listOf(
+                    navArgument("artistName") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val artistName = backStackEntry.arguments?.getString("artistName") ?: ""
+                val libraryViewModel: LibraryViewModel = viewModel(
+                    factory = LibraryViewModel.Factory(context.applicationContext as Application)
+                )
+                ArtistDetailScreen(
+                    artistName = artistName,
+                    onBack = { navController.navigateUp() },
+                    onNavigateToAlbum = { album, albumArtist ->
+                        navController.navigate(Screen.AlbumDetail.createRoute(album, albumArtist))
+                    },
+                    playerViewModel = playerViewModel,
+                    libraryViewModel = libraryViewModel
+                )
+            }
         }
 
         // 播放器页（自身管理进入/退出动画）
         if (showPlayer) {
             PlayerScreen(
                 playerViewModel = playerViewModel,
-                onBack = { showPlayer = false }
+                onBack = { showPlayer = false },
+                onNavigateToAlbum = { album, artist ->
+                    showPlayer = false
+                    navController.navigate(Screen.AlbumDetail.createRoute(album, artist))
+                },
+                onNavigateToArtist = { artist ->
+                    showPlayer = false
+                    navController.navigate(Screen.ArtistDetail.createRoute(artist))
+                }
             )
         }
 

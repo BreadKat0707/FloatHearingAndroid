@@ -1,10 +1,9 @@
-name: Android CI
+name: Release Build
 
 on:
   push:
-    branches: [main, master, develop]
-  pull_request:
-    branches: [main, master, develop]
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -42,17 +41,32 @@ jobs:
           chmod +x gradlew
           ./gradlew :clover-ui:publishReleasePublicationToMavenLocal
 
+      - name: Decode signing key
+        run: |
+          echo "${{ secrets.SIGNING_KEY_BASE64 }}" | base64 -d > app/fh-release.keystore
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      - name: Build Release APK
+        run: ./gradlew assembleRelease
         env:
           CI: true
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload Debug APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: release-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

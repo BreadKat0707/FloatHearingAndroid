@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,7 +25,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
 import io.github.composefluent.component.Icon
@@ -36,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,10 +48,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.lemondrop.clover.CloverBottomSheet
+import cn.lemondrop.clover.CloverButton
+import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.model.Option
 import cn.lemondrop.clover.CloverDialog
+import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.components.MainScaffold
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
@@ -69,7 +78,9 @@ import com.composables.icons.lucide.Puzzle
 import com.composables.icons.lucide.Type
 import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
+import com.composables.icons.lucide.X
 import com.composables.icons.lucide.Zap
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -82,15 +93,22 @@ fun SettingsScreen(
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.Factory(context.applicationContext as Application)
     )
+    val settingsRepository = remember { SettingsRepository(context) }
+    val scope = rememberCoroutineScope()
+    val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = setOf(" / "))
 
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     var showBackground by remember { mutableStateOf(false) }
+    var showArtistSeparatorSheet by remember { mutableStateOf(false) }
 
     // 拦截系统返回键：背景子页优先返回，其次分类详情页回到设置主页，避免直接退出
     BackHandler(enabled = showBackground) {
         showBackground = false
     }
-    BackHandler(enabled = selectedCategory != null && !showBackground) {
+    BackHandler(enabled = showArtistSeparatorSheet) {
+        showArtistSeparatorSheet = false
+    }
+    BackHandler(enabled = selectedCategory != null && !showBackground && !showArtistSeparatorSheet) {
         viewModel.navigateBack()
     }
 
@@ -153,7 +171,12 @@ fun SettingsScreen(
                             SettingItemRow(
                                 item = item,
                                 viewModel = viewModel,
-                                onNavigationClick = { if (it.key == "main_bg") showBackground = true }
+                                onNavigationClick = {
+                                    when (it.key) {
+                                        "main_bg" -> showBackground = true
+                                        "artist_separators" -> showArtistSeparatorSheet = true
+                                    }
+                                }
                             )
                         }
                     }
@@ -164,6 +187,110 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
                 }
             }
+        }
+
+        if (showArtistSeparatorSheet) {
+            ArtistSeparatorSheet(
+                separators = artistSeparators,
+                onDismiss = { showArtistSeparatorSheet = false },
+                onSave = { newSeparators ->
+                    scope.launch {
+                        settingsRepository.setArtistSeparators(newSeparators)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ArtistSeparatorSheet(
+    separators: Set<String>,
+    onDismiss: () -> Unit,
+    onSave: (Set<String>) -> Unit
+) {
+    var current by remember { mutableStateOf(separators.toSortedSet()) }
+    var input by remember { mutableStateOf("") }
+
+    CloverBottomSheet(
+        onDismiss = onDismiss,
+        title = "艺术家分隔符"
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = CloverSizes.listOuterHorizontalPadding)
+        ) {
+            Text(
+                text = "用于拆分歌曲艺术家字段。例如添加 \" / \" 后，\"A / B\" 会被识别为两个艺术家 A 和 B。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                current.forEach { sep ->
+                    InputChip(
+                        selected = false,
+                        onClick = { },
+                        label = { Text("\"$sep\"") },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Lucide.X,
+                                contentDescription = "删除",
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable {
+                                        current = current.toMutableSet().apply { remove(sep) }.toSortedSet()
+                                        onSave(current)
+                                    }
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    label = { Text("添加分隔符") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                CloverButton(
+                    text = "添加",
+                    onClick = {
+                        if (input.isNotBlank()) {
+                            current = current.toMutableSet().apply { add(input) }.toSortedSet()
+                            input = ""
+                            onSave(current)
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            CloverButton(
+                text = "恢复默认",
+                onClick = {
+                    current = setOf(" / ").toSortedSet()
+                    onSave(current)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -514,7 +641,8 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("scan_directories", "扫描目录", "管理音乐文件夹", Lucide.FolderOpen, SettingType.Navigation),
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
                 SettingItem("cover_cache", "封面缓存策略", "懒加载 / 磁盘缓存 / 混合", null, SettingType.Selection(listOf(Option("懒加载", "懒加载"), Option("磁盘缓存", "磁盘缓存"), Option("混合策略", "混合策略"))), "磁盘缓存"),
-                SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true)
+                SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true),
+                SettingItem("artist_separators", "艺术家分隔符", "配置多艺术家拆分规则", null, SettingType.Navigation)
             )
         ),
         cn.lemondrop.fhreborn.data.model.SettingCategory(

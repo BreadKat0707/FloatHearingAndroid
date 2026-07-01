@@ -1,8 +1,72 @@
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// 读取版本属性（可通过 -PversionName / -PversionCode / -PisRelease 覆盖）
+val releaseVersionName: String = findProperty("versionName")?.toString()
+    ?: providers.gradleProperty("fh.versionName").orNull
+    ?: "1.0.0"
+
+val baseVersionCode: Int? = findProperty("versionCode")?.toString()?.toIntOrNull()
+    ?: providers.gradleProperty("fh.versionCode").orNull?.toIntOrNull()
+
+val isReleaseBuild: Boolean = findProperty("isRelease")?.toString()?.toBooleanStrictOrNull()
+    ?: gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+
+val isCiBuild: Boolean = providers.environmentVariable("CI").orNull == "true"
+    || providers.environmentVariable("GITHUB_ACTIONS").orNull == "true"
+
+val gitCommitShort: String = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.orNull?.trim() ?: "unknown"
+
+fun computeVersionCode(): Int {
+    return baseVersionCode ?: run {
+        val now = LocalDate.now()
+        val datePrefix = now.format(DateTimeFormatter.ofPattern("yyMMdd"))
+        val counterFile = layout.projectDirectory.file(".release-counter.properties").asFile
+        val props = if (counterFile.exists()) Properties().apply {
+            counterFile.inputStream().use { load(it) }
+        } else Properties()
+
+        val lastDate = props.getProperty("lastDate", "")
+        val lastCounter = props.getProperty("counter", "0")?.toIntOrNull() ?: 0
+
+        val (newDate, newCounter) = if (lastDate == datePrefix) {
+            datePrefix to (lastCounter + 1)
+        } else {
+            datePrefix to 1
+        }
+
+        // 仅在实际发布构建时写入计数器，避免 debug 构建污染当天计数
+        if (isReleaseBuild) {
+            props.setProperty("lastDate", newDate)
+            props.setProperty("counter", newCounter.toString())
+            counterFile.parentFile?.mkdirs()
+            counterFile.outputStream().use { props.store(it, "FloatHearing release counter") }
+        }
+
+        "${newDate}${String.format("%02d", newCounter)}".toInt()
+    }
+}
+
+fun computeVersionName(): String {
+    return when {
+        isCiBuild -> "$releaseVersionName-dev-$gitCommitShort"
+        isReleaseBuild -> releaseVersionName
+        else -> "$releaseVersionName-debug"
+    }
+}
+
+val resolvedVersionCode = computeVersionCode()
+val resolvedVersionName = computeVersionName()
 
 android {
     namespace = "cn.lemondrop.fhreborn"
@@ -16,22 +80,71 @@ android {
         applicationId = "cn.lemondrop.fhreborn"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = resolvedVersionCode
+        versionName = resolvedVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("fh-release.keystore")
+            storePassword = System.getenv("STORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("KEY_ALIAS") ?: ""
+            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+        debug {
+            applicationIdSuffix = ".debug"
+            isDebuggable = true
+        }
     }
+
+    // 输出 APK 命名（AGP 9.x 推荐通过 androidComponents.onVariants 修改）
+    androidComponents {
+        onVariants { variant ->
+            val isVariantRelease = variant.buildType == "release"
+            variant.outputs.forEach { output ->
+                val fileName = buildString {
+                    append(defaultConfig.applicationId)
+                    append("_")
+                    when {
+                        isCiBuild -> {
+                            append(resolvedVersionName)
+                            append("_dev_")
+                            append(gitCommitShort)
+                        }
+                        isVariantRelease -> {
+                            append("release_")
+                            append(resolvedVersionName)
+                        }
+                        else -> {
+                            append("debug_")
+                            append(resolvedVersionName)
+                        }
+                    }
+                    append("_")
+                    append(resolvedVersionCode)
+                    append("_")
+                    append("universal")
+                    append(".apk")
+                }
+                output.outputFileName.set(fileName)
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

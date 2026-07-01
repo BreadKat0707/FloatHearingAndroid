@@ -107,7 +107,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.Player
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
+import cn.lemondrop.fhreborn.ui.components.SongInfoActionSheet
 import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import io.github.composefluent.component.Icon
@@ -142,12 +144,15 @@ import kotlin.coroutines.cancellation.CancellationException
 @Composable
 fun PlayerScreen(
     playerViewModel: PlayerViewModel,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onNavigateToAlbum: (String, String?) -> Unit = { _, _ -> },
+    onNavigateToArtist: (String) -> Unit = {}
 ) {
     val viewModel = playerViewModel
     val context = LocalContext.current
     val settingsRepository = remember { SettingsRepository(context) }
     val lyricAlignCenter by settingsRepository.isLyricAlignCenter.collectAsState(initial = false)
+    val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = ArtistSplitter.DEFAULT_SEPARATORS)
 
     val appSettingsRepository = remember { AppSettingsRepository(context) }
     val keepScreenOn by appSettingsRepository.wakeLock.collectAsState(initial = true)
@@ -186,6 +191,7 @@ fun PlayerScreen(
     var showLyrics by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
     var showCoverViewer by remember { mutableStateOf(false) }
+    var showSongInfoSheet by remember { mutableStateOf(false) }
     var currentCoverBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     val queueProgress = remember { Animatable(0f) }
@@ -405,7 +411,8 @@ fun PlayerScreen(
                                 currentSong = currentSong,
                                 isDarkTheme = isDarkTheme,
                                 useSharedTransition = false,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                onInfoClick = { showSongInfoSheet = true }
                             )
                         }
                     } else {
@@ -428,7 +435,8 @@ fun PlayerScreen(
                         PlayerSongInfoSection(
                             currentSong = currentSong,
                             isDarkTheme = isDarkTheme,
-                            useSharedTransition = false
+                            useSharedTransition = false,
+                            onInfoClick = { showSongInfoSheet = true }
                         )
                     }
 
@@ -576,7 +584,8 @@ fun PlayerScreen(
                     isDarkTheme = isDarkTheme,
                     useSharedTransition = true,
                     sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = this@AnimatedContent
+                    animatedVisibilityScope = this@AnimatedContent,
+                    onInfoClick = { showSongInfoSheet = true }
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -699,6 +708,24 @@ fun PlayerScreen(
                 onDismiss = { showCoverViewer = false }
             )
         }
+
+        // 歌曲信息动作面板（点击艺术家/专辑）
+        SongInfoActionSheet(
+            visible = showSongInfoSheet,
+            artists = currentSong?.let { ArtistSplitter.split(it.artist, artistSeparators) } ?: emptyList(),
+            album = currentSong?.album ?: "",
+            onDismiss = { showSongInfoSheet = false },
+            onArtistClick = { artist ->
+                showSongInfoSheet = false
+                onNavigateToArtist(artist)
+            },
+            onAlbumClick = {
+                showSongInfoSheet = false
+                currentSong?.let { song ->
+                    onNavigateToAlbum(song.album, song.albumArtist ?: song.artist)
+                }
+            }
+        )
         }
     }
 }
@@ -1251,7 +1278,8 @@ private fun PlayerSongInfoSection(
     modifier: Modifier = Modifier,
     useSharedTransition: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    onInfoClick: () -> Unit = {}
 ) {
     val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
     val fluidOnColorTertiary = if (isDarkTheme) Color.White.copy(alpha = 0.65f) else Color.Black.copy(alpha = 0.65f)
@@ -1283,7 +1311,12 @@ private fun PlayerSongInfoSection(
             style = MaterialTheme.typography.bodyLarge,
             color = fluidOnColorTertiary,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onInfoClick
+            )
         )
     }
 }
