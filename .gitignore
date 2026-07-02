@@ -1,13 +1,36 @@
-*.iml
+# Gradle
 .gradle
-/local.properties
-/.idea
-.DS_Store
 /build
-/captures
-.externalNativeBuild
-.cxx
+*/build
+*.iml
+
+# Local configuration
+/local.properties
 local.properties
+
+# IDE
+/.idea/
+.idea/
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# JVM crashes / logs
+*.log
+hs_err_pid*
+
+# Signing keys
 app/*.keystore
 app/*.jks
+
+# Generated release artifacts
+app/release/
+
+# Auto-generated release counter
+app/.release-counter.properties
+
+# PRD / private docs
 FH_Reborn_Android_PRD.md
