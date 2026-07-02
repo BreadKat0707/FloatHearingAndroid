@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -85,8 +87,14 @@ fun MainScaffold(
             16.dp
     val bottomOverlayHeight = miniPlayBarHeight + 8.dp + acrylicBarHeight + navBarPadding
 
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+
     // 只给顶部留出状态栏安全距离；底部不裁剪，让内容延伸到亚克力底栏下方参与模糊
-    val contentPadding = PaddingValues(top = statusBarPadding + 8.dp)
+    val contentPadding = PaddingValues(
+        top = statusBarPadding + 8.dp,
+        start = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr),
+        end = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
+    )
 
     val menuButton: @Composable () -> Unit = {
         FluentIconButton(onClick = { showDrawer = true }) {
@@ -121,7 +129,12 @@ fun MainScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = acrylicBarHeight + 8.dp)
+                .padding(
+                    start = 16.dp + cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr),
+                    end = 16.dp + cutoutPadding.calculateRightPadding(LayoutDirection.Ltr),
+                    top = 4.dp,
+                    bottom = acrylicBarHeight + 8.dp
+                )
         )
 
         // 底部标题栏 + 可选导航栏共用一块亚克力背景
@@ -129,6 +142,10 @@ fun MainScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
+                .padding(
+                    start = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr),
+                    end = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
+                )
                 .cloverAcrylic(state = hazeState)
                 .pointerInput(Unit) {
                     // 拦截亚克力面板空白区域的点击，不触发后面列表项的点击

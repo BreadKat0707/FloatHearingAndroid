@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.clover.CloverAdaptivePageScaffold
@@ -92,10 +94,14 @@ fun OnboardingScreen(
             )
         }
     ) { paddingValues ->
+        val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+        val cutoutLeft = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr)
+        val cutoutRight = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 24.dp + cutoutLeft.coerceAtLeast(0.dp) + cutoutRight.coerceAtLeast(0.dp))
                 .padding(
                     top = paddingValues.calculateTopPadding() + 32.dp,
                     bottom = paddingValues.calculateBottomPadding()

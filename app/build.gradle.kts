@@ -192,7 +192,7 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
-    // Lucide icons
+    // Lucide icons00
     implementation(libs.lucide)
 
     implementation("io.github.compose-fluent:fluent:v0.1.0")
@@ -206,7 +206,7 @@ dependencies {
 
     //Accompanist Lyric
     implementation("com.mocharealm.accompanist:lyrics-ui:1.0.19")
-    implementation("com.mocharealm.accompanist:lyrics-core:0.4.5")
+    implementation("com.mocharealm.accompanist:lyrics-core:0.4.7")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

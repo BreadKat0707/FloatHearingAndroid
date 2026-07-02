@@ -8,6 +8,9 @@ import cn.lemondrop.fhreborn.WallpaperProbeActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import cn.lemondrop.clover.material.CloverMicaSurface
 import cn.lemondrop.clover.material.WallpaperLoadStrategy
 import cn.lemondrop.clover.material.rememberWallpaperBitmap
@@ -35,13 +39,20 @@ import io.github.composefluent.component.Text
 fun MicaDemoScreen(
     onBack: () -> Unit
 ) {
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    val cutoutLeft = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr)
+    val cutoutRight = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(top = 16.dp)
+                .padding(
+                    start = 16.dp + cutoutLeft,
+                    end = 16.dp + cutoutRight,
+                    top = 16.dp
+                )
         ) {
             // 顶部返回
             FluentIconButton(onClick = onBack) {

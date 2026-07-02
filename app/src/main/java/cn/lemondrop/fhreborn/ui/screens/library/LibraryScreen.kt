@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,6 +73,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.Screen
@@ -1070,6 +1072,10 @@ internal fun FolderBrowserOverlay(
     // 地址栏路径：根 > 一级 > 二级
     val breadcrumb = listOf("根") + currentPath
 
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    val cutoutLeft = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr)
+    val cutoutRight = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
+
     BackHandler {
         if (currentPath.isEmpty()) {
             onDismiss()
@@ -1088,7 +1094,11 @@ internal fun FolderBrowserOverlay(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = statusBarPadding.calculateTopPadding())
+                .padding(
+                    top = statusBarPadding.calculateTopPadding(),
+                    start = cutoutLeft,
+                    end = cutoutRight
+                )
         ) {
             // 地址栏
             LazyRow(
@@ -1195,7 +1205,11 @@ internal fun FolderBrowserOverlay(
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = navBarPadding)
+                .padding(
+                    bottom = navBarPadding,
+                    start = cutoutLeft,
+                    end = cutoutRight
+                )
         )
     }
 }

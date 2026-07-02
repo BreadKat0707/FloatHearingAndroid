@@ -74,6 +74,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,6 +102,7 @@ import androidx.core.content.FileProvider
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -185,8 +187,12 @@ fun PlayerScreen(
     val isCompactLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && !isExpandedWidth
     val isTwoPane = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || isExpandedWidth
 
-    // 刘海/挖孔屏安全区（左右上下都避开）
+    // 刘海/挖孔屏安全区：竖屏主要影响左右（挖孔在角上），顶部已由 statusBarPadding 处理
     val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    val cutoutHorizontalPadding = PaddingValues(
+        start = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr),
+        end = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
+    )
 
     var showLyrics by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
@@ -364,7 +370,8 @@ fun PlayerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(cutoutPadding)
+                    .padding(cutoutHorizontalPadding)
+                    .padding(horizontal = 16.dp)
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
@@ -381,38 +388,68 @@ fun PlayerScreen(
                         .weight(0.48f)
                         .fillMaxHeight()
                         .padding(
-                            top = statusBarPadding.calculateTopPadding(),
-                            bottom = navBarPadding
+                            top = statusBarPadding.calculateTopPadding() + 12.dp,
+                            bottom = navBarPadding + 12.dp
                         )
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 手机横屏：封面与歌曲信息同一行；大屏/pad：垂直排列
+                    // 手机横屏：小封面+歌曲信息横向排列（类似竖屏歌词页底部面板），下方给控制按钮留足空间
                     if (isCompactLandscape) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            PlayerCoverSection(
-                                currentSong = currentSong,
-                                currentCoverBitmap = currentCoverBitmap,
-                                coverSizeMultiplier = coverSizeMultiplier,
-                                isDarkTheme = isDarkTheme,
-                                targetBlendMode = targetBlendMode,
-                                onLongClickCover = { showCoverViewer = true },
-                                onCoverBitmapLoaded = { currentCoverBitmap = it },
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .aspectRatio(1f),
-                                useSharedTransition = false
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            PlayerSongInfoSection(
-                                currentSong = currentSong,
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                PlayerCoverSection(
+                                    currentSong = currentSong,
+                                    currentCoverBitmap = currentCoverBitmap,
+                                    coverSizeMultiplier = coverSizeMultiplier,
+                                    isDarkTheme = isDarkTheme,
+                                    targetBlendMode = targetBlendMode,
+                                    onLongClickCover = { showCoverViewer = true },
+                                    onCoverBitmapLoaded = { currentCoverBitmap = it },
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(12.dp)),
+                                    useSharedTransition = false
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                PlayerSongInfoSection(
+                                    currentSong = currentSong,
+                                    isDarkTheme = isDarkTheme,
+                                    useSharedTransition = false,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    onInfoClick = { showSongInfoSheet = true }
+                                )
+                            }
+
+                            PlayerProgressSection(
+                                position = position,
+                                duration = duration,
+                                viewModel = viewModel,
                                 isDarkTheme = isDarkTheme,
                                 useSharedTransition = false,
-                                modifier = Modifier.weight(1f),
-                                onInfoClick = { showSongInfoSheet = true }
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            PlayerControlsSection(
+                                isPlaying = isPlaying,
+                                isShuffle = shuffleMode,
+                                repeatMode = repeatMode,
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            PlayerBottomActionsSection(
+                                openQueue = { openQueue() },
+                                onShowMore = { showMore = true },
+                                isDarkTheme = isDarkTheme
                             )
                         }
                     } else {
@@ -473,15 +510,17 @@ fun PlayerScreen(
                         .weight(0.52f)
                         .fillMaxHeight()
                         .padding(
-                            top = statusBarPadding.calculateTopPadding(),
-                            bottom = navBarPadding,
-                            end = 24.dp
+                            top = statusBarPadding.calculateTopPadding() + 12.dp,
+                            bottom = navBarPadding + 12.dp,
+                            start = 12.dp,
+                            end = 12.dp
                         )
                 ) {
                     PlayerLyricsPane(
                         lyrics = lyrics,
                         currentPosition = position,
                         currentLyricIndex = currentLyricIndex,
+                        isPlaying = isPlaying,
                         isDarkTheme = isDarkTheme,
                         onLineClicked = { line -> viewModel.seekTo(line.start.toLong()) }
                     )
@@ -498,6 +537,7 @@ fun PlayerScreen(
                 LyricSheet(
                     lyrics = lyrics,
                     currentPosition = position,
+                    isPlaying = isPlaying,
                     isDarkTheme = isDarkTheme,
                     song = currentSong,
                     coverBitmap = currentCoverBitmap,
@@ -517,7 +557,7 @@ fun PlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(cutoutPadding),
+                .padding(cutoutHorizontalPadding),
             contentAlignment = Alignment.TopStart
         ) {
             // 播放器主内容：随队列呼出向上滑走；打开歌词时非共享元素淡出
@@ -825,6 +865,7 @@ private fun PlayerProgressSlider(
 private fun LyricSheet(
     lyrics: SyncedLyrics?,
     currentPosition: Long,
+    isPlaying: Boolean,
     isDarkTheme: Boolean,
     song: Song?,
     coverBitmap: ImageBitmap?,
@@ -873,6 +914,7 @@ private fun LyricSheet(
             KaraokeLyricsViewWrapper(
                 lyrics = lyrics,
                 currentPosition = currentPosition,
+                isPlaying = isPlaying,
                 listState = listState,
                 isDarkTheme = isDarkTheme,
                 modifier = Modifier
@@ -906,7 +948,7 @@ private fun LyricSheet(
             }
         }
 
-        // 底部固定面板：小封面 + 歌曲信息 + 三点菜单 + 进度条（无背景，左右与歌词对齐 28.dp）
+        // 底部固定面板：与播放器主屏统一使用 PlayerSongInfoSection + PlayerProgressSection
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -956,62 +998,39 @@ private fun LyricSheet(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                val songInfoTargetModifier = with(sharedTransitionScope) {
-                    Modifier.sharedElement(
-                        sharedContentState = rememberSharedContentState(key = "player_song_info"),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-                }
-                Column(
-                    modifier = songInfoTargetModifier.weight(1f)
-                ) {
-                    Text(
-                        text = song?.title ?: "未在播放",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = onSurface.copy(alpha = 0.95f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = song?.let { "${it.artist} - ${it.album}" } ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = onSurface.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                PlayerSongInfoSection(
+                    currentSong = song,
+                    isDarkTheme = isDarkTheme,
+                    useSharedTransition = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    onInfoClick = onMoreClick,
+                    modifier = Modifier.weight(1f)
+                )
 
                 FluentIconButton(onClick = onMoreClick) {
                     Icon(
                         imageVector = Lucide.EllipsisVertical,
                         contentDescription = "更多",
                         modifier = Modifier.size(24.dp),
-                        tint = onSurface.copy(alpha = 0.9f)
+                        tint = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.9f)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            val progressTargetModifier = with(sharedTransitionScope) {
-                Modifier.sharedElement(
-                    sharedContentState = rememberSharedContentState(key = "player_progress"),
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-            }
-            Column(
-                modifier = progressTargetModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                PlayerProgressSlider(
-                    position = currentPosition,
-                    duration = duration,
-                    onProgressChange = { fraction ->
-                        onSeek((fraction * duration.coerceAtLeast(1L)).toLong())
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            PlayerProgressSection(
+                position = currentPosition,
+                duration = duration,
+                viewModel = null,
+                isDarkTheme = isDarkTheme,
+                useSharedTransition = true,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                onSeek = onSeek,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -1020,17 +1039,36 @@ private fun LyricSheet(
 private fun KaraokeLyricsViewWrapper(
     lyrics: SyncedLyrics,
     currentPosition: Long,
+    isPlaying: Boolean,
     listState: androidx.compose.foundation.lazy.LazyListState,
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
     onLineClicked: (ISyncedLine) -> Unit = {}
 ) {
-    val currentPosState = rememberUpdatedState(currentPosition)
-    val lyricPosition = remember { mutableIntStateOf(currentPosition.toInt()) }
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     val lyricBlendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
 
-    // 切歌/换歌词后先让 KaraokeLyricsView 完成初始布局，再开始跟随进度
+    var localPositionMs by remember { mutableIntStateOf(currentPosition.toInt().coerceAtLeast(0)) }
+
+    LaunchedEffect(currentPosition) {
+        val diff = kotlin.math.abs(localPositionMs - currentPosition.toInt())
+        if (diff > 500) {
+            localPositionMs = currentPosition.toInt().coerceAtLeast(0)
+        }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) return@LaunchedEffect
+        var lastFrameNs = System.nanoTime()
+        while (isActive) {
+            withFrameNanos { frameNs ->
+                val deltaMs = ((frameNs - lastFrameNs) / 1_000_000).toInt().coerceAtLeast(0)
+                lastFrameNs = frameNs
+                localPositionMs += deltaMs
+            }
+        }
+    }
+
     var ready by remember { mutableStateOf(false) }
     LaunchedEffect(lyrics) {
         ready = false
@@ -1038,28 +1076,20 @@ private fun KaraokeLyricsViewWrapper(
         ready = true
     }
 
-    LaunchedEffect(ready) {
-        while (isActive && ready) {
-            val newPos = currentPosState.value.toInt()
-            // 在后台线程更新状态，避免在主线程重组过程中写状态导致循环无效化/ANR
-            withContext(Dispatchers.Default) {
-                lyricPosition.intValue = newPos
-            }
-            delay(60)
-        }
+    if (ready) {
+        KaraokeLyricsView(
+            listState = listState,
+            lyrics = lyrics,
+            currentPosition = { localPositionMs },
+            onLineClicked = onLineClicked,
+            onLinePressed = {},
+            modifier = modifier,
+            textColor = fluidOnColor,
+            blendMode = lyricBlendMode
+        )
     }
-
-    KaraokeLyricsView(
-        listState = listState,
-        lyrics = lyrics,
-        currentPosition = { lyricPosition.intValue },
-        onLineClicked = onLineClicked,
-        onLinePressed = {},
-        modifier = modifier,
-        textColor = fluidOnColor,
-        blendMode = lyricBlendMode
-    )
 }
+
 
 @Composable
 private fun PlayerIcon(
@@ -1325,12 +1355,13 @@ private fun PlayerSongInfoSection(
 private fun PlayerProgressSection(
     position: Long,
     duration: Long,
-    viewModel: PlayerViewModel,
+    viewModel: PlayerViewModel?,
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
     useSharedTransition: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    onSeek: ((Long) -> Unit)? = null
 ) {
     val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
     val sharedModifier = if (useSharedTransition && sharedTransitionScope != null && animatedVisibilityScope != null) {
@@ -1355,7 +1386,8 @@ private fun PlayerProgressSection(
             position = position,
             duration = duration,
             onProgressChange = { fraction ->
-                viewModel.seekTo((fraction * duration.coerceAtLeast(1L)).toLong())
+                val seekTo = (fraction * duration.coerceAtLeast(1L)).toLong()
+                onSeek?.invoke(seekTo) ?: viewModel?.seekTo(seekTo)
             },
             onDragStateChange = { dragging, progress ->
                 isSeekDragging = dragging
@@ -1540,6 +1572,7 @@ private fun PlayerLyricsPane(
     lyrics: SyncedLyrics?,
     currentPosition: Long,
     currentLyricIndex: Int,
+    isPlaying: Boolean,
     isDarkTheme: Boolean,
     onLineClicked: (ISyncedLine) -> Unit,
     modifier: Modifier = Modifier
@@ -1550,6 +1583,7 @@ private fun PlayerLyricsPane(
         KaraokeLyricsViewWrapper(
             lyrics = lyrics,
             currentPosition = currentPosition,
+            isPlaying = isPlaying,
             listState = listState,
             isDarkTheme = isDarkTheme,
             modifier = modifier.fillMaxSize(),

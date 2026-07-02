@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +38,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Song
@@ -72,6 +74,9 @@ fun PlayerQueueScreen(
         .calculateTopPadding()
     val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues()
         .calculateBottomPadding()
+    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
+    val cutoutLeft = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr)
+    val cutoutRight = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
 
     // 进入/切换时滚动到当前播放项（无动画，避免打开时卡帧）
     LaunchedEffect(currentIndex) {
@@ -115,8 +120,12 @@ fun PlayerQueueScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = statusBarPadding, bottom = navBarPadding)
-                .padding(horizontal = 16.dp)
+                .padding(
+                    top = statusBarPadding,
+                    bottom = navBarPadding,
+                    start = 16.dp + cutoutLeft,
+                    end = 16.dp + cutoutRight
+                )
         ) {
             // 顶部拖动条 + 标题 + 关闭
             Column(
