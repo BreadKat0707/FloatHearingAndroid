@@ -196,18 +196,14 @@ fun AccompanistLyricSettingsScreen(
                 )
             }
 
-            // 对齐方式
+            // 对齐方式：当前 Accompanist Lyric 版本不支持全局强制对齐，仅跟随歌词本身标注
             item { SectionHeader("对齐方式") }
             item {
-                SelectionSettingItem(
-                    title = "歌词对齐",
-                    selectedLabel = when (textAlign) {
-                        "start" -> "居左"
-                        "end" -> "居右"
-                        else -> "居中"
-                    },
-                    options = listOf("start" to "居左", "center" to "居中", "end" to "居右"),
-                    onSelected = { scope.launch { repository.setAcclLyricTextAlign(it) } }
+                Text(
+                    text = "当前 Accompanist Lyric 版本不支持全局歌词对齐，仅跟随歌词本身标注。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp)
                 )
             }
         }
