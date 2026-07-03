@@ -72,7 +72,7 @@ fun StatisticsScreen(
             )
         },
         onPlayerClick = onPlayerClick
-    ) { paddingValues, bottomOverlayHeight ->
+    ) { paddingValues, bottomOverlayHeight, hazeState ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

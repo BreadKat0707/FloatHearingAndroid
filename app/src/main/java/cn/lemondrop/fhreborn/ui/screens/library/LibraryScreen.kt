@@ -25,11 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import dev.chrisbanes.haze.HazeState
-import cn.lemondrop.clover.material.cloverAcrylic
-import dev.chrisbanes.haze.hazeSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -42,7 +38,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -68,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,15 +92,12 @@ import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PermissionUtils
-import cn.lemondrop.clover.CloverBottomNavbar
 import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.clover.CloverNavItem
-import cn.lemondrop.clover.CloverNavigationRail
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverTitleBar
-import cn.lemondrop.clover.CloverTopAppBar
-import cn.lemondrop.clover.cloverIsCompactWidth
+import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
 import com.composables.icons.lucide.Album
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ArrowUp
@@ -175,14 +168,10 @@ fun LibraryScreen(
     val displaySongs = if (searchQuery.isNotBlank()) searchResults else songs
 
     // 系统 insets
-    val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
-    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
 
     // 底部控件高度
     val miniPlayBarHeight = 72.dp
     val navBarHeight = 64.dp
-    val acrylicHeight = navBarHeight + CloverSizes.titleBarHeight + navBarPadding
-    val bottomControlsHeight = miniPlayBarHeight + 8.dp + acrylicHeight + 16.dp
 
     val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
 
@@ -196,10 +185,6 @@ fun LibraryScreen(
             pendingLocateSongId = null
         }
     }
-
-    val drawerHazeState = remember { HazeState() }
-
-    val isCompact = cloverIsCompactWidth()
 
     val navItems = remember {
         listOf(
@@ -364,231 +349,166 @@ fun LibraryScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (isCompact) {
-            // drawerHazeState 源：背景层置于源内最底，亚克力才能模糊到背景，并给内容提供不透明底
-            Box(modifier = Modifier.fillMaxSize().hazeSource(state = drawerHazeState)) {
-                AppBackgroundLayer(Modifier.fillMaxSize())
-                libraryBody(
-                    PaddingValues(
-                        top = statusBarPadding.calculateTopPadding() + 8.dp,
-                        bottom = 0.dp
-                    ),
-                    bottomControlsHeight + 32.dp
-                )
-            }
-
-            // MiniPlayBar 浮在亚克力面板上方，自身不参与模糊
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = onPlayerClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = acrylicHeight + 8.dp)
+    CloverAdaptiveShellScaffold(
+        title = titleText,
+        navigationIcon = menuButton,
+        actions = titleActions,
+        items = navItems,
+        selectedIndex = selectedNavIndex,
+        onItemSelected = { selectedNavIndex = it },
+        background = { AppBackgroundLayer() },
+        overlay = { state ->
+            // Drawer 底部弹出菜单
+            cn.lemondrop.fhreborn.ui.components.AppDrawer(
+                visible = showDrawer,
+                onDismiss = { showDrawer = false },
+                currentRoute = currentRoute,
+                onNavigate = { route ->
+                    showDrawer = false
+                    if (route == Screen.FolderBrowser.route) {
+                        showFolderBrowser = true
+                    } else {
+                        onNavigate(route)
+                    }
+                },
+                hazeState = state.hazeState,
+                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
             )
 
-            // 底部导航栏 + 标题栏共用一块亚克力背景
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .cloverAcrylic(state = drawerHazeState)
-                    .pointerInput(Unit) {
-                        // 拦截亚克力面板空白区域的点击，不触发后面列表项的点击
-                        detectTapGestures(onTap = { })
+            // 标题栏 Flyout 菜单（浮动于底部栏之上）
+            if (showTitleBarMenu) {
+                TitleBarFlyoutMenu(
+                    visible = showTitleBarMenu,
+                    onDismiss = { showTitleBarMenu = false },
+                    hazeState = state.hazeState,
+                    onSortClick = { showSortSheet = true },
+                    onRefreshClick = { viewModel.refreshMediaStore() },
+                    onMultiSelectClick = { /* TODO: multi-select */ },
+                    onScrollToTop = {
+                        // TODO: 回到顶部
+                    },
+                    onLocateCurrent = {
+                        currentSong?.let { song ->
+                            selectedNavIndex = 0
+                            pendingLocateSongId = song.id
+                        }
+                    },
+                    onLayoutToggle = {
+                        // TODO: 切换列表布局
                     }
-            ) {
-                CloverBottomNavbar(
-                    items = navItems,
-                    selectedIndex = selectedNavIndex,
-                    onItemSelected = { selectedNavIndex = it },
-                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // 浏览路径 — 文件管理器式覆盖层
+            if (showFolderBrowser) {
+                BackHandler { showFolderBrowser = false }
+                FolderBrowserOverlay(
+                    songs = songs,
+                    initialPath = folderBrowserInitialPath,
+                    playerViewModel = playerViewModel,
+                    onDismiss = { showFolderBrowser = false }
+                )
+            }
+
+            // 排序弹窗
+            if (showSortSheet) {
+                BackHandler { showSortSheet = false }
+                SortSheet(
+                    currentField = sortField,
+                    currentOrder = sortOrder,
+                    onDismiss = { showSortSheet = false },
+                    onSelectField = { viewModel.setSortField(it) },
+                    onToggleOrder = { viewModel.toggleSortOrder() }
+                )
+            }
+
+            // 歌曲上下文菜单
+            if (showSongMenu && menuSong != null) {
+                BackHandler { showSongMenu = false }
+                SongMenuSheet(
+                    song = menuSong!!,
+                    onDismiss = { showSongMenu = false },
+                    onPlayNext = {
+                        // TODO: 将歌曲加入播放队列的下一首
+                    },
+                    onAddToPlaylist = {
+                        // TODO: 加入歌单
+                    },
+                    onViewAlbum = {
+                        menuSong?.let { s ->
+                            onNavigate(Screen.AlbumDetail.createRoute(s.album, s.albumArtist))
+                        }
+                    },
+                    onViewArtist = {
+                        menuSong?.let { s ->
+                            val separators = viewModel.artistSeparators.value
+                            val artistList = ArtistSplitter.split(s.artist, separators)
+                            if (artistList.size == 1) {
+                                showSongMenu = false
+                                onNavigate(Screen.ArtistDetail.createRoute(artistList.first()))
+                            } else if (artistList.isNotEmpty()) {
+                                showSongMenu = false
+                                showArtistChooser = true
+                            }
+                        }
+                    },
+                    onGoToFolder = {
+                        // TODO: 转至文件夹
+                    },
+                    onShare = {
+                        // TODO: 分享文件
+                    },
+                    onDelete = {
+                        // TODO: 删除文件
+                    }
+                )
+            }
+
+            // 多艺术家选择器
+            if (showArtistChooser && menuSong != null) {
+                val separators = viewModel.artistSeparators.value
+                val artistList = remember(menuSong, separators) {
+                    ArtistSplitter.split(menuSong!!.artist, separators)
+                }
+                BackHandler { showArtistChooser = false }
+                CloverBottomSheet(
+                    onDismiss = { showArtistChooser = false },
+                    title = "选择艺术家"
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding)) {
+                        artistList.forEach { artist ->
+                            FhListItem(
+                                title = artist,
+                                onClick = {
+                                    showArtistChooser = false
+                                    onNavigate(Screen.ArtistDetail.createRoute(artist))
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        content = { state ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                libraryBody(
+                    PaddingValues(top = 8.dp),
+                    miniPlayBarHeight + 32.dp
                 )
 
-                CloverTitleBar(
-                    title = titleText,
-                    leading = menuButton,
-                    trailing = titleActions,
+                MiniPlayBar(
+                    playerViewModel = playerViewModel,
+                    onClick = onPlayerClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = navBarPadding),
-                    backgroundColor = null
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                 )
             }
-        } else {
-            // 大屏幕：左侧 NavigationRail + 顶部 TopAppBar；背景层垫底
-            Box(modifier = Modifier.fillMaxSize()) {
-                AppBackgroundLayer(Modifier.fillMaxSize())
-                Row(modifier = Modifier.fillMaxSize()) {
-                    CloverNavigationRail(
-                        items = navItems,
-                        selectedIndex = selectedNavIndex,
-                        onItemSelected = { selectedNavIndex = it },
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .statusBarsPadding()
-                    )
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        CloverTopAppBar(
-                            title = titleText,
-                            navigationIcon = menuButton,
-                            actions = titleActions,
-                            modifier = Modifier.statusBarsPadding()
-                        )
-
-                        Box(modifier = Modifier.weight(1f)) {
-                            libraryBody(
-                                PaddingValues(
-                                    top = 8.dp,
-                                    bottom = navBarPadding + 8.dp
-                                ),
-                                miniPlayBarHeight + 32.dp
-                            )
-
-                            MiniPlayBar(
-                                playerViewModel = playerViewModel,
-                                onClick = onPlayerClick,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    .padding(bottom = navBarPadding + 8.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Drawer 底部弹出菜单
-    cn.lemondrop.fhreborn.ui.components.AppDrawer(
-        visible = showDrawer,
-        onDismiss = { showDrawer = false },
-        currentRoute = currentRoute,
-        onNavigate = { route ->
-            showDrawer = false
-            if (route == Screen.FolderBrowser.route) {
-                showFolderBrowser = true
-            } else {
-                onNavigate(route)
-            }
-        },
-        hazeState = drawerHazeState,
-        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-    )
-
-    // 标题栏 Flyout 菜单（浮动于底部栏之上）
-    TitleBarFlyoutMenu(
-        visible = showTitleBarMenu,
-        onDismiss = { showTitleBarMenu = false },
-        hazeState = drawerHazeState,
-        onSortClick = { showSortSheet = true },
-        onRefreshClick = { viewModel.refreshMediaStore() },
-        onMultiSelectClick = { /* TODO: multi-select */ },
-        onScrollToTop = {
-            // TODO: 回到顶部
-        },
-        onLocateCurrent = {
-            currentSong?.let { song ->
-                selectedNavIndex = 0
-                pendingLocateSongId = song.id
-            }
-        },
-        onLayoutToggle = {
-            // TODO: 切换列表布局
         }
     )
 
-    // 浏览路径 — 文件管理器式覆盖层
-    if (showFolderBrowser) {
-        BackHandler { showFolderBrowser = false }
-        FolderBrowserOverlay(
-            songs = songs,
-            initialPath = folderBrowserInitialPath,
-            playerViewModel = playerViewModel,
-            onDismiss = { showFolderBrowser = false }
-        )
-    }
 
-    // 排序弹窗
-    if (showSortSheet) {
-        BackHandler { showSortSheet = false }
-        SortSheet(
-            currentField = sortField,
-            currentOrder = sortOrder,
-            onDismiss = { showSortSheet = false },
-            onSelectField = { viewModel.setSortField(it) },
-            onToggleOrder = { viewModel.toggleSortOrder() }
-        )
-    }
-
-    // 歌曲上下文菜单
-    if (showSongMenu && menuSong != null) {
-        BackHandler { showSongMenu = false }
-        SongMenuSheet(
-            song = menuSong!!,
-            onDismiss = { showSongMenu = false },
-            onPlayNext = {
-                // TODO: 将歌曲加入播放队列的下一首
-            },
-            onAddToPlaylist = {
-                // TODO: 加入歌单
-            },
-            onViewAlbum = {
-                menuSong?.let { s ->
-                    onNavigate(Screen.AlbumDetail.createRoute(s.album, s.albumArtist))
-                }
-            },
-            onViewArtist = {
-                menuSong?.let { s ->
-                    val separators = viewModel.artistSeparators.value
-                    val artistList = ArtistSplitter.split(s.artist, separators)
-                    if (artistList.size == 1) {
-                        showSongMenu = false
-                        onNavigate(Screen.ArtistDetail.createRoute(artistList.first()))
-                    } else if (artistList.isNotEmpty()) {
-                        showSongMenu = false
-                        showArtistChooser = true
-                    }
-                }
-            },
-            onGoToFolder = {
-                // TODO: 转至文件夹
-            },
-            onShare = {
-                // TODO: 分享文件
-            },
-            onDelete = {
-                // TODO: 删除文件
-            }
-        )
-    }
-
-    // 多艺术家选择器
-    if (showArtistChooser && menuSong != null) {
-        val separators = viewModel.artistSeparators.value
-        val artistList = remember(menuSong, separators) {
-            ArtistSplitter.split(menuSong!!.artist, separators)
-        }
-        BackHandler { showArtistChooser = false }
-        CloverBottomSheet(
-            onDismiss = { showArtistChooser = false },
-            title = "选择艺术家"
-        ) {
-            Column(modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding)) {
-                artistList.forEach { artist ->
-                    FhListItem(
-                        title = artist,
-                        onClick = {
-                            showArtistChooser = false
-                            onNavigate(Screen.ArtistDetail.createRoute(artist))
-                        }
-                    )
-                }
-            }
-        }
-    }
 }
 
 // ===== 内容区域 =====

@@ -70,6 +70,40 @@ class AppSettingsRepository(private val context: Context) {
     val statusBarLyric: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("statusbar_lyric")] ?: false }
     suspend fun setStatusBarLyric(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("statusbar_lyric")] = value }
 
+    // Accompanist Lyric 设置
+    val acclLyricMainTextSizeSp: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_main_text_size")] ?: 34 }
+    suspend fun setAcclLyricMainTextSizeSp(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_main_text_size")] = value }
+
+    val acclLyricAccompanimentTextSizeSp: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_accompaniment_text_size")] ?: 20 }
+    suspend fun setAcclLyricAccompanimentTextSizeSp(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_accompaniment_text_size")] = value }
+
+    val acclLyricPhoneticTextSizeSp: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_phonetic_text_size")] ?: 13 }
+    suspend fun setAcclLyricPhoneticTextSizeSp(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_phonetic_text_size")] = value }
+
+    val acclLyricMainFontWeight: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_main_font_weight")] ?: 700 }
+    suspend fun setAcclLyricMainFontWeight(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_main_font_weight")] = value }
+
+    val acclLyricAccompanimentFontWeight: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_accompaniment_font_weight")] ?: 700 }
+    suspend fun setAcclLyricAccompanimentFontWeight(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_accompaniment_font_weight")] = value }
+
+    val acclLyricPhoneticFontWeight: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_phonetic_font_weight")] ?: 400 }
+    suspend fun setAcclLyricPhoneticFontWeight(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_phonetic_font_weight")] = value }
+
+    val acclLyricShowTranslation: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_show_translation")] ?: true }
+    suspend fun setAcclLyricShowTranslation(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_show_translation")] = value }
+
+    val acclLyricShowPhonetic: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_show_phonetic")] ?: true }
+    suspend fun setAcclLyricShowPhonetic(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_show_phonetic")] = value }
+
+    val acclLyricUseBlurEffect: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_use_blur")] ?: true }
+    suspend fun setAcclLyricUseBlurEffect(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_use_blur")] = value }
+
+    val acclLyricBlurDelta: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_blur_delta")] ?: 3 }
+    suspend fun setAcclLyricBlurDelta(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_blur_delta")] = value }
+
+    val acclLyricTextAlign: Flow<String> = dataStore.data.map { it[stringPreferencesKey("accl_lyric_text_align")] ?: "center" }
+    suspend fun setAcclLyricTextAlign(value: String) = dataStore.edit { it[stringPreferencesKey("accl_lyric_text_align")] = value }
+
     // ========== 媒体库 ==========
     val autoScanOnLaunch: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("auto_scan")] ?: true }
     suspend fun setAutoScanOnLaunch(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("auto_scan")] = value }

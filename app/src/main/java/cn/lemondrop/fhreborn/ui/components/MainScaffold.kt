@@ -59,7 +59,7 @@ fun MainScaffold(
     bottomBar: @Composable (() -> Unit)? = null,
     navigationIcon: (@Composable () -> Unit)? = null,
     onPlayerClick: () -> Unit,
-    content: @Composable (paddingValues: PaddingValues, bottomOverlayHeight: Dp) -> Unit
+    content: @Composable (paddingValues: PaddingValues, bottomOverlayHeight: Dp, hazeState: HazeState) -> Unit
 ) {
     val hazeState = remember { HazeState() }
     var showDrawer by remember { mutableStateOf(false) }
@@ -119,7 +119,7 @@ fun MainScaffold(
                 .hazeSource(state = hazeState)
         ) {
             AppBackgroundLayer(Modifier.fillMaxSize())
-            content(contentPadding, bottomOverlayHeight)
+            content(contentPadding, bottomOverlayHeight, hazeState)
         }
 
         // MiniPlayBar 浮在亚克力面板上方，自身不参与模糊

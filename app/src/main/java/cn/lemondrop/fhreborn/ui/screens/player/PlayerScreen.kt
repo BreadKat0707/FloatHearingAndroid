@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
+import cn.lemondrop.fhreborn.LocalPredictiveBackEnabled
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -97,13 +98,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.core.content.FileProvider
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.media3.common.Player
@@ -158,6 +162,20 @@ fun PlayerScreen(
 
     val appSettingsRepository = remember { AppSettingsRepository(context) }
     val keepScreenOn by appSettingsRepository.wakeLock.collectAsState(initial = true)
+
+    // Accompanist Lyric 设置
+    val acclMainTextSize by appSettingsRepository.acclLyricMainTextSizeSp.collectAsState(initial = 34)
+    val acclAccompanimentTextSize by appSettingsRepository.acclLyricAccompanimentTextSizeSp.collectAsState(initial = 20)
+    val acclPhoneticTextSize by appSettingsRepository.acclLyricPhoneticTextSizeSp.collectAsState(initial = 13)
+    val acclMainFontWeight by appSettingsRepository.acclLyricMainFontWeight.collectAsState(initial = 700)
+    val acclAccompanimentFontWeight by appSettingsRepository.acclLyricAccompanimentFontWeight.collectAsState(initial = 700)
+    val acclPhoneticFontWeight by appSettingsRepository.acclLyricPhoneticFontWeight.collectAsState(initial = 400)
+    val acclShowTranslation by appSettingsRepository.acclLyricShowTranslation.collectAsState(initial = true)
+    val acclShowPhonetic by appSettingsRepository.acclLyricShowPhonetic.collectAsState(initial = true)
+    val acclUseBlur by appSettingsRepository.acclLyricUseBlurEffect.collectAsState(initial = true)
+    val acclBlurDelta by appSettingsRepository.acclLyricBlurDelta.collectAsState(initial = 3)
+    val acclTextAlign by appSettingsRepository.acclLyricTextAlign.collectAsState(initial = "center")
+
     DisposableEffect(keepScreenOn) {
         val window = (context as? Activity)?.window
         if (keepScreenOn) {
@@ -186,6 +204,9 @@ fun PlayerScreen(
     val isExpandedWidth = widthSizeClass == WindowWidthSizeClass.Expanded
     val isCompactLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && !isExpandedWidth
     val isTwoPane = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || isExpandedWidth
+
+    // 预测返回手势全局开关：所有 PredictiveBackHandler 的 enabled 都要参与此值
+    val predictiveBackEnabled = LocalPredictiveBackEnabled.current
 
     // 刘海/挖孔屏安全区：竖屏主要影响左右（挖孔在角上），顶部已由 statusBarPadding 处理
     val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
@@ -228,7 +249,7 @@ fun PlayerScreen(
 
     // 播放器页返回：预测返回手势驱动页面下滑收起
     PredictiveBackHandler(
-        enabled = !showLyrics && !isQueueOpen && !showMore && !showCoverViewer
+        enabled = predictiveBackEnabled && !showLyrics && !isQueueOpen && !showMore && !showCoverViewer
     ) { progress ->
         try {
             progress.collect { event ->
@@ -353,7 +374,7 @@ fun PlayerScreen(
         )
 
         // 歌词返回手势：驱动 showLyrics 关闭，退出形变交给 AnimatedContent
-        PredictiveBackHandler(enabled = showLyrics) { progress ->
+        PredictiveBackHandler(enabled = predictiveBackEnabled && showLyrics) { progress ->
             try {
                 progress.collect { event ->
                     lyricsBackProgress.snapTo(event.progress.coerceIn(0f, 1f))
@@ -522,6 +543,19 @@ fun PlayerScreen(
                         currentLyricIndex = currentLyricIndex,
                         isPlaying = isPlaying,
                         isDarkTheme = isDarkTheme,
+                        acclLyricConfig = AcclLyricConfig(
+                            mainTextSizeSp = acclMainTextSize,
+                            accompanimentTextSizeSp = acclAccompanimentTextSize,
+                            phoneticTextSizeSp = acclPhoneticTextSize,
+                            mainFontWeight = acclMainFontWeight,
+                            accompanimentFontWeight = acclAccompanimentFontWeight,
+                            phoneticFontWeight = acclPhoneticFontWeight,
+                            showTranslation = acclShowTranslation,
+                            showPhonetic = acclShowPhonetic,
+                            useBlur = acclUseBlur,
+                            blurDelta = acclBlurDelta,
+                            textAlign = acclTextAlign
+                        ),
                         onLineClicked = { line -> viewModel.seekTo(line.start.toLong()) }
                     )
                 }
@@ -685,7 +719,7 @@ fun PlayerScreen(
         }
 
         // 播放队列：从底部滑入（单栏/双栏共用，全屏浮于上方）
-        PredictiveBackHandler(enabled = isQueueOpen) { progress ->
+        PredictiveBackHandler(enabled = predictiveBackEnabled && isQueueOpen) { progress ->
             try {
                 progress.collect { event ->
                     queueProgress.snapTo((1f - event.progress).coerceIn(0f, 1f))
@@ -876,11 +910,16 @@ private fun LyricSheet(
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope
 ) {
+    val context = LocalContext.current
+    val appSettingsRepository = remember { AppSettingsRepository(context) }
+
     val listState = rememberLazyListState()
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     val lyricBlendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
     val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
     val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding()
+
+    val acclLyricConfig = rememberAcclLyricConfig(appSettingsRepository)
 
     val bgColor = MaterialTheme.colorScheme.background
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -917,6 +956,7 @@ private fun LyricSheet(
                 isPlaying = isPlaying,
                 listState = listState,
                 isDarkTheme = isDarkTheme,
+                acclLyricConfig = acclLyricConfig,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
@@ -1035,6 +1075,55 @@ private fun LyricSheet(
     }
 }
 
+private data class AcclLyricConfig(
+    val mainTextSizeSp: Int = 34,
+    val accompanimentTextSizeSp: Int = 20,
+    val phoneticTextSizeSp: Int = 13,
+    val mainFontWeight: Int = 700,
+    val accompanimentFontWeight: Int = 700,
+    val phoneticFontWeight: Int = 400,
+    val showTranslation: Boolean = true,
+    val showPhonetic: Boolean = true,
+    val useBlur: Boolean = true,
+    val blurDelta: Int = 3,
+    val textAlign: String = "center"
+)
+
+@Composable
+private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyricConfig {
+    val mainTextSize by repository.acclLyricMainTextSizeSp.collectAsState(initial = 34)
+    val accompanimentTextSize by repository.acclLyricAccompanimentTextSizeSp.collectAsState(initial = 20)
+    val phoneticTextSize by repository.acclLyricPhoneticTextSizeSp.collectAsState(initial = 13)
+    val mainFontWeight by repository.acclLyricMainFontWeight.collectAsState(initial = 700)
+    val accompanimentFontWeight by repository.acclLyricAccompanimentFontWeight.collectAsState(initial = 700)
+    val phoneticFontWeight by repository.acclLyricPhoneticFontWeight.collectAsState(initial = 400)
+    val showTranslation by repository.acclLyricShowTranslation.collectAsState(initial = true)
+    val showPhonetic by repository.acclLyricShowPhonetic.collectAsState(initial = true)
+    val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = true)
+    val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
+    val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
+
+    return remember(
+        mainTextSize, accompanimentTextSize, phoneticTextSize,
+        mainFontWeight, accompanimentFontWeight, phoneticFontWeight,
+        showTranslation, showPhonetic, useBlur, blurDelta, textAlign
+    ) {
+        AcclLyricConfig(
+            mainTextSizeSp = mainTextSize,
+            accompanimentTextSizeSp = accompanimentTextSize,
+            phoneticTextSizeSp = phoneticTextSize,
+            mainFontWeight = mainFontWeight,
+            accompanimentFontWeight = accompanimentFontWeight,
+            phoneticFontWeight = phoneticFontWeight,
+            showTranslation = showTranslation,
+            showPhonetic = showPhonetic,
+            useBlur = useBlur,
+            blurDelta = blurDelta,
+            textAlign = textAlign
+        )
+    }
+}
+
 @Composable
 private fun KaraokeLyricsViewWrapper(
     lyrics: SyncedLyrics,
@@ -1042,11 +1131,39 @@ private fun KaraokeLyricsViewWrapper(
     isPlaying: Boolean,
     listState: androidx.compose.foundation.lazy.LazyListState,
     isDarkTheme: Boolean,
+    acclLyricConfig: AcclLyricConfig,
     modifier: Modifier = Modifier,
     onLineClicked: (ISyncedLine) -> Unit = {}
 ) {
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     val lyricBlendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
+    val breathingDotsDefaults = remember(isDarkTheme) {
+        com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeBreathingDotsDefaults(
+            breathingDotsColor = fluidOnColor
+        )
+    }
+
+    val normalLineTextStyle = remember(acclLyricConfig) {
+        TextStyle(
+            fontSize = acclLyricConfig.mainTextSizeSp.sp,
+            fontWeight = FontWeight(acclLyricConfig.mainFontWeight.coerceIn(1, 1000)),
+            textMotion = TextMotion.Animated
+        )
+    }
+    val accompanimentLineTextStyle = remember(acclLyricConfig) {
+        TextStyle(
+            fontSize = acclLyricConfig.accompanimentTextSizeSp.sp,
+            fontWeight = FontWeight(acclLyricConfig.accompanimentFontWeight.coerceIn(1, 1000)),
+            textMotion = TextMotion.Animated
+        )
+    }
+    val phoneticTextStyle = remember(acclLyricConfig) {
+        TextStyle(
+            fontSize = acclLyricConfig.phoneticTextSizeSp.sp,
+            fontWeight = FontWeight(acclLyricConfig.phoneticFontWeight.coerceIn(1, 1000)),
+            textMotion = TextMotion.Animated
+        )
+    }
 
     var localPositionMs by remember { mutableIntStateOf(currentPosition.toInt().coerceAtLeast(0)) }
 
@@ -1085,7 +1202,15 @@ private fun KaraokeLyricsViewWrapper(
             onLinePressed = {},
             modifier = modifier,
             textColor = fluidOnColor,
-            blendMode = lyricBlendMode
+            blendMode = lyricBlendMode,
+            breathingDotsDefaults = breathingDotsDefaults,
+            normalLineTextStyle = normalLineTextStyle,
+            accompanimentLineTextStyle = accompanimentLineTextStyle,
+            phoneticTextStyle = phoneticTextStyle,
+            showTranslation = acclLyricConfig.showTranslation,
+            showPhonetic = acclLyricConfig.showPhonetic,
+            useBlurEffect = acclLyricConfig.useBlur,
+            blurDelta = acclLyricConfig.blurDelta.toFloat()
         )
     }
 }
@@ -1574,6 +1699,7 @@ private fun PlayerLyricsPane(
     currentLyricIndex: Int,
     isPlaying: Boolean,
     isDarkTheme: Boolean,
+    acclLyricConfig: AcclLyricConfig,
     onLineClicked: (ISyncedLine) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1586,6 +1712,7 @@ private fun PlayerLyricsPane(
             isPlaying = isPlaying,
             listState = listState,
             isDarkTheme = isDarkTheme,
+            acclLyricConfig = acclLyricConfig,
             modifier = modifier.fillMaxSize(),
             onLineClicked = onLineClicked
         )

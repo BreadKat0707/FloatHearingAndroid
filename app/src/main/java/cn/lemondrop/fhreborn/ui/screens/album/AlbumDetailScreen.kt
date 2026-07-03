@@ -103,7 +103,7 @@ fun AlbumDetailScreen(
             }
         },
         onPlayerClick = { playerViewModel.requestOpenPlayer() }
-    ) { paddingValues, bottomOverlayHeight ->
+    ) { paddingValues, bottomOverlayHeight, _ ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = paddingValues

@@ -32,7 +32,7 @@ fun IdeasScreen(
             )
         },
         onPlayerClick = onPlayerClick
-    ) { paddingValues, bottomOverlayHeight ->
+    ) { paddingValues, bottomOverlayHeight, _ ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

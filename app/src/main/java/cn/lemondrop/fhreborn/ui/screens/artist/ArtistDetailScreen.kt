@@ -75,7 +75,7 @@ fun ArtistDetailScreen(
                 )
             }
         }
-    ) { paddingValues, _ ->
+    ) { paddingValues, _, _ ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

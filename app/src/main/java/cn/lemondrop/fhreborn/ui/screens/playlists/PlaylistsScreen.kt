@@ -32,7 +32,7 @@ fun PlaylistsScreen(
             )
         },
         onPlayerClick = onPlayerClick
-    ) { paddingValues, bottomOverlayHeight ->
+    ) { paddingValues, bottomOverlayHeight, _ ->
         Box(
             modifier = Modifier
                 .fillMaxSize()

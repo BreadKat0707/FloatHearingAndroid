@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -73,6 +74,13 @@ sealed class Screen(val route: String) {
         }
     }
 }
+
+/**
+ * 全局预测返回手势开关。
+ * 在 [FHRebornApp] 中根据设置项 [predictive_back] 注入，
+ * 所有使用 [androidx.activity.compose.PredictiveBackHandler] 的地方都应读取此值并参与 enabled 判断。
+ */
+val LocalPredictiveBackEnabled = staticCompositionLocalOf { false }
 
 @Composable
 fun FHRebornApp() {
@@ -160,7 +168,10 @@ fun FHRebornApp() {
         }
     }
 
-    CompositionLocalProvider(LocalAppDarkTheme provides isDarkTheme) {
+    CompositionLocalProvider(
+        LocalAppDarkTheme provides isDarkTheme,
+        LocalPredictiveBackEnabled provides predictiveBack
+    ) {
         CloverTheme(darkTheme = isDarkTheme, dynamicColor = useDynamicColor) {
         FloatHearingTheme(darkTheme = isDarkTheme, useDynamicColor = useDynamicColor) {
             Box(modifier = Modifier.fillMaxSize()) {
