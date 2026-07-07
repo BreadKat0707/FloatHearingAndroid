@@ -93,11 +93,13 @@ import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PermissionUtils
 import cn.lemondrop.clover.CloverBottomSheet
+import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.clover.CloverNavItem
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverTitleBar
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
+import cn.lemondrop.clover.ui.layout.CloverShellStrategy
 import com.composables.icons.lucide.Album
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ArrowUp
@@ -163,6 +165,7 @@ fun LibraryScreen(
     var showSortSheet by remember { mutableStateOf(false) }
     var showTitleBarMenu by remember { mutableStateOf(false) }
     var showArtistChooser by remember { mutableStateOf(false) }
+    var showSongProperties by remember { mutableStateOf(false) }
     var pendingLocateSongId by remember { mutableStateOf<Long?>(null) }
 
     val displaySongs = if (searchQuery.isNotBlank()) searchResults else songs
@@ -210,49 +213,34 @@ fun LibraryScreen(
     }
 
     val menuButton: @Composable () -> Unit = {
-        FluentIconButton(onClick = { showDrawer = true }) {
-            Icon(
-                imageVector = Lucide.Menu,
-                contentDescription = "菜单",
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        CloverIconButton(
+            icon = Lucide.Menu,
+            contentDescription = "菜单",
+            onClick = { showDrawer = true }
+        )
     }
 
     val titleActions: @Composable RowScope.() -> Unit = {
-        FluentIconButton(onClick = { /* TODO: 搜索 */ }) {
-            Icon(
-                imageVector = Lucide.Search,
-                contentDescription = "搜索",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        FluentIconButton(onClick = { /* TODO: 全部顺序循环 */ }) {
-            Icon(
-                imageVector = Lucide.Repeat,
-                contentDescription = "全部顺序循环",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        FluentIconButton(onClick = { /* TODO: 全部随机 */ }) {
-            Icon(
-                imageVector = Lucide.Shuffle,
-                contentDescription = "全部随机",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        FluentIconButton(onClick = { showTitleBarMenu = true }) {
-            Icon(
-                imageVector = Lucide.EllipsisVertical,
-                contentDescription = "更多",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        CloverIconButton(
+            icon = Lucide.Search,
+            contentDescription = "搜索",
+            onClick = { /* TODO: 搜索 */ }
+        )
+        CloverIconButton(
+            icon = Lucide.Repeat,
+            contentDescription = "全部顺序循环",
+            onClick = { /* TODO: 全部顺序循环 */ }
+        )
+        CloverIconButton(
+            icon = Lucide.Shuffle,
+            contentDescription = "全部随机",
+            onClick = { /* TODO: 全部随机 */ }
+        )
+        CloverIconButton(
+            icon = Lucide.EllipsisVertical,
+            contentDescription = "更多",
+            onClick = { showTitleBarMenu = true }
+        )
     }
 
     val libraryBody: @Composable (PaddingValues, Dp) -> Unit = { contentPadding, bottomSpacer ->
@@ -350,6 +338,7 @@ fun LibraryScreen(
     }
 
     CloverAdaptiveShellScaffold(
+        strategy = CloverShellStrategy.BottomCombined,
         title = titleText,
         navigationIcon = menuButton,
         actions = titleActions,
@@ -456,7 +445,19 @@ fun LibraryScreen(
                         // TODO: 转至文件夹
                     },
                     onShare = {
-                        // TODO: 分享文件
+                        menuSong?.let { s ->
+                            cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, s)
+                        }
+                    },
+                    onOpenWith = {
+                        menuSong?.let { s ->
+                            cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, s)
+                        }
+                    },
+                    onProperties = {
+                        menuSong?.let { s ->
+                            showSongProperties = true
+                        }
                     },
                     onDelete = {
                         // TODO: 删除文件
@@ -488,23 +489,35 @@ fun LibraryScreen(
                     }
                 }
             }
-        },
-        content = { state ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                libraryBody(
-                    PaddingValues(top = 8.dp),
-                    miniPlayBarHeight + 32.dp
-                )
 
-                MiniPlayBar(
-                    playerViewModel = playerViewModel,
-                    onClick = onPlayerClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+            // 歌曲属性弹窗
+            if (showSongProperties && menuSong != null) {
+                BackHandler { showSongProperties = false }
+                cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
+                    song = menuSong!!,
+                    onDismiss = { showSongProperties = false }
                 )
             }
+
+            // 迷你播放条
+            MiniPlayBar(
+                playerViewModel = playerViewModel,
+                onClick = onPlayerClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
+                    )
+            )
+        },
+        content = { state ->
+            libraryBody(
+                PaddingValues(top = 8.dp),
+                miniPlayBarHeight + 32.dp
+            )
         }
     )
 

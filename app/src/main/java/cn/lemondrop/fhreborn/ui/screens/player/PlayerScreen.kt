@@ -221,6 +221,8 @@ fun PlayerScreen(
     var showSongInfoSheet by remember { mutableStateOf(false) }
     var currentCoverBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
+    var showSongProperties by remember { mutableStateOf(false) }
+
     val queueProgress = remember { Animatable(0f) }
     val isQueueOpen by remember { derivedStateOf { queueProgress.value > 0.5f } }
     val lyricsBackProgress = remember { Animatable(0f) }
@@ -767,9 +769,37 @@ fun PlayerScreen(
         if (showMore) {
             BackHandler { showMore = false }
             PlayerMoreSheet(
+                song = currentSong,
+                artistSeparators = artistSeparators,
                 onDismiss = { showMore = false },
+                onAddToPlaylistClick = { /* TODO: 加入歌单 */ },
+                onSpeedClick = { /* TODO: 倍速 */ },
                 onTimerClick = { viewModel.showScheduledPause() },
-                onShareClick = { shareCurrentSong(context, currentSong) }
+                onAudioOutputClick = { /* TODO: 输出与音效 */ },
+                onThoughtsClick = { /* TODO: 想法 */ },
+                onLyricSettingsClick = { /* TODO: 歌词设置 */ },
+                onViewAlbumClick = {
+                    currentSong?.let { song ->
+                        onNavigateToAlbum(song.album, song.albumArtist ?: song.artist)
+                    }
+                },
+                onViewArtistClick = {
+                    currentSong?.let { song ->
+                        val artists = ArtistSplitter.split(song.artist, artistSeparators)
+                        if (artists.size == 1) {
+                            onNavigateToArtist(artists.first())
+                        } else if (artists.isNotEmpty()) {
+                            // 多个艺术家时显示选择面板
+                            showSongInfoSheet = true
+                        }
+                    }
+                },
+                onGoToFolderClick = { /* TODO: 转至文件夹 */ },
+                onShareClick = { cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, currentSong) },
+                onPropertiesClick = { showSongProperties = true },
+                onOpenWithClick = { cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, currentSong) },
+                onHideClick = { /* TODO: 隐藏音乐 */ },
+                onDeleteClick = { /* TODO: 删除文件 */ }
             )
         }
 
@@ -800,6 +830,15 @@ fun PlayerScreen(
                 }
             }
         )
+
+        // 歌曲属性弹窗
+        if (showSongProperties) {
+            BackHandler { showSongProperties = false }
+            cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
+                song = currentSong,
+                onDismiss = { showSongProperties = false }
+            )
+        }
         }
     }
 }
@@ -1263,25 +1302,6 @@ private fun formatDuration(ms: Long): String {
     val minutes = seconds / 60
     val secs = seconds % 60
     return "%d:%02d".format(minutes, secs)
-}
-
-private fun shareCurrentSong(context: android.content.Context, song: cn.lemondrop.fhreborn.data.db.entity.Song?) {
-    song ?: return
-    val file = java.io.File(song.path)
-    if (!file.exists()) return
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
-    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-        type = "audio/*"
-        putExtra(android.content.Intent.EXTRA_STREAM, uri)
-        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(
-        android.content.Intent.createChooser(intent, "分享音频")
-    )
 }
 
 @Composable

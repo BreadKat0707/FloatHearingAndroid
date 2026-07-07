@@ -18,16 +18,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverSpacing
-import cn.lemondrop.fhreborn.data.db.entity.Song
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
+import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
+import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
+import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.screens.library.AlbumItem
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
@@ -61,86 +64,111 @@ fun ArtistDetailScreen(
     )
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    MainScaffold(
-        currentRoute = "artist",
-        title = { Text(artistName) },
-        onNavigate = { },
-        onPlayerClick = { },
-        playerViewModel = playerViewModel,
-        navigationIcon = {
-            FluentIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "返回"
-                )
-            }
-        }
-    ) { paddingValues, _, _ ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())
-        ) {
-            Text(
-                text = artistName,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.md)
-            )
-
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
-                }
-            }
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                when (selectedTab) {
-                    0 -> {
-                        itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                            SongItem(
-                                song = song,
-                                isSelected = false,
-                                isPlaying = song.id == currentSong?.id && isPlaying,
-                                onClick = { playerViewModel.playSongs(songs, index) },
-                                onMoreClick = { }
-                            )
-                        }
-                    }
-                    1 -> {
-                        itemsIndexed(albums, key = { _, album -> album.name + album.artist }) { _, album ->
-                            AlbumItem(
-                                album = album,
-                                onClick = { onNavigateToAlbum(album.name, album.artist) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.sm)
-                            )
-                        }
-                    }
-                    2 -> {
-                        itemsIndexed(guestAlbums, key = { _, album -> album.name + album.artist }) { _, album ->
-                            AlbumItem(
-                                album = album,
-                                onClick = { onNavigateToAlbum(album.name, album.artist) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.sm)
-                            )
-                        }
-                    }
-                }
-
-                item { Spacer(modifier = Modifier.height(80.dp)) }
-            }
-        }
+    val titleText: @Composable () -> Unit = {
+        Text(
+            text = artistName,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
+
+    val backButton: @Composable () -> Unit = {
+        CloverIconButton(
+            icon = Lucide.ArrowLeft,
+            contentDescription = "返回",
+            onClick = onBack
+        )
+    }
+
+    CloverAdaptiveShellScaffold(
+        strategy = CloverShellStrategy.BottomCombined,
+        title = titleText,
+        navigationIcon = backButton,
+        background = { AppBackgroundLayer() },
+        overlay = { state ->
+            MiniPlayBar(
+                playerViewModel = playerViewModel,
+                onClick = { },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
+                    )
+            )
+        },
+        content = { state ->
+            val bottomOverlayHeight = state.contentPadding.calculateBottomPadding() + 64.dp + 16.dp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = state.contentPadding.calculateTopPadding())
+            ) {
+                Text(
+                    text = artistName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.md)
+                )
+
+                TabRow(selectedTabIndex = selectedTab) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title) }
+                        )
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    when (selectedTab) {
+                        0 -> {
+                            itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                                SongItem(
+                                    song = song,
+                                    isSelected = false,
+                                    isPlaying = song.id == currentSong?.id && isPlaying,
+                                    onClick = { playerViewModel.playSongs(songs, index) },
+                                    onMoreClick = { }
+                                )
+                            }
+                        }
+                        1 -> {
+                            itemsIndexed(albums, key = { _, album -> album.name + album.artist }) { _, album ->
+                                AlbumItem(
+                                    album = album,
+                                    onClick = { onNavigateToAlbum(album.name, album.artist) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.sm)
+                                )
+                            }
+                        }
+                        2 -> {
+                            itemsIndexed(guestAlbums, key = { _, album -> album.name + album.artist }) { _, album ->
+                                AlbumItem(
+                                    album = album,
+                                    onClick = { onNavigateToAlbum(album.name, album.artist) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.sm)
+                                )
+                            }
+                        }
+                    }
+
+                    item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
+                }
+            }
+        }
+    )
 }

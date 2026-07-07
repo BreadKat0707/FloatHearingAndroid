@@ -1,7 +1,5 @@
 package cn.lemondrop.fhreborn.ui.screens.settings
 
-import android.app.Application
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.Composable
@@ -26,18 +23,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.clover.CloverDialog
 import cn.lemondrop.clover.CloverSizes
-import cn.lemondrop.fhreborn.data.model.SettingItem
-import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
-import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
-import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Lucide
+import dev.chrisbanes.haze.HazeState
 import io.github.composefluent.component.Icon
 import io.github.composefluent.component.Slider
 import io.github.composefluent.component.Switcher
@@ -45,13 +38,14 @@ import io.github.composefluent.component.Text
 import kotlinx.coroutines.launch
 
 /**
- * Accompanist Lyric 设置页。
+ * Accompanist Lyric 设置内容（纯内容组件，不带外壳）。
  * 提供歌词文字大小、粗细、翻译/音标显示、非当前行模糊、对齐方式等配置。
  */
 @Composable
-fun AccompanistLyricSettingsScreen(
-    playerViewModel: PlayerViewModel,
-    onBack: () -> Unit
+fun AccompanistLyricSettingsContent(
+    paddingValues: PaddingValues,
+    bottomOverlayHeight: Dp,
+    hazeState: HazeState
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
@@ -69,143 +63,133 @@ fun AccompanistLyricSettingsScreen(
     val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
     val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
 
-    BackHandler { onBack() }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = paddingValues.calculateTopPadding()),
+        contentPadding = PaddingValues(
+            start = CloverSizes.listOuterHorizontalPadding,
+            end = CloverSizes.listOuterHorizontalPadding,
+            bottom = bottomOverlayHeight + 16.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // 主唱行
+        item { SectionHeader("主唱行") }
+        item {
+            SliderSettingItem(
+                title = "文字大小",
+                value = mainTextSize,
+                range = 16f..48f,
+                steps = 31,
+                valueText = "${mainTextSize}sp",
+                onValueChange = { scope.launch { repository.setAcclLyricMainTextSizeSp(it.toInt()) } }
+            )
+        }
+        item {
+            SliderSettingItem(
+                title = "文字粗细",
+                value = mainFontWeight,
+                range = 100f..900f,
+                steps = 7,
+                valueText = "$mainFontWeight",
+                onValueChange = { scope.launch { repository.setAcclLyricMainFontWeight(it.toInt()) } }
+            )
+        }
 
-    MainScaffold(
-        playerViewModel = playerViewModel,
-        currentRoute = "accompanist_lyric_settings",
-        onNavigate = { },
-        title = { Text("Accompanist Lyric 设置") },
-        onPlayerClick = { }
-    ) { paddingValues, bottomOverlayHeight, _ ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding()),
-            contentPadding = PaddingValues(
-                start = CloverSizes.listOuterHorizontalPadding,
-                end = CloverSizes.listOuterHorizontalPadding,
-                bottom = bottomOverlayHeight + 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // 主唱行
-            item { SectionHeader("主唱行") }
-            item {
-                SliderSettingItem(
-                    title = "文字大小",
-                    value = mainTextSize,
-                    range = 16f..48f,
-                    steps = 31,
-                    valueText = "${mainTextSize}sp",
-                    onValueChange = { scope.launch { repository.setAcclLyricMainTextSizeSp(it.toInt()) } }
-                )
-            }
-            item {
-                SliderSettingItem(
-                    title = "文字粗细",
-                    value = mainFontWeight,
-                    range = 100f..900f,
-                    steps = 7,
-                    valueText = "$mainFontWeight",
-                    onValueChange = { scope.launch { repository.setAcclLyricMainFontWeight(it.toInt()) } }
-                )
-            }
+        // 伴唱行
+        item { SectionHeader("伴唱行") }
+        item {
+            SliderSettingItem(
+                title = "文字大小",
+                value = accompanimentTextSize,
+                range = 12f..32f,
+                steps = 19,
+                valueText = "${accompanimentTextSize}sp",
+                onValueChange = { scope.launch { repository.setAcclLyricAccompanimentTextSizeSp(it.toInt()) } }
+            )
+        }
+        item {
+            SliderSettingItem(
+                title = "文字粗细",
+                value = accompanimentFontWeight,
+                range = 100f..900f,
+                steps = 7,
+                valueText = "$accompanimentFontWeight",
+                onValueChange = { scope.launch { repository.setAcclLyricAccompanimentFontWeight(it.toInt()) } }
+            )
+        }
 
-            // 伴唱行
-            item { SectionHeader("伴唱行") }
-            item {
-                SliderSettingItem(
-                    title = "文字大小",
-                    value = accompanimentTextSize,
-                    range = 12f..32f,
-                    steps = 19,
-                    valueText = "${accompanimentTextSize}sp",
-                    onValueChange = { scope.launch { repository.setAcclLyricAccompanimentTextSizeSp(it.toInt()) } }
-                )
-            }
-            item {
-                SliderSettingItem(
-                    title = "文字粗细",
-                    value = accompanimentFontWeight,
-                    range = 100f..900f,
-                    steps = 7,
-                    valueText = "$accompanimentFontWeight",
-                    onValueChange = { scope.launch { repository.setAcclLyricAccompanimentFontWeight(it.toInt()) } }
-                )
-            }
+        // 音标/注音
+        item { SectionHeader("音标 / 注音") }
+        item {
+            SliderSettingItem(
+                title = "文字大小",
+                value = phoneticTextSize,
+                range = 8f..24f,
+                steps = 15,
+                valueText = "${phoneticTextSize}sp",
+                onValueChange = { scope.launch { repository.setAcclLyricPhoneticTextSizeSp(it.toInt()) } }
+            )
+        }
+        item {
+            SliderSettingItem(
+                title = "文字粗细",
+                value = phoneticFontWeight,
+                range = 100f..900f,
+                steps = 7,
+                valueText = "$phoneticFontWeight",
+                onValueChange = { scope.launch { repository.setAcclLyricPhoneticFontWeight(it.toInt()) } }
+            )
+        }
 
-            // 音标/注音
-            item { SectionHeader("音标 / 注音") }
-            item {
-                SliderSettingItem(
-                    title = "文字大小",
-                    value = phoneticTextSize,
-                    range = 8f..24f,
-                    steps = 15,
-                    valueText = "${phoneticTextSize}sp",
-                    onValueChange = { scope.launch { repository.setAcclLyricPhoneticTextSizeSp(it.toInt()) } }
-                )
-            }
-            item {
-                SliderSettingItem(
-                    title = "文字粗细",
-                    value = phoneticFontWeight,
-                    range = 100f..900f,
-                    steps = 7,
-                    valueText = "$phoneticFontWeight",
-                    onValueChange = { scope.launch { repository.setAcclLyricPhoneticFontWeight(it.toInt()) } }
-                )
-            }
+        // 显示开关
+        item { SectionHeader("显示") }
+        item {
+            ToggleSettingItem(
+                title = "显示翻译",
+                checked = showTranslation,
+                onCheckedChange = { scope.launch { repository.setAcclLyricShowTranslation(it) } }
+            )
+        }
+        item {
+            ToggleSettingItem(
+                title = "显示音标 / 注音",
+                checked = showPhonetic,
+                onCheckedChange = { scope.launch { repository.setAcclLyricShowPhonetic(it) } }
+            )
+        }
 
-            // 显示开关
-            item { SectionHeader("显示") }
-            item {
-                ToggleSettingItem(
-                    title = "显示翻译",
-                    checked = showTranslation,
-                    onCheckedChange = { scope.launch { repository.setAcclLyricShowTranslation(it) } }
-                )
-            }
-            item {
-                ToggleSettingItem(
-                    title = "显示音标 / 注音",
-                    checked = showPhonetic,
-                    onCheckedChange = { scope.launch { repository.setAcclLyricShowPhonetic(it) } }
-                )
-            }
+        // 模糊
+        item { SectionHeader("效果") }
+        item {
+            ToggleSettingItem(
+                title = "非当前行模糊效果",
+                checked = useBlur,
+                onCheckedChange = { scope.launch { repository.setAcclLyricUseBlurEffect(it) } }
+            )
+        }
+        item {
+            SliderSettingItem(
+                title = "模糊强度",
+                value = blurDelta,
+                range = 0f..10f,
+                steps = 9,
+                valueText = "$blurDelta",
+                enabled = useBlur,
+                onValueChange = { scope.launch { repository.setAcclLyricBlurDelta(it.toInt()) } }
+            )
+        }
 
-            // 模糊
-            item { SectionHeader("效果") }
-            item {
-                ToggleSettingItem(
-                    title = "非当前行模糊效果",
-                    checked = useBlur,
-                    onCheckedChange = { scope.launch { repository.setAcclLyricUseBlurEffect(it) } }
-                )
-            }
-            item {
-                SliderSettingItem(
-                    title = "模糊强度",
-                    value = blurDelta,
-                    range = 0f..10f,
-                    steps = 9,
-                    valueText = "$blurDelta",
-                    enabled = useBlur,
-                    onValueChange = { scope.launch { repository.setAcclLyricBlurDelta(it.toInt()) } }
-                )
-            }
-
-            // 对齐方式：当前 Accompanist Lyric 版本不支持全局强制对齐，仅跟随歌词本身标注
-            item { SectionHeader("对齐方式") }
-            item {
-                Text(
-                    text = "当前 Accompanist Lyric 版本不支持全局歌词对齐，仅跟随歌词本身标注。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            }
+        // 对齐方式：当前 Accompanist Lyric 版本不支持全局强制对齐，仅跟随歌词本身标注
+        item { SectionHeader("对齐方式") }
+        item {
+            Text(
+                text = "当前 Accompanist Lyric 版本不支持全局歌词对齐，仅跟随歌词本身标注。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
         }
     }
 }
@@ -292,6 +276,7 @@ private fun SelectionSettingItem(
 
     if (showDialog) {
         CloverDialog(
+            visible = true,
             onDismissRequest = { showDialog = false },
             title = title,
             buttons = { }

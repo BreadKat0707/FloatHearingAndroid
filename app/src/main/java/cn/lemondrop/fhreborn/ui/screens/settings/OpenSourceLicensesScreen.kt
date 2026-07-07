@@ -16,75 +16,56 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverSizes
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
-import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
-import com.composables.icons.lucide.ArrowLeft
-import com.composables.icons.lucide.Lucide
-import io.github.composefluent.component.Icon
+import dev.chrisbanes.haze.HazeState
 import io.github.composefluent.component.Text
 
 /**
- * 开源许可页面：列出本项目使用的第三方开源库及其许可证。
+ * 开源许可内容（纯内容组件，不带外壳）：列出本项目使用的第三方开源库及其许可证。
  */
 @Composable
-fun OpenSourceLicensesScreen(
-    playerViewModel: PlayerViewModel,
-    onBack: () -> Unit
+fun OpenSourceLicensesContent(
+    paddingValues: PaddingValues,
+    bottomOverlayHeight: Dp,
+    hazeState: HazeState
 ) {
     val context = LocalContext.current
     val licenses = rememberOpenSourceLicenses()
 
-    MainScaffold(
-        playerViewModel = playerViewModel,
-        currentRoute = "open_source",
-        onNavigate = { },
-        title = { Text("开源许可") },
-        onPlayerClick = { },
-        navigationIcon = {
-            FluentIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "返回"
-                )
-            }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = paddingValues.calculateTopPadding(),
+                start = CloverSizes.listOuterHorizontalPadding,
+                end = CloverSizes.listOuterHorizontalPadding
+            ),
+        contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
+    ) {
+        item {
+            Text(
+                text = "FH Reborn 使用了以下开源项目，感谢所有贡献者。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
         }
-    ) { paddingValues, bottomOverlayHeight, _ ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = paddingValues.calculateTopPadding(),
-                    start = CloverSizes.listOuterHorizontalPadding,
-                    end = CloverSizes.listOuterHorizontalPadding
-                ),
-            contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
-        ) {
-            item {
-                Text(
-                    text = "FH Reborn 使用了以下开源项目，感谢所有贡献者。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            }
 
-            items(licenses, key = { it.name }) { license ->
-                LicenseItem(
-                    license = license,
-                    onClick = {
-                        // 尝试打开项目主页（浏览器）
-                        val intent = android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse(license.url)
-                        )
-                        runCatching { context.startActivity(intent) }
-                    }
-                )
-                HorizontalDivider()
-            }
+        items(licenses, key = { it.name }) { license ->
+            LicenseItem(
+                license = license,
+                onClick = {
+                    // 尝试打开项目主页（浏览器）
+                    val intent = android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(license.url)
+                    )
+                    runCatching { context.startActivity(intent) }
+                }
+            )
+            HorizontalDivider()
         }
     }
 }

@@ -8,38 +8,45 @@ import kotlinx.coroutines.flow.flow
 sealed class ScanProgress {
     data object Idle : ScanProgress()
     data object Scanning : ScanProgress()
-    data class Progress(val current: Int, val total: Int, val path: String) : ScanProgress()
-    data class Completed(val songsFound: Int, val songs: List<Song> = emptyList()) : ScanProgress()
+    data class Progress(
+        val current: Int,
+        val total: Int,
+        val path: String,
+        /** 最近扫描到的若干条目，用于在对话框中展示实时扫描列表。 */
+        val recentlyScanned: List<String> = emptyList()
+    ) : ScanProgress()
+
+    data class Completed(
+        val songsFound: Int,
+        val songs: List<Song> = emptyList(),
+        /** 本次刷新从媒体库移除的歌曲数。 */
+        val removed: Int = 0
+    ) : ScanProgress()
+
     data class Error(val message: String) : ScanProgress()
 }
 
 class MediaScanner(context: Context) {
 
     private val mediaStoreScanner = MediaStoreScanner(context)
-    private val ffmpegScanner = FFmpegScanner(context)
 
     fun scan(quickScan: Boolean = false): Flow<ScanProgress> = flow {
         emit(ScanProgress.Scanning)
         try {
             val allSongs = mutableListOf<Song>()
-            val scannedPaths = mutableSetOf<String>()
 
-            // Step 1: MediaStore 快速索引
-            emit(ScanProgress.Progress(1, if (quickScan) 1 else 2, "MediaStore"))
-            val mediaStoreSongs = mediaStoreScanner.scan(scannedPaths)
-            allSongs.addAll(mediaStoreSongs)
-            scannedPaths.addAll(mediaStoreSongs.map { it.path })
-
-            if (!quickScan) {
-                // Step 2: FFmpeg 补充扫描（扫描外部存储常见音乐目录）
-                emit(ScanProgress.Progress(2, 2, "FFmpeg"))
-                val commonMusicDirs = listOf(
-                    "/storage/emulated/0/Music",
-                    "/storage/emulated/0/Download",
-                    "/storage/emulated/0/"
-                ).filter { java.io.File(it).exists() }
-                val ffmpegSongs = ffmpegScanner.scan(commonMusicDirs, scannedPaths)
-                allSongs.addAll(ffmpegSongs)
+            // 仅读取系统 MediaStore 媒体库
+            val mediaStoreSongs = mediaStoreScanner.scan(emptySet())
+            mediaStoreSongs.forEachIndexed { index, song ->
+                allSongs.add(song)
+                emit(
+                    ScanProgress.Progress(
+                        current = index + 1,
+                        total = mediaStoreSongs.size,
+                        path = song.path,
+                        recentlyScanned = allSongs.takeLast(6).map { it.title }
+                    )
+                )
             }
 
             emit(ScanProgress.Completed(allSongs.size, allSongs))

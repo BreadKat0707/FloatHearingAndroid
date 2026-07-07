@@ -21,6 +21,16 @@ class MediaLibraryRepository(database: AppDatabase) {
 
     suspend fun insertSongs(songs: List<Song>) = songDao.insertAll(songs)
 
+    /**
+     * 全量替换媒体库歌曲：
+     * - 删除数据库中本次扫描未出现的歌曲（文件已被删除）
+     * - 保留仍在的歌曲的收藏状态与首次添加时间
+     * - 插入/替换新扫描结果
+     *
+     * @return 从媒体库移除的歌曲数量
+     */
+    suspend fun replaceAllSongs(songs: List<Song>): Int = songDao.replaceAll(songs)
+
     suspend fun deleteAllSongs() = songDao.deleteAll()
 
     suspend fun deleteSongByPath(path: String) = songDao.deleteByPath(path)

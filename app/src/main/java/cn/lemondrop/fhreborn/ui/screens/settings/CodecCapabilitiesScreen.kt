@@ -17,66 +17,46 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverSizes
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
-import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
-import com.composables.icons.lucide.ArrowLeft
-import com.composables.icons.lucide.Lucide
-import io.github.composefluent.component.Icon
+import dev.chrisbanes.haze.HazeState
 import io.github.composefluent.component.Text
 
 /**
- * 查看本机支持的音视频编解码器页面。
+ * 查看本机支持的音视频编解码器内容（纯内容组件，不带外壳）。
  * 列出系统所有 MediaCodecInfo，按是否硬件加速、是否编码器分组展示。
  */
 @Composable
-fun CodecCapabilitiesScreen(
-    playerViewModel: PlayerViewModel,
-    onBack: () -> Unit
+fun CodecCapabilitiesContent(
+    paddingValues: PaddingValues,
+    bottomOverlayHeight: Dp,
+    hazeState: HazeState
 ) {
-    val context = LocalContext.current
     val codecs = remember { loadCodecList() }
 
-    MainScaffold(
-        playerViewModel = playerViewModel,
-        currentRoute = "codec_capabilities",
-        onNavigate = { },
-        title = { Text("本机编解码器") },
-        onPlayerClick = { },
-        navigationIcon = {
-            FluentIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "返回"
-                )
-            }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                top = paddingValues.calculateTopPadding(),
+                start = CloverSizes.listOuterHorizontalPadding,
+                end = CloverSizes.listOuterHorizontalPadding
+            ),
+        contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
+    ) {
+        item {
+            Text(
+                text = "共 ${codecs.size} 个编解码器",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
         }
-    ) { paddingValues, bottomOverlayHeight, _ ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = paddingValues.calculateTopPadding(),
-                    start = CloverSizes.listOuterHorizontalPadding,
-                    end = CloverSizes.listOuterHorizontalPadding
-                ),
-            contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
-        ) {
-            item {
-                Text(
-                    text = "共 ${codecs.size} 个编解码器",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            }
 
-            items(codecs, key = { it.name }) { codec ->
-                CodecItem(codec = codec)
-                HorizontalDivider()
-            }
+        items(codecs, key = { it.name }) { codec ->
+            CodecItem(codec = codec)
+            HorizontalDivider()
         }
     }
 }

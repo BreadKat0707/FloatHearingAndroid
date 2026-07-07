@@ -65,6 +65,7 @@ fun ScheduledPauseDialog(
     val totalMinutes = hours * 60 + minutes
 
     CloverDialog(
+        visible = true,
         onDismissRequest = onDismiss,
         title = "计划暂停",
         buttons = {

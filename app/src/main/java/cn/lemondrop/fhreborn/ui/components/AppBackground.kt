@@ -22,8 +22,8 @@ import cn.lemondrop.fhreborn.util.BackgroundImageUtils
 /**
  * 主页面共享背景层：纯色 / 自选图片（亮度 + 模糊）/ 云母（系统壁纸实时透出）。
  *
- * 只渲染背景，不含上层内容。MainScaffold 与 LibraryScreen 各自作为根 Box 第一个子节点引入，
- * 统一背景以透到不走 MainScaffold 的媒体库页。
+ * 只渲染背景，不含上层内容。各页面通过 CloverAdaptiveShellScaffold 的 background 参数引入，
+ * 统一背景以透到所有页面。
  */
 @Composable
 fun AppBackgroundLayer(modifier: Modifier = Modifier) {

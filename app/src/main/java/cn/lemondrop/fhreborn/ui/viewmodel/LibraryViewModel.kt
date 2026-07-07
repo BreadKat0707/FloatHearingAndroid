@@ -224,8 +224,9 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             _scanProgress.value = ScanProgress.Scanning
             scanner.scan().collect { progress ->
                 _scanProgress.value = progress
-                if (progress is ScanProgress.Completed && progress.songs.isNotEmpty()) {
-                    repository.insertSongs(progress.songs)
+                if (progress is ScanProgress.Completed) {
+                    val removed = repository.replaceAllSongs(progress.songs)
+                    _scanProgress.value = progress.copy(removed = removed)
                 }
             }
         }
@@ -250,8 +251,9 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             _scanProgress.value = ScanProgress.Scanning
             scanner.scan(quickScan = true).collect { progress ->
                 _scanProgress.value = progress
-                if (progress is ScanProgress.Completed && progress.songs.isNotEmpty()) {
-                    repository.insertSongs(progress.songs)
+                if (progress is ScanProgress.Completed) {
+                    val removed = repository.replaceAllSongs(progress.songs)
+                    _scanProgress.value = progress.copy(removed = removed)
                 }
             }
         }

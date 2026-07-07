@@ -73,7 +73,7 @@ private val PRESET_COLORS = listOf(
 )
 
 /**
- * 主页面背景设置子页内容（作为 SettingsScreen 的 content 子视图使用，不自带 MainScaffold）。
+ * 主页面背景设置子页内容（作为 SettingsScreen 的 content 子视图使用，不自带外壳）。
  *
  * 三选一：纯色 / 自选图片（亮度 + 模糊）/ 云母（系统壁纸实时透出 + 模糊 + tint/噪点）。
  */

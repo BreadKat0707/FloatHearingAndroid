@@ -12,15 +12,11 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,11 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.ListItem
-import io.github.composefluent.component.Slider
-import io.github.composefluent.component.Switcher
-import io.github.composefluent.component.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,36 +41,41 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverButton
+import cn.lemondrop.clover.CloverDialog
+import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.CloverSizes
+import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
+import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.data.model.SettingCategory
 import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
-import cn.lemondrop.fhreborn.data.model.Option
-import cn.lemondrop.clover.CloverDialog
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
+import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
-import com.composables.icons.lucide.Activity
+import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
-import com.composables.icons.lucide.BrainCircuit
 import com.composables.icons.lucide.ChevronRight
-import com.composables.icons.lucide.Database
-import com.composables.icons.lucide.Ear
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Globe
-import com.composables.icons.lucide.Headphones
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Menu
 import com.composables.icons.lucide.MonitorSpeaker
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Puzzle
-import com.composables.icons.lucide.Type
 import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
 import com.composables.icons.lucide.X
-import com.composables.icons.lucide.Zap
+import dev.chrisbanes.haze.HazeState
+import io.github.composefluent.component.Icon
+import io.github.composefluent.component.Slider
+import io.github.composefluent.component.Switcher
+import io.github.composefluent.component.Text
 import kotlinx.coroutines.launch
 
 @Composable
@@ -97,35 +93,27 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = setOf(" / "))
 
-    val selectedCategory by viewModel.selectedCategory.collectAsState()
-    var showBackground by remember { mutableStateOf(false) }
+    var currentPage by remember { mutableStateOf<SettingsPage>(SettingsPage.Home) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
-    var showCodecCapabilities by remember { mutableStateOf(false) }
-    var showAccompanistLyricSettings by remember { mutableStateOf(false) }
+    var showDrawer by remember { mutableStateOf(false) }
 
-    // 拦截系统返回键：背景子页优先返回，其次分类详情页回到设置主页，避免直接退出
-    BackHandler(enabled = showBackground) {
-        showBackground = false
+    // 系统返回键：子页返回设置主页，分隔符弹窗优先关闭
+    BackHandler(enabled = currentPage != SettingsPage.Home) {
+        currentPage = SettingsPage.Home
+        viewModel.navigateBack()
     }
     BackHandler(enabled = showArtistSeparatorSheet) {
         showArtistSeparatorSheet = false
     }
-    BackHandler(enabled = showCodecCapabilities) {
-        showCodecCapabilities = false
-    }
-    BackHandler(enabled = showAccompanistLyricSettings) {
-        showAccompanistLyricSettings = false
-    }
-    BackHandler(enabled = selectedCategory != null && !showBackground && !showArtistSeparatorSheet && !showCodecCapabilities && !showAccompanistLyricSettings) {
-        viewModel.navigateBack()
-    }
+
+    val isHome = currentPage == SettingsPage.Home
 
     val titleText: @Composable () -> Unit = {
+        val page = currentPage
         Text(
-            text = when {
-                showBackground -> "背景"
-                else -> when (selectedCategory) {
-                    null -> "设置"
+            text = when (page) {
+                SettingsPage.Home -> "设置"
+                is SettingsPage.Category -> when (page.key) {
                     "language" -> "语言"
                     "personalize" -> "个性化"
                     "features" -> "功能"
@@ -135,86 +123,185 @@ fun SettingsScreen(
                     "about" -> "关于"
                     else -> "设置"
                 }
+                SettingsPage.Background -> "背景"
+                SettingsPage.CodecCapabilities -> "本机编解码器"
+                SettingsPage.AccompanistLyric -> "Accompanist Lyric 设置"
+                SettingsPage.OpenSourceLicenses -> "开源许可"
+                SettingsPage.PlayerBackground -> "播放器页面背景"
             },
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
 
-    MainScaffold(
-        playerViewModel = playerViewModel,
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
+    val menuButton: @Composable () -> Unit = {
+        CloverIconButton(
+            icon = Lucide.Menu,
+            contentDescription = "菜单",
+            onClick = { showDrawer = true }
+        )
+    }
+
+    val backButton: @Composable () -> Unit = {
+        CloverIconButton(
+            icon = Lucide.ArrowLeft,
+            contentDescription = "返回",
+            onClick = {
+                currentPage = SettingsPage.Home
+                viewModel.navigateBack()
+            }
+        )
+    }
+
+    val onNavigateItem: (SettingItem) -> Unit = { item ->
+        when (item.key) {
+            "main_bg" -> currentPage = SettingsPage.Background
+            "artist_separators" -> showArtistSeparatorSheet = true
+            "codec_capability" -> currentPage = SettingsPage.CodecCapabilities
+            "accompanist_lyric" -> currentPage = SettingsPage.AccompanistLyric
+            "open_source" -> currentPage = SettingsPage.OpenSourceLicenses
+            "player_bg" -> currentPage = SettingsPage.PlayerBackground
+        }
+    }
+
+    CloverAdaptiveShellScaffold(
+        strategy = CloverShellStrategy.BottomCombined,
         title = titleText,
-        onPlayerClick = onPlayerClick
-    ) { paddingValues, bottomOverlayHeight, hazeState ->
-        if (showBackground) {
-            BackgroundSettingsContent(viewModel)
-        } else if (showCodecCapabilities) {
-            CodecCapabilitiesScreen(
-                playerViewModel = playerViewModel,
-                onBack = { showCodecCapabilities = false }
+        navigationIcon = if (isHome) menuButton else backButton,
+        background = { AppBackgroundLayer() },
+        overlay = { state ->
+            AppDrawer(
+                visible = showDrawer,
+                onDismiss = { showDrawer = false },
+                currentRoute = currentRoute,
+                onNavigate = { route ->
+                    showDrawer = false
+                    onNavigate(route)
+                },
+                hazeState = state.hazeState,
+                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
             )
-        } else if (showAccompanistLyricSettings) {
-            AccompanistLyricSettingsScreen(
-                playerViewModel = playerViewModel,
-                onBack = { showAccompanistLyricSettings = false }
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = paddingValues.calculateTopPadding()),
-                contentPadding = PaddingValues(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                if (selectedCategory == null) {
-                    // 设置主页：分类列表
-                    items(buildCategories(), key = { it.key }) { category ->
-                        CategoryItem(
-                            category = category,
-                            onClick = { viewModel.selectCategory(category.key) }
-                        )
-                    }
-                } else {
-                    // 分类详情页
-                    val category = buildCategories().find { it.key == selectedCategory }
-                    if (category != null) {
-                        items(category.items) { item ->
-                            SettingItemRow(
-                                item = item,
-                                viewModel = viewModel,
-                                onNavigationClick = {
-                                    when (it.key) {
-                                        "main_bg" -> showBackground = true
-                                        "artist_separators" -> showArtistSeparatorSheet = true
-                                        "codec_capability" -> showCodecCapabilities = true
-                                        "accompanist_lyric" -> showAccompanistLyricSettings = true
-                                    }
-                                }
-                            )
+
+            if (showArtistSeparatorSheet) {
+                ArtistSeparatorSheet(
+                    separators = artistSeparators,
+                    onDismiss = { showArtistSeparatorSheet = false },
+                    hazeState = state.hazeState,
+                    onSave = { newSeparators ->
+                        scope.launch {
+                            settingsRepository.setArtistSeparators(newSeparators)
                         }
                     }
-                }
+                )
+            }
 
-                // 底部占位，让最后一项可以滚动到亚克力底栏上方
-                item {
-                    Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
+            MiniPlayBar(
+                playerViewModel = playerViewModel,
+                onClick = onPlayerClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
+                    )
+            )
+        },
+        content = { state ->
+            val bottomOverlayHeight = state.contentPadding.calculateBottomPadding() + 64.dp + 16.dp
+            Box(modifier = Modifier.fillMaxSize()) {
+                when (currentPage) {
+                    SettingsPage.Home,
+                    is SettingsPage.Category -> SettingsListContent(
+                        viewModel = viewModel,
+                        currentPage = currentPage,
+                        onCategoryClick = { key ->
+                            currentPage = SettingsPage.Category(key)
+                            viewModel.selectCategory(key)
+                        },
+                        onNavigationClick = onNavigateItem,
+                        paddingValues = state.contentPadding,
+                        bottomOverlayHeight = bottomOverlayHeight
+                    )
+
+                    SettingsPage.Background -> BackgroundSettingsContent(viewModel)
+                    SettingsPage.CodecCapabilities -> CodecCapabilitiesContent(
+                        paddingValues = state.contentPadding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        hazeState = state.hazeState
+                    )
+                    SettingsPage.AccompanistLyric -> AccompanistLyricSettingsContent(
+                        paddingValues = state.contentPadding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        hazeState = state.hazeState
+                    )
+                    SettingsPage.OpenSourceLicenses -> OpenSourceLicensesContent(
+                        paddingValues = state.contentPadding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        hazeState = state.hazeState
+                    )
+                    SettingsPage.PlayerBackground -> PlayerBackgroundPickerContent(
+                        paddingValues = state.contentPadding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        hazeState = state.hazeState
+                    )
+                }
+            }
+        }
+    )
+}
+
+private sealed class SettingsPage {
+    data object Home : SettingsPage()
+    data class Category(val key: String) : SettingsPage()
+    data object Background : SettingsPage()
+    data object CodecCapabilities : SettingsPage()
+    data object AccompanistLyric : SettingsPage()
+    data object OpenSourceLicenses : SettingsPage()
+    data object PlayerBackground : SettingsPage()
+}
+
+@Composable
+private fun SettingsListContent(
+    viewModel: SettingsViewModel,
+    currentPage: SettingsPage,
+    onCategoryClick: (String) -> Unit,
+    onNavigationClick: (SettingItem) -> Unit,
+    paddingValues: PaddingValues,
+    bottomOverlayHeight: Dp
+) {
+    val selectedCategory = (currentPage as? SettingsPage.Category)?.key
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = paddingValues.calculateTopPadding()),
+        contentPadding = PaddingValues(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (selectedCategory == null) {
+            items(buildCategories(), key = { it.key }) { category ->
+                CategoryItem(
+                    category = category,
+                    onClick = { onCategoryClick(category.key) }
+                )
+            }
+        } else {
+            val category = buildCategories().find { it.key == selectedCategory }
+            if (category != null) {
+                items(category.items) { item ->
+                    SettingItemRow(
+                        item = item,
+                        viewModel = viewModel,
+                        onNavigationClick = onNavigationClick
+                    )
                 }
             }
         }
 
-        if (showArtistSeparatorSheet) {
-            ArtistSeparatorSheet(
-                separators = artistSeparators,
-                onDismiss = { showArtistSeparatorSheet = false },
-                hazeState = hazeState,
-                onSave = { newSeparators ->
-                    scope.launch {
-                        settingsRepository.setArtistSeparators(newSeparators)
-                    }
-                }
-            )
+        // 底部占位，让最后一项可以滚动到迷你播放条上方
+        item {
+            Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
         }
     }
 }
@@ -224,7 +311,7 @@ fun SettingsScreen(
 private fun ArtistSeparatorSheet(
     separators: Set<String>,
     onDismiss: () -> Unit,
-    hazeState: dev.chrisbanes.haze.HazeState,
+    hazeState: HazeState,
     onSave: (Set<String>) -> Unit
 ) {
     var current by remember { mutableStateOf(separators.toSortedSet()) }
@@ -315,7 +402,7 @@ private fun ArtistSeparatorSheet(
 
 @Composable
 private fun CategoryItem(
-    category: cn.lemondrop.fhreborn.data.model.SettingCategory,
+    category: SettingCategory,
     onClick: () -> Unit
 ) {
     cn.lemondrop.fhreborn.ui.components.FhListItem(
@@ -365,6 +452,7 @@ private fun SettingItemRow(
     // 选择弹窗
     if (showSelectionDialog && selectionType != null) {
         CloverDialog(
+            visible = true,
             onDismissRequest = { showSelectionDialog = false },
             title = item.title,
             buttons = {
@@ -501,35 +589,36 @@ private fun SettingItemRow(
 
 // ========== 设置分类定义 ==========
 
-private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCategory> {
+private fun buildCategories(): List<SettingCategory> {
     return listOf(
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "language",
             title = "语言",
             icon = Lucide.Globe,
             items = listOf(
-                SettingItem("lang_app", "应用语言", "当前: 简体中文", Lucide.Globe, SettingType.Selection(listOf(Option("简体中文", "简体中文"), Option("繁體中文", "繁體中文"), Option("English", "English"), Option("日本語", "日本語"), Option("한국어", "한국어"))))
+                SettingItem("lang_app", "应用语言", "当前: 简体中文", Lucide.Globe, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("简体中文", "简体中文"), cn.lemondrop.fhreborn.data.model.Option("繁體中文", "繁體中文"), cn.lemondrop.fhreborn.data.model.Option("English", "English"), cn.lemondrop.fhreborn.data.model.Option("日本語", "日本語"), cn.lemondrop.fhreborn.data.model.Option("한국어", "한국어"))))
             )
         ),
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "personalize",
             title = "个性化",
             icon = Lucide.Palette,
             items = listOf(
                 // 主题与颜色
                 SettingItem("", "主题与颜色", null, null, SettingType.Info),
-                SettingItem("theme_mode", "颜色模式", "深色 / 浅色 / 跟随系统", null, SettingType.Selection(listOf(Option("system", "跟随系统"), Option("light", "浅色"), Option("dark", "深色"))), "system"),
-                SettingItem("accent_color", "主题颜色", "紫色", Lucide.Palette, SettingType.Selection(listOf(Option("默认", "默认"), Option("蓝", "蓝"), Option("绿", "绿"), Option("紫", "紫"), Option("橙", "橙"), Option("粉", "粉"), Option("红", "红"), Option("青", "青"))), "紫"),
+                SettingItem("theme_mode", "颜色模式", "深色 / 浅色 / 跟随系统", null, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("system", "跟随系统"), cn.lemondrop.fhreborn.data.model.Option("light", "浅色"), cn.lemondrop.fhreborn.data.model.Option("dark", "深色"))), "system"),
+                SettingItem("accent_color", "主题颜色", "紫色", Lucide.Palette, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("默认", "默认"), cn.lemondrop.fhreborn.data.model.Option("蓝", "蓝"), cn.lemondrop.fhreborn.data.model.Option("绿", "绿"), cn.lemondrop.fhreborn.data.model.Option("紫", "紫"), cn.lemondrop.fhreborn.data.model.Option("橙", "橙"), cn.lemondrop.fhreborn.data.model.Option("粉", "粉"), cn.lemondrop.fhreborn.data.model.Option("红", "红"), cn.lemondrop.fhreborn.data.model.Option("青", "青"))), "紫"),
                 SettingItem("dynamic_color", "Material You 动态取色", "跟随系统的壁纸取色使用monet取色", Lucide.Palette, SettingType.Toggle, false),
 
                 // 主界面
                 SettingItem("", "主界面", null, null, SettingType.Info),
                 SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
                 SettingItem("main_bg", "主页面背景", "纯色 / 自选图片 / 云母", null, SettingType.Navigation),
+                SettingItem("player_bg", "播放器页面背景", "旋转流体 / AGSL 流体 / 封面模糊", null, SettingType.Navigation),
                 SettingItem("predictive_back", "预测性返回手势", "返回时预览上一页（实验，可能有异常）", null, SettingType.Toggle, false)
             )
         ),
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "features",
             title = "功能",
             icon = Lucide.Wrench,
@@ -537,7 +626,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("wake_lock", "唤醒锁", "播放器页面保持屏幕常亮", null, SettingType.Toggle, true)
             )
         ),
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "output",
             title = "输出",
             icon = Lucide.Volume2,
@@ -545,7 +634,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("codec_capability", "查看本机支持的编解码器", null, null, SettingType.Navigation)
             )
         ),
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "lyrics",
             title = "歌词",
             icon = Lucide.BookOpen,
@@ -553,7 +642,7 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("accompanist_lyric", "Accompanist Lyric设置", null, null, SettingType.Navigation)
             )
         ),
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "library",
             title = "媒体库",
             icon = Lucide.Music,
@@ -561,12 +650,12 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
                 SettingItem("auto_scan", "启动时自动扫描", "每次打开检测媒体库变更", null, SettingType.Toggle, true),
                 SettingItem("scan_directories", "扫描目录", "管理音乐文件夹", Lucide.FolderOpen, SettingType.Navigation),
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
-                SettingItem("cover_cache", "封面缓存策略", "懒加载 / 磁盘缓存 / 混合", null, SettingType.Selection(listOf(Option("懒加载", "懒加载"), Option("磁盘缓存", "磁盘缓存"), Option("混合策略", "混合策略"))), "磁盘缓存"),
+                SettingItem("cover_cache", "封面缓存策略", "懒加载 / 磁盘缓存 / 混合", null, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("懒加载", "懒加载"), cn.lemondrop.fhreborn.data.model.Option("磁盘缓存", "磁盘缓存"), cn.lemondrop.fhreborn.data.model.Option("混合策略", "混合策略"))), "磁盘缓存"),
                 SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true),
                 SettingItem("artist_separators", "艺术家分隔符", "配置多艺术家拆分规则", null, SettingType.Navigation)
             )
         ),
-        cn.lemondrop.fhreborn.data.model.SettingCategory(
+        SettingCategory(
             key = "about",
             title = "关于",
             icon = Lucide.Heart,
@@ -580,5 +669,3 @@ private fun buildCategories(): List<cn.lemondrop.fhreborn.data.model.SettingCate
         )
     )
 }
-
-

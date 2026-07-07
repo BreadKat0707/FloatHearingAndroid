@@ -2,7 +2,6 @@ package cn.lemondrop.fhreborn.ui.screens.statistics
 
 import android.app.Application
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,14 +9,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.lemondrop.clover.CloverBottomNavbar
+import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.CloverNavItem
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
+import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
+import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
+import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.MonthTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.OverviewTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.TodayTab
@@ -28,6 +34,7 @@ import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.Calendar
 import com.composables.icons.lucide.Clock
 import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Menu
 import io.github.composefluent.component.Text
 
 @Composable
@@ -43,6 +50,8 @@ fun StatisticsScreen(
     )
 
     var selectedTab by remember { mutableIntStateOf(0) }
+    var showDrawer by remember { mutableStateOf(false) }
+
     val tabItems = remember {
         listOf(
             CloverNavItem("今日", Lucide.Clock),
@@ -52,40 +61,71 @@ fun StatisticsScreen(
         )
     }
 
-    MainScaffold(
-        playerViewModel = playerViewModel,
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        title = {
-            Text(
-                text = "统计和数据分析",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
+    val titleText: @Composable () -> Unit = {
+        Text(
+            text = "统计和数据分析",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
+    val menuButton: @Composable () -> Unit = {
+        CloverIconButton(
+            icon = Lucide.Menu,
+            contentDescription = "菜单",
+            onClick = { showDrawer = true }
+        )
+    }
+
+    CloverAdaptiveShellScaffold(
+        strategy = CloverShellStrategy.BottomCombined,
+        title = titleText,
+        navigationIcon = menuButton,
+        items = tabItems,
+        selectedIndex = selectedTab,
+        onItemSelected = { selectedTab = it },
+        background = { AppBackgroundLayer() },
+        overlay = { state ->
+            AppDrawer(
+                visible = showDrawer,
+                onDismiss = { showDrawer = false },
+                currentRoute = currentRoute,
+                onNavigate = { route ->
+                    showDrawer = false
+                    onNavigate(route)
+                },
+                hazeState = state.hazeState,
+                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
+            )
+
+            MiniPlayBar(
+                playerViewModel = playerViewModel,
+                onClick = onPlayerClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
+                    )
             )
         },
-        bottomBar = {
-            CloverBottomNavbar(
-                items = tabItems,
-                selectedIndex = selectedTab,
-                onItemSelected = { selectedTab = it },
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        onPlayerClick = onPlayerClick
-    ) { paddingValues, bottomOverlayHeight, hazeState ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())
-        ) {
-            when (selectedTab) {
-                0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
-                1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
-                2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
-                3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
+        content = { _ ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 8.dp)
+            ) {
+                when (selectedTab) {
+                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                    3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                }
             }
         }
-    }
+    )
 }
 
 fun formatStatDuration(ms: Long): String {

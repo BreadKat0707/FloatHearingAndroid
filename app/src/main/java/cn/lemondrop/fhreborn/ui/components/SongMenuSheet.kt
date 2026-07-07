@@ -21,20 +21,16 @@ import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import com.composables.icons.lucide.Album
-import com.composables.icons.lucide.Bell
 import com.composables.icons.lucide.EyeOff
-import com.composables.icons.lucide.FileText
+import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Info
 import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Maximize
 import com.composables.icons.lucide.Mic
-import com.composables.icons.lucide.PenLine
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.SkipForward
-import com.composables.icons.lucide.Tag
 import com.composables.icons.lucide.Trash2
 import io.github.composefluent.component.Text
 
@@ -48,35 +44,27 @@ fun SongMenuSheet(
     onPlayNext: () -> Unit = {},
     onAddToPlaylist: () -> Unit = {},
     onThoughts: () -> Unit = {},
-    onStaticLyrics: () -> Unit = {},
-    onEditLyrics: () -> Unit = {},
     onViewAlbum: () -> Unit = {},
     onViewArtist: () -> Unit = {},
     onGoToFolder: () -> Unit = {},
-    onAudioTags: () -> Unit = {},
     onShare: () -> Unit = {},
+    onOpenWith: () -> Unit = {},
     onProperties: () -> Unit = {},
-    onSetRingtone: () -> Unit = {},
     onHide: () -> Unit = {},
-    onDelete: () -> Unit = {},
-    onImmersive: () -> Unit = {}
+    onDelete: () -> Unit = {}
 ) {
     val menuItems = listOf(
         Triple("下一首播放", Lucide.SkipForward, onPlayNext),
         Triple("加入歌单", Lucide.Plus, onAddToPlaylist),
         Triple("想法", Lucide.Lightbulb, onThoughts),
-        Triple("静态歌词", Lucide.FileText, onStaticLyrics),
-        Triple("编辑歌词", Lucide.PenLine, onEditLyrics),
         Triple("查看专辑", Lucide.Album, onViewAlbum),
         Triple("查看艺术家", Lucide.Mic, onViewArtist),
         Triple("转至文件夹", Lucide.FolderOpen, onGoToFolder),
-        Triple("音频标签", Lucide.Tag, onAudioTags),
         Triple("分享文件", Lucide.Share2, onShare),
+        Triple("用其他 app 打开", Lucide.ExternalLink, onOpenWith),
         Triple("属性", Lucide.Info, onProperties),
-        Triple("设为铃声", Lucide.Bell, onSetRingtone),
         Triple("隐藏音乐", Lucide.EyeOff, onHide),
-        Triple("删除文件", Lucide.Trash2, onDelete),
-        Triple("沉浸模式", Lucide.Maximize, onImmersive)
+        Triple("删除文件", Lucide.Trash2, onDelete)
     )
 
     CloverBottomSheet(onDismiss = onDismiss) {

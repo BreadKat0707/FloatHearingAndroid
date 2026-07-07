@@ -28,13 +28,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.fhreborn.Screen
+import cn.lemondrop.clover.CloverIconButton
+import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
+import cn.lemondrop.clover.ui.layout.CloverShellStrategy
 import cn.lemondrop.fhreborn.data.db.AppDatabase
-import cn.lemondrop.fhreborn.ui.components.MainScaffold
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
+import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.theme.FluentButton
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Disc
@@ -81,89 +83,104 @@ fun AlbumDetailScreen(
         releaseYear?.let { append(" · $it") }
     }
 
-    MainScaffold(
-        playerViewModel = playerViewModel,
-        currentRoute = Screen.AlbumDetail.route,
-        onNavigate = { /* 详情页内不做抽屉导航 */ },
-        title = {
-            Text(
-                text = "专辑",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
+    val titleText: @Composable () -> Unit = {
+        Text(
+            text = "专辑",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
+    val backButton: @Composable () -> Unit = {
+        CloverIconButton(
+            icon = Lucide.ArrowLeft,
+            contentDescription = "返回",
+            onClick = onBack
+        )
+    }
+
+    CloverAdaptiveShellScaffold(
+        strategy = CloverShellStrategy.BottomCombined,
+        title = titleText,
+        navigationIcon = backButton,
+        background = { AppBackgroundLayer() },
+        overlay = { state ->
+            MiniPlayBar(
+                playerViewModel = playerViewModel,
+                onClick = { playerViewModel.requestOpenPlayer() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
+                    )
             )
         },
-        navigationIcon = {
-            FluentIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "返回",
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-        },
-        onPlayerClick = { playerViewModel.requestOpenPlayer() }
-    ) { paddingValues, bottomOverlayHeight, _ ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = paddingValues
-        ) {
-            // 头部：封面 + 专辑信息 + 播放按钮
-            item {
-                AlbumHeader(
-                    album = displayAlbum,
-                    artist = displayArtist,
-                    meta = meta,
-                    coverSongId = coverSongId,
-                    onPlayAlbum = {
-                        if (songs.isNotEmpty()) playerViewModel.playSongs(songs, 0)
-                    }
-                )
-            }
-
-            // 曲目列表（按碟号分组）
-            itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                Column {
-                    if (hasMultipleDiscs &&
-                        (index == 0 || songs[index - 1].discNumber != song.discNumber)
-                    ) {
-                        SectionHeader("Disc ${song.discNumber ?: 1}")
-                    }
-                    SongItem(
-                        song = song,
-                        isSelected = false,
-                        isPlaying = song.id == currentSong?.id,
-                        onClick = { playerViewModel.playSongs(songs, index) },
-                        onMoreClick = { }
+        content = { state ->
+            val bottomOverlayHeight = state.contentPadding.calculateBottomPadding() + 64.dp + 16.dp
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = state.contentPadding.calculateTopPadding())
+            ) {
+                // 头部：封面 + 专辑信息 + 播放按钮
+                item {
+                    AlbumHeader(
+                        album = displayAlbum,
+                        artist = displayArtist,
+                        meta = meta,
+                        coverSongId = coverSongId,
+                        onPlayAlbum = {
+                            if (songs.isNotEmpty()) playerViewModel.playSongs(songs, 0)
+                        }
                     )
                 }
-            }
 
-            // 参与的艺术家
-            if (participatingArtists.isNotEmpty()) {
-                item {
-                    SectionHeader("参与的艺术家")
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                        participatingArtists.forEach { artist ->
-                            Text(
-                                text = artist,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp)
-                            )
+                // 曲目列表（按碟号分组）
+                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                    Column {
+                        if (hasMultipleDiscs &&
+                            (index == 0 || songs[index - 1].discNumber != song.discNumber)
+                        ) {
+                            SectionHeader("Disc ${song.discNumber ?: 1}")
+                        }
+                        SongItem(
+                            song = song,
+                            isSelected = false,
+                            isPlaying = song.id == currentSong?.id,
+                            onClick = { playerViewModel.playSongs(songs, index) },
+                            onMoreClick = { }
+                        )
+                    }
+                }
+
+                // 参与的艺术家
+                if (participatingArtists.isNotEmpty()) {
+                    item {
+                        SectionHeader("参与的艺术家")
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                            participatingArtists.forEach { artist ->
+                                Text(
+                                    text = artist,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // 底部留白，避免内容被底栏/迷你播放条遮挡
-            item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
+                // 底部留白，避免内容被底栏/迷你播放条遮挡
+                item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
+            }
         }
-    }
+    )
 }
 
 @Composable

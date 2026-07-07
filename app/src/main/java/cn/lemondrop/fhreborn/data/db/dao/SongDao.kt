@@ -57,6 +57,34 @@ interface SongDao {
     @Query("DELETE FROM songs WHERE path = :path")
     suspend fun deleteByPath(path: String)
 
+    @Query("SELECT * FROM songs")
+    suspend fun getAllSongsSnapshot(): List<Song>
+
+    @Query("DELETE FROM songs WHERE path NOT IN (:paths)")
+    suspend fun deleteAllNotInPaths(paths: Set<String>)
+
+    /**
+     * 全量替换歌曲：删除已不存在的歌曲，保留仍在的歌曲的收藏状态与首次添加时间。
+     *
+     * @return 从媒体库移除的歌曲数量
+     */
+    @androidx.room.Transaction
+    suspend fun replaceAll(songs: List<Song>): Int {
+        val newPaths = songs.map { it.path }.toSet()
+        val existing = getAllSongsSnapshot().associateBy { it.path }
+        val removed = existing.keys.count { it !in newPaths }
+
+        val merged = songs.map { song ->
+            existing[song.path]?.let { old ->
+                song.copy(addedAt = old.addedAt, isFavorite = old.isFavorite)
+            } ?: song
+        }
+
+        deleteAllNotInPaths(newPaths)
+        insertAll(merged)
+        return removed
+    }
+
     @Query("DELETE FROM songs")
     suspend fun deleteAll()
 
