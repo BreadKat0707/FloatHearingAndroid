@@ -222,6 +222,11 @@ fun PlayerScreen(
     var showSongInfoSheet by remember { mutableStateOf(false) }
     var currentCoverBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
+    // 切歌时先清空共享封面，避免歌词页/播放器页短暂显示上一首封面
+    LaunchedEffect(currentSong?.id) {
+        currentCoverBitmap = null
+    }
+
     var showSongProperties by remember { mutableStateOf(false) }
     var showLyricInfo by remember { mutableStateOf(false) }
 
@@ -578,12 +583,13 @@ fun PlayerScreen(
                     isPlaying = isPlaying,
                     isDarkTheme = isDarkTheme,
                     song = currentSong,
-                    coverBitmap = currentCoverBitmap,
                     duration = duration,
+                    viewModel = viewModel,
                     onDismiss = { showLyrics = false },
                     onSeek = { time ->
                         viewModel.seekTo(time)
                     },
+                    onInfoClick = { showSongInfoSheet = true },
                     onMoreClick = {
                         // 在歌词页上直接弹出更多菜单，不退出歌词页
                         showMore = true
@@ -953,16 +959,18 @@ private fun LyricSheet(
     isPlaying: Boolean,
     isDarkTheme: Boolean,
     song: Song?,
-    coverBitmap: ImageBitmap?,
     duration: Long,
+    viewModel: PlayerViewModel,
     onDismiss: () -> Unit,
     onSeek: (Long) -> Unit,
+    onInfoClick: () -> Unit,
     onMoreClick: () -> Unit,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope
 ) {
     val context = LocalContext.current
     val appSettingsRepository = remember { AppSettingsRepository(context) }
+    val density = LocalDensity.current
 
     val listState = rememberLazyListState()
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
@@ -972,16 +980,23 @@ private fun LyricSheet(
 
     val acclLyricConfig = rememberAcclLyricConfig(appSettingsRepository)
 
+    // 封面播放/暂停图标显隐：播放状态刚切换时显示暂停图标5秒；暂停时始终显示播放图标
+    var showPauseIcon by remember { mutableStateOf(false) }
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            showPauseIcon = true
+            delay(5000L)
+            showPauseIcon = false
+        } else {
+            showPauseIcon = false
+        }
+    }
+
     val bgColor = MaterialTheme.colorScheme.background
     val onSurface = MaterialTheme.colorScheme.onSurface
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss
-            )
     ) {
         // 顶部和底部渐变压暗，保证歌词可读，同时背景仍可见
         Box(
@@ -1040,6 +1055,7 @@ private fun LyricSheet(
         }
 
         // 底部固定面板：与播放器主屏统一使用 PlayerSongInfoSection + PlayerProgressSection
+        val dragThreshold = with(density) { 80.dp.toPx() }
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -1047,11 +1063,23 @@ private fun LyricSheet(
                 .padding(bottom = navBarPadding + 32.dp)
                 .padding(horizontal = 28.dp)
                 .padding(vertical = 16.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {}
-                )
+                .pointerInput(Unit) {
+                    var accumulatedDrag = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { accumulatedDrag = 0f },
+                        onDragEnd = { accumulatedDrag = 0f }
+                    ) { change, dragAmount ->
+                        change.consume()
+                        accumulatedDrag += dragAmount
+                        if (accumulatedDrag < -dragThreshold) {
+                            viewModel.next()
+                            accumulatedDrag = 0f
+                        } else if (accumulatedDrag > dragThreshold) {
+                            viewModel.previous()
+                            accumulatedDrag = 0f
+                        }
+                    }
+                }
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1070,20 +1098,45 @@ private fun LyricSheet(
                 }
                 Box(
                     modifier = smallCoverModifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { viewModel.playPause() }
+                        )
                 ) {
-                    val bmp = coverBitmap
-                    if (bmp != null) {
-                        Image(
-                            bitmap = bmp,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
+                    Crossfade(
+                        targetState = song?.id,
+                        animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        label = "lyric_sheet_cover_crossfade"
+                    ) { songId ->
                         SongCoverImage(
-                            songId = song?.id ?: 0,
+                            songId = songId ?: 0,
                             modifier = Modifier.fillMaxSize()
                         )
+                    }
+
+                    // 播放/暂停状态图标覆盖层
+                    val showPlayIcon = !isPlaying
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showPlayIcon || showPauseIcon,
+                        enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
+                        exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.8f),
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color.Black.copy(alpha = 0.45f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (showPlayIcon) Lucide.Play else Lucide.Pause,
+                                contentDescription = if (showPlayIcon) "播放" else "暂停",
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
 
@@ -1095,7 +1148,8 @@ private fun LyricSheet(
                     useSharedTransition = true,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope,
-                    onInfoClick = onMoreClick,
+                    onTitleClick = onDismiss,
+                    onInfoClick = onInfoClick,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -1466,6 +1520,7 @@ private fun PlayerSongInfoSection(
     useSharedTransition: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    onTitleClick: () -> Unit = {},
     onInfoClick: () -> Unit = {}
 ) {
     val fluidOnColorSecondary = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.85f)
@@ -1487,10 +1542,16 @@ private fun PlayerSongInfoSection(
             color = fluidOnColorSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.graphicsLayer {
-                compositingStrategy = CompositingStrategy.Offscreen
-                blendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
-            }
+            modifier = Modifier
+                .graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                    blendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onTitleClick
+                )
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
