@@ -12,8 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverButton
+import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.clover.CloverSizes
 import com.composables.icons.lucide.Disc
 import com.composables.icons.lucide.Lucide
@@ -43,7 +43,7 @@ fun SongInfoActionSheet(
 ) {
     if (!visible) return
 
-    CloverBottomSheet(
+    CloverWindowBottomSheet(
         onDismiss = onDismiss,
         title = "歌曲信息"
     ) {

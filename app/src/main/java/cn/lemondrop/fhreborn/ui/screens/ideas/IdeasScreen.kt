@@ -16,9 +16,9 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
 import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.AppDrawer
-import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -28,7 +28,6 @@ import io.github.composefluent.component.Text
 fun IdeasScreen(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    onPlayerClick: () -> Unit,
     playerViewModel: PlayerViewModel
 ) {
     var showDrawer by remember { mutableStateOf(false) }
@@ -65,19 +64,6 @@ fun IdeasScreen(
                 },
                 hazeState = state.hazeState,
                 onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-            )
-
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = onPlayerClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
-                    )
             )
         },
         content = { state ->

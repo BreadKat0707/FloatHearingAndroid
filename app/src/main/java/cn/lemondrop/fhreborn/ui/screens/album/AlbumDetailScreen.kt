@@ -28,15 +28,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import cn.lemondrop.clover.CloverButton
 import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
 import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
-import cn.lemondrop.fhreborn.ui.theme.FluentButton
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Disc
@@ -104,22 +104,11 @@ fun AlbumDetailScreen(
         title = titleText,
         navigationIcon = backButton,
         background = { AppBackgroundLayer() },
-        overlay = { state ->
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = { playerViewModel.requestOpenPlayer() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
-                    )
-            )
+        overlay = { _ ->
+            // 全局 MiniPlayBar 在 App.kt 中托管
         },
         content = { state ->
-            val bottomOverlayHeight = state.contentPadding.calculateBottomPadding() + 64.dp + 16.dp
+            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = state.contentPadding.calculateTopPadding())
@@ -247,7 +236,7 @@ private fun AlbumHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        FluentButton(onClick = onPlayAlbum) {
+        CloverButton(onClick = onPlayAlbum) {
             Icon(
                 imageVector = Lucide.Play,
                 contentDescription = null,

@@ -5,14 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
-import cn.lemondrop.clover.material.CloverMaterial
+import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.fhreborn.Screen
 import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.FolderOpen
@@ -33,7 +31,7 @@ import dev.chrisbanes.haze.HazeState
  * @param onDismiss 关闭回调
  * @param currentRoute 当前路由，用于高亮当前项
  * @param onNavigate 导航回调；非页面项通过 onExtraClick 处理
- * @param hazeState Haze 状态
+ * @param hazeState Haze 状态（Window 版底部弹窗已不使用，保留以兼容旧调用方）
  * @param onScheduledPauseClick 点击“计划暂停”菜单项的回调
  * @param modifier 外部 modifier
  */
@@ -43,7 +41,7 @@ fun AppDrawer(
     onDismiss: () -> Unit,
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    hazeState: HazeState,
+    @Suppress("UNUSED_PARAMETER") hazeState: HazeState?,
     onScheduledPauseClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -53,14 +51,10 @@ fun AppDrawer(
 
     if (!visible) return
 
-    CloverBottomSheet(
+    CloverWindowBottomSheet(
         onDismiss = onDismiss,
-        modifier = modifier,
-        hazeState = hazeState,
-        hazeTints = CloverMaterial.Acrylic.tints(
-            baseColor = MaterialTheme.colorScheme.surface
-        )
-) {
+        modifier = modifier
+    ) {
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState())
         ) {

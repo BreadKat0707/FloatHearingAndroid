@@ -17,6 +17,9 @@ import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.PlaybackState
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.lyrics.LyricReader
+import cn.lemondrop.fhreborn.data.lyrics.LyricSource
+import cn.lemondrop.fhreborn.data.lyrics.LyricSourceType
+import cn.lemondrop.fhreborn.data.lyrics.LyricFormatType
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
 import com.mocharealm.accompanist.lyrics.core.parser.AutoParser
@@ -89,6 +92,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _lyrics = MutableStateFlow<SyncedLyrics?>(null)
     val lyrics: StateFlow<SyncedLyrics?> = _lyrics.asStateFlow()
+
+    private val _lyricSource = MutableStateFlow<LyricSource?>(null)
+    val lyricSource: StateFlow<LyricSource?> = _lyricSource.asStateFlow()
 
     private val _currentLyricIndex = MutableStateFlow(-1)
     val currentLyricIndex: StateFlow<Int> = _currentLyricIndex.asStateFlow()
@@ -291,8 +297,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private fun loadLyrics() {
         val song = _currentSong.value ?: return
         viewModelScope.launch {
-            val lyricText = LyricReader.readLyrics(getApplication(), song)
-            _lyrics.value = lyricText?.let {
+            val source = LyricReader.readLyrics(getApplication(), song)
+            _lyricSource.value = source
+            _lyrics.value = source.rawText?.let {
                 try {
                     AutoParser().parse(it)
                 } catch (e: Exception) {

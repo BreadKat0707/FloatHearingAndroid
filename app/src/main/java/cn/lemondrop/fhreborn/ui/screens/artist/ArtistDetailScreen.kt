@@ -27,8 +27,8 @@ import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverSpacing
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
 import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.screens.library.AlbumItem
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
@@ -87,22 +87,11 @@ fun ArtistDetailScreen(
         title = titleText,
         navigationIcon = backButton,
         background = { AppBackgroundLayer() },
-        overlay = { state ->
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = { },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
-                    )
-            )
+        overlay = { _ ->
+            // 全局 MiniPlayBar 在 App.kt 中托管
         },
         content = { state ->
-            val bottomOverlayHeight = state.contentPadding.calculateBottomPadding() + 64.dp + 16.dp
+            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
             Column(
                 modifier = Modifier
                     .fillMaxSize()

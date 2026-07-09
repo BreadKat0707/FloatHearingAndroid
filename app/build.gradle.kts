@@ -197,9 +197,12 @@ dependencies {
 
     implementation("io.github.compose-fluent:fluent:v0.1.0")
 
+    // JAudioTagger - 读取音频内嵌歌词（USLT / VorbisComment LYRICS）
+    implementation(libs.jaudiotagger)
+
 
     // Clover UI
-    implementation("cn.lemondrop.clover:clover-ui:0.1.0-SNAPSHOT")
+    implementation("cn.lemondrop.clover:clover-ui:0.1.1-SNAPSHOT")
 
     // Haze - Material Design 毛玻璃效果
     implementation("dev.chrisbanes.haze:haze:1.7.2")

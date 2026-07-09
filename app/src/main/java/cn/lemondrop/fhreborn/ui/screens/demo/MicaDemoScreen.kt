@@ -29,10 +29,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import cn.lemondrop.clover.material.CloverMicaSurface
 import cn.lemondrop.clover.material.WallpaperLoadStrategy
 import cn.lemondrop.clover.material.rememberWallpaperBitmap
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.clover.CloverIconButton
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
-import io.github.composefluent.component.Icon
 import io.github.composefluent.component.Text
 
 @Composable
@@ -55,13 +54,11 @@ fun MicaDemoScreen(
                 )
         ) {
             // 顶部返回
-            FluentIconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Lucide.ArrowLeft,
-                    contentDescription = "返回",
-                    modifier = Modifier.padding(4.dp)
-                )
-            }
+            CloverIconButton(
+                icon = Lucide.ArrowLeft,
+                contentDescription = "返回",
+                onClick = onBack
+            )
 
             Text(
                 text = "Mica / Mica Alt",

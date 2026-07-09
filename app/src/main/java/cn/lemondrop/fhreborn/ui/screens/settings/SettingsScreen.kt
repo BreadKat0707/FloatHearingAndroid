@@ -39,20 +39,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverButton
 import cn.lemondrop.clover.CloverDialog
+import cn.lemondrop.clover.CloverDialogPosition
 import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.CloverSizes
+import cn.lemondrop.clover.CloverWindowBottomSheet
+import cn.lemondrop.clover.CloverWindowDialog
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
 import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.model.SettingCategory
 import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.AppDrawer
-import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
@@ -71,18 +73,17 @@ import com.composables.icons.lucide.Puzzle
 import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
 import com.composables.icons.lucide.X
-import dev.chrisbanes.haze.HazeState
 import io.github.composefluent.component.Icon
 import io.github.composefluent.component.Slider
 import io.github.composefluent.component.Switcher
 import io.github.composefluent.component.Text
+import androidx.compose.material3.Slider as M3Slider
 import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    onPlayerClick: () -> Unit,
     playerViewModel: PlayerViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -94,8 +95,29 @@ fun SettingsScreen(
     val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = setOf(" / "))
 
     var currentPage by remember { mutableStateOf<SettingsPage>(SettingsPage.Home) }
+    var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
     var showDrawer by remember { mutableStateOf(false) }
+
+    val onNavigateItem: (SettingItem) -> Unit = { item ->
+        when (item.key) {
+            "main_bg" -> currentPage = SettingsPage.Background
+            "artist_separators" -> showArtistSeparatorSheet = true
+            "codec_capability" -> currentPage = SettingsPage.CodecCapabilities
+            "accompanist_lyric" -> currentPage = SettingsPage.AccompanistLyric
+            "open_source" -> currentPage = SettingsPage.OpenSourceLicenses
+            "player_bg" -> currentPage = SettingsPage.PlayerBackground
+        }
+    }
+
+    val onSettingItemClick: (SettingItem) -> Unit = { item ->
+        when (item.type) {
+            is SettingType.Navigation -> onNavigateItem(item)
+            is SettingType.Selection -> currentSelectionItem = item
+            is SettingType.Toggle -> viewModel.toggleSetting(item)
+            else -> { }
+        }
+    }
 
     // 系统返回键：子页返回设置主页，分隔符弹窗优先关闭
     BackHandler(enabled = currentPage != SettingsPage.Home) {
@@ -153,17 +175,6 @@ fun SettingsScreen(
         )
     }
 
-    val onNavigateItem: (SettingItem) -> Unit = { item ->
-        when (item.key) {
-            "main_bg" -> currentPage = SettingsPage.Background
-            "artist_separators" -> showArtistSeparatorSheet = true
-            "codec_capability" -> currentPage = SettingsPage.CodecCapabilities
-            "accompanist_lyric" -> currentPage = SettingsPage.AccompanistLyric
-            "open_source" -> currentPage = SettingsPage.OpenSourceLicenses
-            "player_bg" -> currentPage = SettingsPage.PlayerBackground
-        }
-    }
-
     CloverAdaptiveShellScaffold(
         strategy = CloverShellStrategy.BottomCombined,
         title = titleText,
@@ -186,7 +197,6 @@ fun SettingsScreen(
                 ArtistSeparatorSheet(
                     separators = artistSeparators,
                     onDismiss = { showArtistSeparatorSheet = false },
-                    hazeState = state.hazeState,
                     onSave = { newSeparators ->
                         scope.launch {
                             settingsRepository.setArtistSeparators(newSeparators)
@@ -195,21 +205,16 @@ fun SettingsScreen(
                 )
             }
 
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = onPlayerClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
-                    )
-            )
+            currentSelectionItem?.let { item ->
+                SelectionDialog(
+                    item = item,
+                    viewModel = viewModel,
+                    onDismiss = { currentSelectionItem = null }
+                )
+            }
         },
         content = { state ->
-            val bottomOverlayHeight = state.contentPadding.calculateBottomPadding() + 64.dp + 16.dp
+            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
             Box(modifier = Modifier.fillMaxSize()) {
                 when (currentPage) {
                     SettingsPage.Home,
@@ -220,7 +225,7 @@ fun SettingsScreen(
                             currentPage = SettingsPage.Category(key)
                             viewModel.selectCategory(key)
                         },
-                        onNavigationClick = onNavigateItem,
+                        onSettingItemClick = onSettingItemClick,
                         paddingValues = state.contentPadding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
@@ -267,7 +272,7 @@ private fun SettingsListContent(
     viewModel: SettingsViewModel,
     currentPage: SettingsPage,
     onCategoryClick: (String) -> Unit,
-    onNavigationClick: (SettingItem) -> Unit,
+    onSettingItemClick: (SettingItem) -> Unit,
     paddingValues: PaddingValues,
     bottomOverlayHeight: Dp
 ) {
@@ -293,7 +298,7 @@ private fun SettingsListContent(
                     SettingItemRow(
                         item = item,
                         viewModel = viewModel,
-                        onNavigationClick = onNavigationClick
+                        onClick = onSettingItemClick
                     )
                 }
             }
@@ -311,16 +316,14 @@ private fun SettingsListContent(
 private fun ArtistSeparatorSheet(
     separators: Set<String>,
     onDismiss: () -> Unit,
-    hazeState: HazeState,
     onSave: (Set<String>) -> Unit
 ) {
     var current by remember { mutableStateOf(separators.toSortedSet()) }
     var input by remember { mutableStateOf("") }
 
-    CloverBottomSheet(
+    CloverWindowBottomSheet(
         onDismiss = onDismiss,
-        title = "艺术家分隔符",
-        hazeState = hazeState
+        title = "艺术家分隔符"
     ) {
         Column(
             modifier = Modifier
@@ -425,7 +428,7 @@ private fun CategoryItem(
 private fun SettingItemRow(
     item: SettingItem,
     viewModel: SettingsViewModel,
-    onNavigationClick: ((SettingItem) -> Unit)? = null
+    onClick: (SettingItem) -> Unit
 ) {
     // 根据类型只读取对应的值，避免类型转换崩溃
     val toggleValue by when (item.type) {
@@ -444,46 +447,6 @@ private fun SettingItemRow(
         is SettingType.Slider -> viewModel.getIntValue(item.key, (item.defaultValue as? Number)?.toInt() ?: 0)
             .collectAsState(initial = (item.defaultValue as? Number)?.toInt() ?: 0)
         else -> remember { mutableStateOf((item.defaultValue as? Number)?.toInt() ?: 0) }
-    }
-
-    val selectionType = item.type as? SettingType.Selection
-    var showSelectionDialog by remember { mutableStateOf(false) }
-
-    // 选择弹窗
-    if (showSelectionDialog && selectionType != null) {
-        CloverDialog(
-            visible = true,
-            onDismissRequest = { showSelectionDialog = false },
-            title = item.title,
-            buttons = {
-                TextButton(onClick = { showSelectionDialog = false }) {
-                    Text("取消")
-                }
-            }
-        ) {
-            selectionType.options.forEach { option ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            viewModel.setStringSetting(item.key, option.key)
-                            showSelectionDialog = false
-                        }
-                        .padding(vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = option.key == stringValue,
-                        onClick = {
-                            viewModel.setStringSetting(item.key, option.key)
-                            showSelectionDialog = false
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = option.label)
-                }
-            }
-        }
     }
 
     // Slider 类型使用 Column 布局，其他使用 Row
@@ -528,7 +491,7 @@ private fun SettingItemRow(
             }
             Spacer(modifier = Modifier.height(8.dp))
             val sliderType = item.type as SettingType.Slider
-            Slider(
+            M3Slider(
                 value = sliderValue.toFloat(),
                 onValueChange = { viewModel.setIntSetting(item.key, it.toInt()) },
                 valueRange = sliderType.min..sliderType.max,
@@ -540,13 +503,7 @@ private fun SettingItemRow(
         cn.lemondrop.fhreborn.ui.components.FhListItem(
             title = item.title,
             subtitle = item.description,
-            onClick = {
-                when (item.type) {
-                    is SettingType.Toggle -> viewModel.toggleSetting(item)
-                    is SettingType.Selection -> showSelectionDialog = true
-                    else -> onNavigationClick?.invoke(item)
-                }
-            },
+            onClick = { onClick(item) },
             leading = item.icon?.let {
                 { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             },
@@ -559,7 +516,8 @@ private fun SettingItemRow(
                         )
                     }
                     is SettingType.Selection -> {
-                        val selectedLabel = selectionType?.options?.find { it.key == stringValue }?.label ?: stringValue
+                        val options = (item.type as SettingType.Selection).options
+                        val selectedLabel = options.find { it.key == stringValue }?.label ?: stringValue
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(text = selectedLabel)
                             Spacer(modifier = Modifier.width(4.dp))
@@ -587,6 +545,52 @@ private fun SettingItemRow(
     }
 }
 
+@Composable
+private fun SelectionDialog(
+    item: SettingItem,
+    viewModel: SettingsViewModel,
+    onDismiss: () -> Unit
+) {
+    val stringValue by viewModel.getStringValue(item.key, item.defaultValue as? String ?: "")
+        .collectAsState(initial = item.defaultValue as? String ?: "")
+    val selectionType = item.type as? SettingType.Selection ?: return
+
+    CloverWindowDialog(
+        visible = true,
+        onDismissRequest = onDismiss,
+        title = item.title,
+        position = CloverDialogPosition.Bottom,
+        buttons = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    ) {
+        selectionType.options.forEach { option ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        viewModel.setStringSetting(item.key, option.key)
+                        onDismiss()
+                    }
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = option.key == stringValue,
+                    onClick = {
+                        viewModel.setStringSetting(item.key, option.key)
+                        onDismiss()
+                    }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = option.label)
+            }
+        }
+    }
+}
+
 // ========== 设置分类定义 ==========
 
 private fun buildCategories(): List<SettingCategory> {
@@ -607,7 +611,6 @@ private fun buildCategories(): List<SettingCategory> {
                 // 主题与颜色
                 SettingItem("", "主题与颜色", null, null, SettingType.Info),
                 SettingItem("theme_mode", "颜色模式", "深色 / 浅色 / 跟随系统", null, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("system", "跟随系统"), cn.lemondrop.fhreborn.data.model.Option("light", "浅色"), cn.lemondrop.fhreborn.data.model.Option("dark", "深色"))), "system"),
-                SettingItem("accent_color", "主题颜色", "紫色", Lucide.Palette, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("默认", "默认"), cn.lemondrop.fhreborn.data.model.Option("蓝", "蓝"), cn.lemondrop.fhreborn.data.model.Option("绿", "绿"), cn.lemondrop.fhreborn.data.model.Option("紫", "紫"), cn.lemondrop.fhreborn.data.model.Option("橙", "橙"), cn.lemondrop.fhreborn.data.model.Option("粉", "粉"), cn.lemondrop.fhreborn.data.model.Option("红", "红"), cn.lemondrop.fhreborn.data.model.Option("青", "青"))), "紫"),
                 SettingItem("dynamic_color", "Material You 动态取色", "跟随系统的壁纸取色使用monet取色", Lucide.Palette, SettingType.Toggle, false),
 
                 // 主界面
@@ -650,7 +653,6 @@ private fun buildCategories(): List<SettingCategory> {
                 SettingItem("auto_scan", "启动时自动扫描", "每次打开检测媒体库变更", null, SettingType.Toggle, true),
                 SettingItem("scan_directories", "扫描目录", "管理音乐文件夹", Lucide.FolderOpen, SettingType.Navigation),
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
-                SettingItem("cover_cache", "封面缓存策略", "懒加载 / 磁盘缓存 / 混合", null, SettingType.Selection(listOf(cn.lemondrop.fhreborn.data.model.Option("懒加载", "懒加载"), cn.lemondrop.fhreborn.data.model.Option("磁盘缓存", "磁盘缓存"), cn.lemondrop.fhreborn.data.model.Option("混合策略", "混合策略"))), "磁盘缓存"),
                 SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true),
                 SettingItem("artist_separators", "艺术家分隔符", "配置多艺术家拆分规则", null, SettingType.Navigation)
             )

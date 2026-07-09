@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.CloverDialog
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.clover.CloverIconButton
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Minus
 import com.composables.icons.lucide.MoonStar
@@ -205,14 +205,11 @@ private fun Stepper(
     onIncrease: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        FluentIconButton(onClick = onDecrease) {
-            Icon(
-                imageVector = Lucide.Minus,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        CloverIconButton(
+            icon = Lucide.Minus,
+            contentDescription = null,
+            onClick = onDecrease
+        )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(horizontal = 8.dp)
@@ -228,14 +225,11 @@ private fun Stepper(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        FluentIconButton(onClick = onIncrease) {
-            Icon(
-                imageVector = Lucide.Plus,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        CloverIconButton(
+            icon = Lucide.Plus,
+            contentDescription = null,
+            onClick = onIncrease
+        )
     }
 }
 

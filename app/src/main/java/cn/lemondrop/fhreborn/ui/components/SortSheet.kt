@@ -19,8 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
+import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.clover.CloverSpacing
 import cn.lemondrop.fhreborn.ui.viewmodel.SortField
 import cn.lemondrop.fhreborn.ui.viewmodel.SortOrder
@@ -52,7 +52,7 @@ fun SortSheet(
         SortField.DURATION to "曲目时长"
     )
 
-    CloverBottomSheet(
+    CloverWindowBottomSheet(
         onDismiss = onDismiss,
         title = "排序"
     ) {

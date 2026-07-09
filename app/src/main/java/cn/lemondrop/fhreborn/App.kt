@@ -3,7 +3,12 @@ package cn.lemondrop.fhreborn
 import android.app.Application
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
@@ -13,8 +18,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -37,6 +44,7 @@ import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.theme.FloatHearingTheme
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.clover.CloverTheme
+import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.screens.album.AlbumDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.artist.ArtistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
@@ -81,6 +89,12 @@ sealed class Screen(val route: String) {
  * 所有使用 [androidx.activity.compose.PredictiveBackHandler] 的地方都应读取此值并参与 enabled 判断。
  */
 val LocalPredictiveBackEnabled = staticCompositionLocalOf { false }
+
+/**
+ * 全局 MiniPlayBar 在屏幕底部占用的总高度估算值。
+ * 页面内容底部需要 spacer 时可以使用此值，避免被悬浮的 PlayBar 遮挡。
+ */
+val LocalGlobalPlayBarHeight = staticCompositionLocalOf { 160.dp }
 
 @Composable
 fun FHRebornApp() {
@@ -131,6 +145,24 @@ fun FHRebornApp() {
     }
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+    val playBarRoutes = remember {
+        setOf(
+            Screen.Library.route,
+            Screen.Playlists.route,
+            Screen.Ideas.route,
+            Screen.Statistics.route,
+            Screen.Settings.route,
+            Screen.AlbumDetail.route,
+            Screen.ArtistDetail.route
+        )
+    }
+    val shouldShowPlayBar = currentRoute in playBarRoutes && !showPlayer
+
+    val playBarBottomOffset = WindowInsets.navigationBars.asPaddingValues()
+        .calculateBottomPadding() + 80.dp
+    val globalPlayBarHeight = 160.dp
+
     val isAtHome = currentRoute == Screen.Library.route
 
     // 预测性返回手势开关（实验功能，默认关闭）
@@ -170,7 +202,8 @@ fun FHRebornApp() {
 
     CompositionLocalProvider(
         LocalAppDarkTheme provides isDarkTheme,
-        LocalPredictiveBackEnabled provides predictiveBack
+        LocalPredictiveBackEnabled provides predictiveBack,
+        LocalGlobalPlayBarHeight provides globalPlayBarHeight
     ) {
         CloverTheme(darkTheme = isDarkTheme, dynamicColor = useDynamicColor) {
         FloatHearingTheme(darkTheme = isDarkTheme, useDynamicColor = useDynamicColor) {
@@ -208,7 +241,6 @@ fun FHRebornApp() {
                 LibraryScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Library.route,
                     onNavigate = topLevelNavigate,
-                    onPlayerClick = { showPlayer = true },
                     playerViewModel = playerViewModel
                 )
             }
@@ -217,7 +249,6 @@ fun FHRebornApp() {
                 PlaylistsScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Playlists.route,
                     onNavigate = topLevelNavigate,
-                    onPlayerClick = { showPlayer = true },
                     playerViewModel = playerViewModel
                 )
             }
@@ -233,7 +264,6 @@ fun FHRebornApp() {
                 IdeasScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Ideas.route,
                     onNavigate = topLevelNavigate,
-                    onPlayerClick = { showPlayer = true },
                     playerViewModel = playerViewModel
                 )
             }
@@ -242,7 +272,6 @@ fun FHRebornApp() {
                 StatisticsScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Statistics.route,
                     onNavigate = topLevelNavigate,
-                    onPlayerClick = { showPlayer = true },
                     playerViewModel = playerViewModel
                 )
             }
@@ -251,7 +280,6 @@ fun FHRebornApp() {
                 SettingsScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Settings.route,
                     onNavigate = topLevelNavigate,
-                    onPlayerClick = { showPlayer = true },
                     playerViewModel = playerViewModel
                 )
             }
@@ -304,6 +332,18 @@ fun FHRebornApp() {
                     libraryViewModel = libraryViewModel
                 )
             }
+        }
+
+        // 全局迷你播放条（悬浮在主页面/详情页底部）
+        if (shouldShowPlayBar) {
+            MiniPlayBar(
+                playerViewModel = playerViewModel,
+                onClick = { showPlayer = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 16.dp, end = 16.dp, bottom = playBarBottomOffset)
+            )
         }
 
         // 播放器页（自身管理进入/退出动画）

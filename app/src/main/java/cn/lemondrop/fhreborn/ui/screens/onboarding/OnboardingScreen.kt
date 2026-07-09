@@ -30,9 +30,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.scanner.ScanProgress
+import cn.lemondrop.clover.CloverButton
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
-import cn.lemondrop.fhreborn.ui.theme.FluentButton
-import cn.lemondrop.fhreborn.ui.theme.FluentOutlinedButton
 import cn.lemondrop.fhreborn.ui.viewmodel.OnboardingViewModel
 import cn.lemondrop.fhreborn.util.PermissionUtils
 import com.composables.icons.lucide.Bell
@@ -176,11 +175,11 @@ private fun StoragePermissionStep(
                 style = MaterialTheme.typography.bodyLarge
             )
             Spacer(modifier = Modifier.height(16.dp))
-            FluentButton(onClick = onNext) {
+            CloverButton(onClick = onNext) {
                 Text("下一步")
             }
         } else {
-            FluentButton(onClick = onRequestPermission) {
+            CloverButton(onClick = onRequestPermission) {
                 Text("授权存储权限")
             }
         }
@@ -224,11 +223,14 @@ private fun NotificationPermissionStep(
         Spacer(modifier = Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!granted) {
-                FluentOutlinedButton(onClick = onRequestPermission) {
+                CloverButton(
+                    onClick = onRequestPermission,
+                    colors = cn.lemondrop.clover.CloverButtonDefaults.outlinedColors()
+                ) {
                     Text("授权通知权限")
                 }
             }
-            FluentButton(onClick = onNext) {
+            CloverButton(onClick = onNext) {
                 Text(if (granted) "下一步" else "跳过")
             }
         }
@@ -277,7 +279,7 @@ private fun ScanningStep(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("共发现 ${progress.songsFound} 首歌曲")
                 Spacer(modifier = Modifier.height(24.dp))
-                FluentButton(onClick = onFinish) {
+                CloverButton(onClick = onFinish) {
                     Text("进入应用")
                 }
             }
@@ -293,7 +295,7 @@ private fun ScanningStep(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(24.dp))
-                FluentButton(onClick = onFinish) {
+                CloverButton(onClick = onFinish) {
                     Text("继续")
                 }
             }

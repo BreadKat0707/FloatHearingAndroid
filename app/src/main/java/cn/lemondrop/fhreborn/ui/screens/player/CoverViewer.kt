@@ -39,7 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import cn.lemondrop.clover.CloverIconButton
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Share2
@@ -107,19 +107,14 @@ fun CoverViewer(
         )
 
         // 关闭按钮
-        FluentIconButton(
+        CloverIconButton(
+            icon = Lucide.X,
+            contentDescription = "关闭",
             onClick = onDismiss,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 16.dp, end = 16.dp)
-        ) {
-            Icon(
-                imageVector = Lucide.X,
-                contentDescription = "关闭",
-                modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        )
 
         // 分享 / 保存
         Row(
@@ -128,22 +123,19 @@ fun CoverViewer(
                 .padding(bottom = 48.dp),
             horizontalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            FluentIconButton(
+            CloverIconButton(
+                icon = Lucide.Share2,
+                contentDescription = "分享",
                 onClick = {
                     scope.launch {
                         shareCoverBitmap(context, bitmap.asAndroidBitmap())
                     }
                 }
-            ) {
-                Icon(
-                    imageVector = Lucide.Share2,
-                    contentDescription = "分享",
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            )
 
-            FluentIconButton(
+            CloverIconButton(
+                icon = Lucide.Download,
+                contentDescription = "保存",
                 onClick = {
                     scope.launch {
                         val success = withContext(Dispatchers.IO) {
@@ -156,14 +148,7 @@ fun CoverViewer(
                         ).show()
                     }
                 }
-            ) {
-                Icon(
-                    imageVector = Lucide.Download,
-                    contentDescription = "保存",
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            )
         }
     }
 }

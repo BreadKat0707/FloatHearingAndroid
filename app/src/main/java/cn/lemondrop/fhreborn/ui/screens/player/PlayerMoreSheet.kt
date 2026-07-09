@@ -16,8 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
+import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import com.composables.icons.lucide.Album
@@ -31,6 +31,7 @@ import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Music
+import com.composables.icons.lucide.ScrollText
 import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.Timer
 import com.composables.icons.lucide.Trash2
@@ -54,6 +55,7 @@ fun PlayerMoreSheet(
     onAudioOutputClick: () -> Unit = {},
     onThoughtsClick: () -> Unit = {},
     onLyricSettingsClick: () -> Unit = {},
+    onLyricInfoClick: () -> Unit = {},
     onViewAlbumClick: () -> Unit = {},
     onViewArtistClick: () -> Unit = {},
     onGoToFolderClick: () -> Unit = {},
@@ -70,6 +72,7 @@ fun PlayerMoreSheet(
         MoreMenuItem("输出与音效", Lucide.Volume2, onAudioOutputClick),
         MoreMenuItem("想法", Lucide.Lightbulb, onThoughtsClick),
         MoreMenuItem("歌词设置", Lucide.FileText, onLyricSettingsClick),
+        MoreMenuItem("歌词信息", Lucide.ScrollText, onLyricInfoClick),
         MoreMenuItem("查看专辑", Lucide.Album, onViewAlbumClick),
         MoreMenuItem("查看艺术家", Lucide.Mic, onViewArtistClick),
         MoreMenuItem("转至文件夹", Lucide.FolderOpen, onGoToFolderClick),
@@ -80,7 +83,7 @@ fun PlayerMoreSheet(
         MoreMenuItem("删除文件", Lucide.Trash2, onDeleteClick)
     )
 
-    CloverBottomSheet(
+    CloverWindowBottomSheet(
         onDismiss = onDismiss
     ) {
         song?.let { currentSong ->

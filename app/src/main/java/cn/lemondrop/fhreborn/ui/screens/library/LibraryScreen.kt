@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.Screen
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.Song
@@ -82,7 +83,6 @@ import cn.lemondrop.fhreborn.ui.components.AppDrawer
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.FlyoutMenu
 import cn.lemondrop.fhreborn.ui.components.FlyoutMenuItem
-import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
 import cn.lemondrop.fhreborn.ui.components.SortSheet
@@ -92,12 +92,12 @@ import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PermissionUtils
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverIconButton
 import cn.lemondrop.clover.CloverMenuItem
 import cn.lemondrop.clover.CloverNavItem
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverTitleBar
+import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
 import cn.lemondrop.clover.ui.layout.CloverShellStrategy
 import com.composables.icons.lucide.Album
@@ -128,7 +128,6 @@ import com.composables.icons.lucide.SkipForward
 fun LibraryScreen(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    onPlayerClick: () -> Unit,
     playerViewModel: PlayerViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -173,7 +172,7 @@ fun LibraryScreen(
     // 系统 insets
 
     // 底部控件高度
-    val miniPlayBarHeight = 72.dp
+    val miniPlayBarHeight = LocalGlobalPlayBarHeight.current
     val navBarHeight = 64.dp
 
     val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
@@ -472,7 +471,7 @@ fun LibraryScreen(
                     ArtistSplitter.split(menuSong!!.artist, separators)
                 }
                 BackHandler { showArtistChooser = false }
-                CloverBottomSheet(
+                CloverWindowBottomSheet(
                     onDismiss = { showArtistChooser = false },
                     title = "选择艺术家"
                 ) {
@@ -498,25 +497,11 @@ fun LibraryScreen(
                     onDismiss = { showSongProperties = false }
                 )
             }
-
-            // 迷你播放条
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = onPlayerClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = state.contentPadding.calculateBottomPadding() + 8.dp
-                    )
-            )
         },
         content = { state ->
             libraryBody(
                 PaddingValues(top = 8.dp),
-                miniPlayBarHeight + 32.dp
+                miniPlayBarHeight
             )
         }
     )
@@ -715,7 +700,7 @@ private fun FolderOptionsSheet(
     onDismiss: () -> Unit,
     onHide: () -> Unit
 ) {
-    CloverBottomSheet(onDismiss = onDismiss) {
+    CloverWindowBottomSheet(onDismiss = onDismiss) {
         CloverMenuItem(
             label = "在音乐库隐藏",
             icon = Lucide.EyeOff,

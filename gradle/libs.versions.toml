@@ -18,6 +18,7 @@ datastore = "1.1.6"
 haze = "1.7.2"
 coroutines = "1.10.2"
 lucide = "1.0.0"
+jaudiotagger = "3.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -61,6 +62,9 @@ coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutin
 
 # Lucide icons
 lucide = { group = "com.composables", name = "icons-lucide", version.ref = "lucide" }
+
+# JAudioTagger - 音频标签读取
+jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

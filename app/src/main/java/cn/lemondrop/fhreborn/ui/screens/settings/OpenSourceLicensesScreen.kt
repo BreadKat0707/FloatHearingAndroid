@@ -211,7 +211,7 @@ private fun rememberOpenSourceLicenses(): List<OpenSourceLicense> {
                 version = "1.0.0",
                 license = "ISC",
                 url = "https://github.com/lucide-icons/lucide",
-                description = "图标库"
+                description = "图标库（通过 com.composables:icons-lucide 在 Compose 中使用）"
             ),
             OpenSourceLicense(
                 name = "Accompanist Lyrics",

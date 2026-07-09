@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Song
-import cn.lemondrop.clover.CloverBottomSheet
 import cn.lemondrop.clover.CloverMenuItem
+import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import com.composables.icons.lucide.Album
 import com.composables.icons.lucide.EyeOff
@@ -67,7 +67,7 @@ fun SongMenuSheet(
         Triple("删除文件", Lucide.Trash2, onDelete)
     )
 
-    CloverBottomSheet(onDismiss = onDismiss) {
+    CloverWindowBottomSheet(onDismiss = onDismiss) {
         // 歌曲信息头部
         Row(
             modifier = Modifier

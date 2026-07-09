@@ -32,12 +32,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
+import cn.lemondrop.clover.CloverButton
 import cn.lemondrop.clover.CloverTitleBar
-import cn.lemondrop.fhreborn.ui.theme.FluentButton
-import cn.lemondrop.fhreborn.ui.theme.FluentOutlinedButton
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
-import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Copy
+import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.X
 import io.github.composefluent.component.Icon
 import io.github.composefluent.component.Text
@@ -108,13 +106,14 @@ fun CrashReportScreen(
                         }
                     },
                     trailing = {
-                        FluentOutlinedButton(
-                            onClick = onDismiss
+                        CloverButton(
+                            onClick = onDismiss,
+                            colors = cn.lemondrop.clover.CloverButtonDefaults.outlinedColors()
                         ) {
                             Text("关闭")
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        FluentButton(
+                        CloverButton(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = ClipData.newPlainText("崩溃日志", crashLog)

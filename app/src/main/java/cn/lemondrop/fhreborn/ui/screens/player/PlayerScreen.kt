@@ -195,6 +195,7 @@ fun PlayerScreen(
     val queue by viewModel.queue.collectAsState()
     val currentIndex by viewModel.currentIndex.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
+    val lyricSource by viewModel.lyricSource.collectAsState()
     val currentLyricIndex by viewModel.currentLyricIndex.collectAsState()
 
     // 横屏 / 大屏（Expanded 宽度，≥840dp）时启用左右双栏布局；竖屏保持单栏
@@ -222,6 +223,7 @@ fun PlayerScreen(
     var currentCoverBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     var showSongProperties by remember { mutableStateOf(false) }
+    var showLyricInfo by remember { mutableStateOf(false) }
 
     val queueProgress = remember { Animatable(0f) }
     val isQueueOpen by remember { derivedStateOf { queueProgress.value > 0.5f } }
@@ -251,7 +253,7 @@ fun PlayerScreen(
 
     // 播放器页返回：预测返回手势驱动页面下滑收起
     PredictiveBackHandler(
-        enabled = predictiveBackEnabled && !showLyrics && !isQueueOpen && !showMore && !showCoverViewer
+        enabled = predictiveBackEnabled && !showLyrics && !isQueueOpen && !showMore && !showCoverViewer && !showLyricInfo && !showSongProperties
     ) { progress ->
         try {
             progress.collect { event ->
@@ -778,6 +780,7 @@ fun PlayerScreen(
                 onAudioOutputClick = { /* TODO: 输出与音效 */ },
                 onThoughtsClick = { /* TODO: 想法 */ },
                 onLyricSettingsClick = { /* TODO: 歌词设置 */ },
+                onLyricInfoClick = { showLyricInfo = true },
                 onViewAlbumClick = {
                     currentSong?.let { song ->
                         onNavigateToAlbum(song.album, song.albumArtist ?: song.artist)
@@ -837,6 +840,15 @@ fun PlayerScreen(
             cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
                 song = currentSong,
                 onDismiss = { showSongProperties = false }
+            )
+        }
+
+        // 歌词信息底部面板
+        if (showLyricInfo) {
+            BackHandler { showLyricInfo = false }
+            LyricInfoSheet(
+                lyricSource = lyricSource,
+                onDismiss = { showLyricInfo = false }
             )
         }
         }
