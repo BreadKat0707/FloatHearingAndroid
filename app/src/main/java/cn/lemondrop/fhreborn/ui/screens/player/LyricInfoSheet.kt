@@ -5,34 +5,32 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.fhreborn.data.lyrics.LyricFormatType
 import cn.lemondrop.fhreborn.data.lyrics.LyricSource
 import cn.lemondrop.fhreborn.data.lyrics.LyricSourceType
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Text
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 
 @Composable
 fun LyricInfoSheet(
     lyricSource: LyricSource?,
     onDismiss: () -> Unit
 ) {
-    CloverWindowBottomSheet(onDismiss = onDismiss) {
+    FhBottomSheet(
+        show = true,
+        onDismissRequest = onDismiss,
+        title = "歌词信息",
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = "歌词信息",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
             if (lyricSource == null || lyricSource.source == LyricSourceType.NONE) {
                 InfoRow(label = "状态", value = "无歌词")
             } else {
@@ -77,13 +75,13 @@ private fun InfoRow(label: String, value: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier.padding(top = 2.dp)
         )
     }

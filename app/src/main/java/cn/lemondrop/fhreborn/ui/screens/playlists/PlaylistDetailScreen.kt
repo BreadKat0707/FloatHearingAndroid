@@ -1,0 +1,537 @@
+package cn.lemondrop.fhreborn.ui.screens.playlists
+
+import android.app.Application
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType
+import cn.lemondrop.fhreborn.data.db.entity.Song
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.FhListItem
+import cn.lemondrop.fhreborn.ui.components.PlaylistCover
+import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
+import cn.lemondrop.fhreborn.ui.components.SongCoverImage
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
+import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ArrowUpDown
+import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.Download
+import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Music
+import com.composables.icons.lucide.Pencil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+@Composable
+fun PlaylistDetailScreen(
+    playlistId: Long,
+    onBack: () -> Unit,
+    playerViewModel: PlayerViewModel
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val viewModel: PlaylistViewModel = viewModel(
+        factory = PlaylistViewModel.Factory(context.applicationContext as Application)
+    )
+    val playlist by viewModel.getPlaylist(playlistId).collectAsState(initial = null)
+    val songs by viewModel.getSortedSongs(playlistId, playlist?.sortType ?: 0).collectAsState(initial = emptyList())
+    var totalDuration by remember { mutableStateOf(0L) }
+    LaunchedEffect(playlistId) {
+        viewModel.getPlaylistTotalDuration(playlistId) { totalDuration = it }
+    }
+
+    var menuSong by remember { mutableStateOf<Song?>(null) }
+    var showSortSheet by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+
+    // 自定义排序：长按拖拽重排
+    val isCustomSort = playlist?.sortType == PlaylistSortType.CUSTOM
+    val listState = rememberLazyListState()
+    val dragSpacingPx = with(LocalDensity.current) { 4.dp.toPx() }
+    var displaySongs by remember(songs) { mutableStateOf(songs) }
+    var draggingSongId by remember { mutableStateOf<Long?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val latestDisplaySongs by rememberUpdatedState(displaySongs)
+    // Flow 刷新（重排落库/增删）时同步本地顺序；拖拽中不打断
+    LaunchedEffect(songs) {
+        if (draggingSongId == null) displaySongs = songs
+    }
+
+    // 导出：CreateDocument 保存 M3U/JSON
+    var pendingExportContent by remember { mutableStateOf<String?>(null) }
+    var pendingExportIsJson by remember { mutableStateOf(false) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null) {
+            val isJson = pendingExportIsJson
+            pendingExportIsJson = false
+            val exportContent = pendingExportContent
+            pendingExportContent = null
+            if (exportContent != null) {
+                snackbarScope.launch {
+                    withContext(Dispatchers.IO) {
+                        try {
+                            context.contentResolver.openOutputStream(uri)?.use { out ->
+                                out.write(exportContent.toByteArray())
+                            }
+                        } catch (e: Exception) {
+                            snackbarHostState.showSnackbar("导出失败: ${e.message}")
+                            return@withContext
+                        }
+                    }
+                    snackbarHostState.showSnackbar("已导出 ${if (isJson) "JSON" else "M3U"}")
+                }
+            }
+        }
+    }
+
+    BackHandler { onBack() }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                BlurTopBar(
+                    title = playlist?.name ?: "歌单",
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Lucide.ArrowLeft,
+                                contentDescription = "返回"
+                            )
+                        }
+                    },
+                    actions = {
+                        // 排序
+                        IconButton(onClick = { showSortSheet = true }) {
+                            Icon(
+                                imageVector = Lucide.ArrowUpDown,
+                                contentDescription = "排序"
+                            )
+                        }
+                        // 导出
+                        IconButton(onClick = {
+                            pendingExportIsJson = false
+                            pendingExportContent = null
+                            showExportSheet = true
+                        }) {
+                            Icon(
+                                imageVector = Lucide.Download,
+                                contentDescription = "导出歌单"
+                            )
+                        }
+                        // 编辑
+                        IconButton(onClick = { showEditSheet = true }) {
+                            Icon(
+                                imageVector = Lucide.Pencil,
+                                contentDescription = "编辑歌单"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            val playBarHeight = LocalGlobalPlayBarHeight.current
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                        // 封面 + 右侧：名称 / 介绍 / 创建时间
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            PlaylistCover(
+                                songIds = songs.take(3).map { it.id },
+                                coverPath = playlist?.coverPath,
+                                coverSource = playlist?.coverSource ?: 0,
+                                modifier = Modifier.size(96.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = playlist?.name ?: "歌单",
+                                    style = MiuixTheme.textStyles.title3,
+                                    color = MiuixTheme.colorScheme.onSurface,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                playlist?.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = desc,
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "创建于 ${formatPlaylistDate(playlist?.createdAt ?: 0L)}",
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        // 封面下方统计：数量 / 总时长 / 播放次数
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            PlaylistStatItem(
+                                value = "${songs.size}",
+                                label = "首歌曲",
+                                modifier = Modifier.weight(1f)
+                            )
+                            PlaylistStatItem(
+                                value = formatPlaylistDuration(totalDuration),
+                                label = "总时长",
+                                modifier = Modifier.weight(1f)
+                            )
+                            PlaylistStatItem(
+                                value = "${playlist?.playCount ?: 0}",
+                                label = "播放次数",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+                if (songs.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "歌单是空的\n去歌曲菜单里选择「加入歌单」",
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body2
+                            )
+                        }
+                    }
+                }
+                itemsIndexed(displaySongs, key = { _, song -> song.id }) { index, song ->
+                    val isDragging = song.id == draggingSongId
+                    FhListItem(
+                        title = song.title,
+                        summary = "${song.artist} - ${song.album}",
+                        modifier = if (isCustomSort) {
+                            Modifier
+                                .animateItem()
+                                .zIndex(if (isDragging) 1f else 0f)
+                                .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
+                                .shadow(if (isDragging) 10.dp else 0.dp, RoundedCornerShape(12.dp))
+                                .pointerInput(song.id) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            draggingSongId = song.id
+                                            dragOffset = 0f
+                                        },
+                                        onDrag = { change, amount ->
+                                            change.consume()
+                                            dragOffset += amount.y
+                                            val info = listState.layoutInfo
+                                            val draggingItem = info.visibleItemsInfo
+                                                .firstOrNull { it.key == song.id }
+                                                ?: return@detectDragGesturesAfterLongPress
+                                            val step = draggingItem.size + dragSpacingPx
+                                            val currentIdx = latestDisplaySongs
+                                                .indexOfFirst { it.id == song.id }
+                                            val target = ((draggingItem.offset + dragOffset) / step)
+                                                .roundToInt()
+                                                .coerceIn(0, (latestDisplaySongs.size - 1).coerceAtLeast(0))
+                                            if (target != currentIdx) {
+                                                displaySongs = latestDisplaySongs.toMutableList().apply {
+                                                    add(target, removeAt(currentIdx))
+                                                }
+                                                dragOffset -= (target - currentIdx) * step
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            viewModel.reorderSongs(
+                                                playlistId,
+                                                displaySongs.map { it.id }
+                                            )
+                                            draggingSongId = null
+                                            dragOffset = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggingSongId = null
+                                            dragOffset = 0f
+                                        }
+                                    )
+                                }
+                        } else Modifier,
+                        onClick = {
+                            viewModel.recordPlay(playlistId)
+                            playerViewModel.playPlaylistSongs(
+                                songs,
+                                songs.indexOf(song).coerceAtLeast(0),
+                                playlist?.defaultPlayMode ?: 0
+                            )
+                        },
+                        leading = {
+                            SongCoverImage(
+                                songId = song.id,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        },
+                        trailing = {
+                            IconButton(onClick = { menuSong = song }) {
+                                Icon(
+                                    imageVector = Lucide.EllipsisVertical,
+                                    contentDescription = "更多",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // 歌曲更多菜单：从歌单移除
+    menuSong?.let { song ->
+        FhBottomSheet(
+            show = true,
+            onDismissRequest = { menuSong = null },
+            title = song.title,
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+        ) {
+            FhListItem(
+                title = "从歌单移除",
+                leading = {
+                    Icon(
+                        imageVector = Lucide.Music,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                },
+                onClick = {
+                    viewModel.removeSong(playlistId, song.id)
+                    menuSong = null
+                }
+            )
+        }
+    }
+
+    // 排序弹窗
+    if (showSortSheet) {
+        PlaylistSortSheet(
+            currentSortType = playlist?.sortType ?: 0,
+            onDismiss = { showSortSheet = false },
+            onSelect = { type ->
+                viewModel.setSortType(playlistId, type)
+                showSortSheet = false
+            }
+        )
+    }
+
+    // 导出弹窗
+    if (showExportSheet) {
+        FhBottomSheet(
+            show = true,
+            onDismissRequest = { showExportSheet = false },
+            title = "导出歌单",
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+        ) {
+            FhListItem(
+                title = "导出为 M3U",
+                summary = "路径列表，适合同设备恢复",
+                onClick = {
+                    showExportSheet = false
+                    viewModel.exportPlaylistM3U(playlistId) { content ->
+                        pendingExportContent = content
+                        pendingExportIsJson = false
+                        exportLauncher.launch("${playlist?.name ?: "playlist"}.m3u8")
+                    }
+                }
+            )
+            FhListItem(
+                title = "导出为 JSON",
+                summary = "含完整元数据，支持跨设备导入",
+                onClick = {
+                    showExportSheet = false
+                    viewModel.exportPlaylistJson(playlistId) { content ->
+                        pendingExportContent = content
+                        pendingExportIsJson = true
+                        exportLauncher.launch("${playlist?.name ?: "playlist"}.json")
+                    }
+                }
+            )
+        }
+    }
+
+    // 导出/导入结果提示
+    Box(modifier = Modifier.fillMaxSize()) {
+        SnackbarHost(
+            state = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    // 编辑歌单（含默认播放模式 + 封面）
+    if (showEditSheet) {
+        PlaylistEditSheet(
+            title = "编辑歌单",
+            initialName = playlist?.name ?: "",
+            initialDescription = playlist?.description.orEmpty(),
+            initialPlayMode = playlist?.defaultPlayMode ?: 0,
+            initialCoverPath = playlist?.coverPath,
+            initialCoverSource = playlist?.coverSource ?: 0,
+            coverSongs = songs,
+            onDismiss = { showEditSheet = false },
+            onSave = { name, desc, playMode, coverPath, coverSource ->
+                viewModel.updatePlaylist(playlistId, name, desc, playMode)
+                viewModel.setCover(playlistId, coverPath, coverSource)
+                showEditSheet = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun PlaylistStatItem(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MiuixTheme.textStyles.headline2,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+        )
+    }
+}
+
+private fun formatPlaylistDate(ts: Long): String {
+    if (ts <= 0) return "-"
+    return java.text.SimpleDateFormat(
+        "yyyy年M月d日", java.util.Locale.getDefault()
+    ).format(java.util.Date(ts))
+}
+
+private fun formatPlaylistDuration(ms: Long): String {
+    val minutes = ms / 60000
+    val hours = minutes / 60
+    return if (hours > 0) "${hours}小时${minutes % 60}分" else "${minutes}分钟"
+}
+
+@Composable
+private fun PlaylistSortSheet(
+    currentSortType: Int,
+    onDismiss: () -> Unit,
+    onSelect: (Int) -> Unit
+) {
+    val options = listOf(
+        cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType.CUSTOM to "自定义（添加顺序）",
+        cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType.TITLE to "标题",
+        cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType.ARTIST to "艺术家",
+        cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType.ALBUM to "专辑",
+        cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType.DURATION to "时长"
+    )
+    FhBottomSheet(
+        show = true,
+        onDismissRequest = onDismiss,
+        title = "歌单排序",
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+    ) {
+        options.forEach { (type, label) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onSelect(type)
+                    }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (type == currentSortType) {
+                    Icon(
+                        imageVector = Lucide.Check,
+                        contentDescription = "已选择",
+                        modifier = Modifier.size(20.dp),
+                        tint = MiuixTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Text(
+                    text = label,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}

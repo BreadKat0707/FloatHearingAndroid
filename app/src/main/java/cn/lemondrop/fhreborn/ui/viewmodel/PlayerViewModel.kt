@@ -3,6 +3,7 @@ package cn.lemondrop.fhreborn.ui.viewmodel
 import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
+import android.util.LruCache
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -21,10 +22,14 @@ import cn.lemondrop.fhreborn.data.lyrics.LyricSource
 import cn.lemondrop.fhreborn.data.lyrics.LyricSourceType
 import cn.lemondrop.fhreborn.data.lyrics.LyricFormatType
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
+import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
+import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
+import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import com.mocharealm.accompanist.lyrics.core.parser.AutoParser
 import cn.lemondrop.fhreborn.player.PlaybackService
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -36,6 +41,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -50,6 +56,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     // 播放统计计时
     private var playStartTime: Long = 0L
     private var currentPlaySongId: Long? = null
+
+    // 歌词缓存：避免每次打开播放器 / 切歌都重新读文件 + 解析标签（重 IO 操作）
+    private val lyricSourceCache = object : LruCache<Long, LyricSource>(32) {}
+    private val parsedLyricCache = object : LruCache<Long, SyncedLyrics?>(32) {}
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -294,20 +304,67 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         saveState()
     }
 
+    /**
+     * 播放歌单：按歌单默认播放模式设置 repeatMode / shuffle。
+     * @param playMode 歌单的 defaultPlayMode（0=顺序 1=列表循环 2=单曲循环 3=随机）
+     */
+    fun playPlaylistSongs(songs: List<Song>, startIndex: Int = 0, playMode: Int = 0) {
+        val controller = mediaController ?: return
+        controller.shuffleModeEnabled = playMode == 3
+        controller.repeatMode = when (playMode) {
+            2 -> Player.REPEAT_MODE_ONE
+            1 -> Player.REPEAT_MODE_ALL
+            else -> Player.REPEAT_MODE_OFF
+        }
+        playSongs(songs, startIndex)
+    }
+
     private fun loadLyrics() {
         val song = _currentSong.value ?: return
         viewModelScope.launch {
-            val source = LyricReader.readLyrics(getApplication(), song)
-            _lyricSource.value = source
-            _lyrics.value = source.rawText?.let {
+            // 延迟加载，避开切歌高峰（封面/背景切换、播放器动画）
+            delay(300)
+
+            // 缓存命中：直接复用，不重新读文件/解析
+            val cachedSource = lyricSourceCache.get(song.id)
+            val cachedParsed = parsedLyricCache.get(song.id)
+            if (cachedSource != null && cachedParsed != null) {
+                android.util.Log.i(TAG, "lyric cache hit: ${song.id} (${System.currentTimeMillis()})")
+                _lyricSource.value = cachedSource
+                _lyrics.value = cachedParsed
+                _currentLyricIndex.value = -1
+                return@launch
+            }
+
+            android.util.Log.i(TAG, "lyric load start: ${song.id} (${System.currentTimeMillis()})")
+            // 关键：readLyrics 内部有同步文件 IO + jaudiotagger 解析音频标签 +
+            // MediaMetadataRetriever，必须在 IO 线程执行，否则切歌时阻塞主线程导致 ANR
+            val source = withContext(Dispatchers.IO) {
+                LyricReader.readLyrics(getApplication(), song)
+            }
+            android.util.Log.i(TAG, "lyric read done: ${song.id} (${System.currentTimeMillis()})")
+            val parsed = source.rawText?.let {
                 try {
-                    AutoParser().parse(it)
+                    withContext(Dispatchers.Default) {
+                        dedupeDuplicateLyricLines(AutoParser().parse(it))
+                    }
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerViewModel", "歌词解析失败: ${e.message}")
+                    android.util.Log.w(TAG, "歌词解析失败: ${e.message}")
                     null
                 }
             }
+            android.util.Log.i(TAG, "lyric parse done: ${song.id} (${System.currentTimeMillis()})")
+
+            lyricSourceCache.put(song.id, source)
+            // LruCache 不允许 null value：无歌词/解析失败时不缓存 parsed
+            if (parsed != null) {
+                parsedLyricCache.put(song.id, parsed)
+            }
+
+            _lyricSource.value = source
+            _lyrics.value = parsed
             _currentLyricIndex.value = -1
+            android.util.Log.i(TAG, "lyric applied: ${song.id} (${System.currentTimeMillis()})")
         }
     }
 
@@ -429,6 +486,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         super.onCleared()
     }
 
+    companion object {
+        private const val TAG = "SongSwitch"
+    }
+
     @Suppress("UNCHECKED_CAST")
     class Factory(private val application: Application) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -450,4 +511,48 @@ fun Song.toMediaItem(): MediaItem {
         )
         .setTag(this)
         .build()
+}
+
+/**
+ * 合并相邻且内容相同的歌词行。
+ *
+ * Apple Music 的 TTML 常见结构：intro 段（begin=0）与第一句内容相同，
+ * 解析后第一行会重复显示两遍。这里把内容相同的相邻行合并为一行。
+ * 合并规则：
+ * - 文本按去除空白后比较（中文歌词常带空格/全角空格差异）
+ * - 不要求行类型一致（同一句可能一行带逐字时间戳、一行不带）
+ * - 优先保留带逐字时间戳的主卡拉OK行，开始/结束时间取并集
+ */
+private fun dedupeDuplicateLyricLines(lyrics: SyncedLyrics): SyncedLyrics {
+    fun lineText(line: ISyncedLine): String? = when (line) {
+        is SyncedLine -> line.content
+        is KaraokeLine -> line.syllables.joinToString("") { it.content }
+        else -> null
+    }
+    fun normalized(text: String) = text.trim().filterNot { it.isWhitespace() }
+
+    val merged = mutableListOf<ISyncedLine>()
+    for (line in lyrics.lines) {
+        val last = merged.lastOrNull()
+        val lastText = last?.let { lineText(it) }?.let(::normalized)
+        val lineTextValue = lineText(line)?.let(::normalized)
+        if (last != null && lastText != null && lineTextValue != null && lastText == lineTextValue) {
+            val newStart = minOf(last.start, line.start)
+            val newEnd = maxOf(last.end, line.end)
+            // 优先保留带逐字时间戳的主卡拉OK行
+            val preferred = when {
+                last is KaraokeLine.MainKaraokeLine && line is SyncedLine -> last
+                last is SyncedLine && line is KaraokeLine.MainKaraokeLine -> line
+                else -> last
+            }
+            merged[merged.size - 1] = when (preferred) {
+                is SyncedLine -> preferred.copy(start = newStart, end = newEnd)
+                is KaraokeLine.MainKaraokeLine -> preferred.copy(start = newStart, end = newEnd)
+                else -> preferred
+            }
+        } else {
+            merged.add(line)
+        }
+    }
+    return if (merged.size == lyrics.lines.size) lyrics else lyrics.copy(lines = merged)
 }

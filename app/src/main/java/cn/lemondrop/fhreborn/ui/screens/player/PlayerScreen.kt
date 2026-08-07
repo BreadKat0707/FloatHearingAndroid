@@ -1,10 +1,11 @@
-@file:OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
+@file:OptIn(ExperimentalSharedTransitionApi::class)
 
 package cn.lemondrop.fhreborn.ui.screens.player
 
 import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
@@ -27,6 +28,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.fhreborn.LocalPredictiveBackEnabled
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -56,11 +58,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+// Window size class removed — using manual screenWidthDp check instead
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -94,8 +95,10 @@ import android.app.Activity
 import android.view.WindowManager
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
+import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -114,12 +117,12 @@ import androidx.media3.common.Player
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongInfoActionSheet
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import top.yukonga.miuix.kmp.basic.IconButton
 import cn.lemondrop.fhreborn.util.ArtistSplitter
-import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
+import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
@@ -152,16 +155,24 @@ fun PlayerScreen(
     playerViewModel: PlayerViewModel,
     onBack: () -> Unit = {},
     onNavigateToAlbum: (String, String?) -> Unit = { _, _ -> },
-    onNavigateToArtist: (String) -> Unit = {}
+    onNavigateToArtist: (String) -> Unit = {},
+    onOpenSettingsCategory: (String) -> Unit = {}
 ) {
     val viewModel = playerViewModel
     val context = LocalContext.current
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = PlaylistViewModel.Factory(context.applicationContext as Application)
+    )
     val settingsRepository = remember { SettingsRepository(context) }
     val lyricAlignCenter by settingsRepository.isLyricAlignCenter.collectAsState(initial = false)
     val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = ArtistSplitter.DEFAULT_SEPARATORS)
 
     val appSettingsRepository = remember { AppSettingsRepository(context) }
     val keepScreenOn by appSettingsRepository.wakeLock.collectAsState(initial = true)
+
+    // 播放器封面设置：圆角 + 圆形旋转封面
+    val coverCornerRadius by appSettingsRepository.playerCoverCornerRadius.collectAsState(initial = 12)
+    val coverRotating by appSettingsRepository.playerCoverRotating.collectAsState(initial = false)
 
     // Accompanist Lyric 设置
     val acclMainTextSize by appSettingsRepository.acclLyricMainTextSizeSp.collectAsState(initial = 34)
@@ -200,9 +211,8 @@ fun PlayerScreen(
 
     // 横屏 / 大屏（Expanded 宽度，≥840dp）时启用左右双栏布局；竖屏保持单栏
     val configuration = LocalConfiguration.current
-    val activity = context as? Activity
-    val widthSizeClass = activity?.let { calculateWindowSizeClass(it).widthSizeClass }
-    val isExpandedWidth = widthSizeClass == WindowWidthSizeClass.Expanded
+    val screenWidthDp = configuration.screenWidthDp
+    val isExpandedWidth = screenWidthDp >= 840
     val isCompactLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && !isExpandedWidth
     val isTwoPane = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || isExpandedWidth
 
@@ -218,12 +228,14 @@ fun PlayerScreen(
 
     var showLyrics by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
     var showCoverViewer by remember { mutableStateOf(false) }
     var showSongInfoSheet by remember { mutableStateOf(false) }
     var currentCoverBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     // 切歌时先清空共享封面，避免歌词页/播放器页短暂显示上一首封面
     LaunchedEffect(currentSong?.id) {
+        android.util.Log.i("SongSwitch", "song changed: ${currentSong?.id} at ${System.currentTimeMillis()}")
         currentCoverBitmap = null
     }
 
@@ -271,6 +283,17 @@ fun PlayerScreen(
             }
         } catch (_: CancellationException) {
             scope.launch { offsetY.animateTo(0f, tween(200)) }
+        }
+    }
+
+    // 普通返回（预测性返回关闭时）：无覆盖层时直接关闭播放器。
+    // 注意必须放在各覆盖层 BackHandler 之前组合，让覆盖层优先响应。
+    BackHandler(
+        enabled = !predictiveBackEnabled && !showLyrics && !isQueueOpen && !showMore && !showCoverViewer && !showLyricInfo && !showSongProperties
+    ) {
+        scope.launch {
+            offsetY.animateTo(screenHeightPx, tween(250))
+            onBack()
         }
     }
 
@@ -395,6 +418,12 @@ fun PlayerScreen(
             }
         }
 
+        // 普通返回（预测性返回关闭时）：歌词全屏页先收回歌词
+        BackHandler(enabled = !predictiveBackEnabled && showLyrics) {
+            showLyrics = false
+            scope.launch { lyricsBackProgress.snapTo(0f) }
+        }
+
         if (isTwoPane) {
             // 横屏 / 大屏：左右双栏。左栏播放控件，右栏歌词；竖屏走下方单栏分支。
             Row(
@@ -447,6 +476,9 @@ fun PlayerScreen(
                                     modifier = Modifier
                                         .size(64.dp)
                                         .clip(RoundedCornerShape(12.dp)),
+                                    cornerRadiusDp = coverCornerRadius,
+                                    rotating = coverRotating,
+                                    isPlaying = isPlaying,
                                     useSharedTransition = false
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -479,6 +511,7 @@ fun PlayerScreen(
                             PlayerBottomActionsSection(
                                 openQueue = { openQueue() },
                                 onShowMore = { showMore = true },
+                                onAddToPlaylistClick = { showAddToPlaylist = true },
                                 isDarkTheme = isDarkTheme
                             )
                         }
@@ -494,6 +527,9 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
+                            cornerRadiusDp = coverCornerRadius,
+                            rotating = coverRotating,
+                            isPlaying = isPlaying,
                             useSharedTransition = false
                         )
 
@@ -531,6 +567,7 @@ fun PlayerScreen(
                     PlayerBottomActionsSection(
                         openQueue = { openQueue() },
                         onShowMore = { showMore = true },
+                        onAddToPlaylistClick = { showAddToPlaylist = true },
                         isDarkTheme = isDarkTheme
                     )
                 }
@@ -655,6 +692,9 @@ fun PlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
+                    cornerRadiusDp = coverCornerRadius,
+                    rotating = coverRotating,
+                    isPlaying = isPlaying,
                     useSharedTransition = true,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = this@AnimatedContent
@@ -716,6 +756,7 @@ fun PlayerScreen(
                 PlayerBottomActionsSection(
                     openQueue = { openQueue() },
                     onShowMore = { showMore = true },
+                    onAddToPlaylistClick = { showAddToPlaylist = true },
                     isDarkTheme = isDarkTheme
                 )
 
@@ -738,6 +779,11 @@ fun PlayerScreen(
             } catch (_: CancellationException) {
                 scope.launch { queueProgress.animateTo(1f, tween(200)) }
             }
+        }
+
+        // 普通返回（预测性返回关闭时）：队列页先收回队列
+        BackHandler(enabled = !predictiveBackEnabled && isQueueOpen) {
+            closeQueue()
         }
         if (queueProgress.value > 0f) {
             PlayerQueueScreen(
@@ -780,12 +826,15 @@ fun PlayerScreen(
                 song = currentSong,
                 artistSeparators = artistSeparators,
                 onDismiss = { showMore = false },
-                onAddToPlaylistClick = { /* TODO: 加入歌单 */ },
+                onAddToPlaylistClick = {
+                    showMore = false
+                    showAddToPlaylist = true
+                },
                 onSpeedClick = { /* TODO: 倍速 */ },
                 onTimerClick = { viewModel.showScheduledPause() },
                 onAudioOutputClick = { /* TODO: 输出与音效 */ },
                 onThoughtsClick = { /* TODO: 想法 */ },
-                onLyricSettingsClick = { /* TODO: 歌词设置 */ },
+                onLyricSettingsClick = { onOpenSettingsCategory("lyrics") },
                 onLyricInfoClick = { showLyricInfo = true },
                 onViewAlbumClick = {
                     currentSong?.let { song ->
@@ -818,7 +867,9 @@ fun PlayerScreen(
             CoverViewer(
                 bitmap = currentCoverBitmap!!,
                 title = currentSong?.title ?: "cover",
-                onDismiss = { showCoverViewer = false }
+                onDismiss = { showCoverViewer = false },
+                rotating = coverRotating,
+                isPlaying = isPlaying
             )
         }
 
@@ -856,6 +907,18 @@ fun PlayerScreen(
                 lyricSource = lyricSource,
                 onDismiss = { showLyricInfo = false }
             )
+        }
+
+        // 加入歌单弹窗
+        if (showAddToPlaylist) {
+            BackHandler { showAddToPlaylist = false }
+            currentSong?.let { song ->
+                AddToPlaylistSheet(
+                    songIds = listOf(song.id),
+                    viewModel = playlistViewModel,
+                    onDismiss = { showAddToPlaylist = false }
+                )
+            }
         }
         }
     }
@@ -940,12 +1003,12 @@ private fun PlayerProgressSlider(
         ) {
             Text(
                 text = formatDuration(position),
-                style = MaterialTheme.typography.labelSmall,
+                style = MiuixTheme.textStyles.footnote2,
                 color = fluidOnColorSecondary
             )
             Text(
                 text = formatDuration(duration),
-                style = MaterialTheme.typography.labelSmall,
+                style = MiuixTheme.textStyles.footnote2,
                 color = fluidOnColorSecondary
             )
         }
@@ -992,8 +1055,8 @@ private fun LyricSheet(
         }
     }
 
-    val bgColor = MaterialTheme.colorScheme.background
-    val onSurface = MaterialTheme.colorScheme.onSurface
+    val bgColor = MiuixTheme.colorScheme.background
+    val onSurface = MiuixTheme.colorScheme.onSurface
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1048,7 +1111,7 @@ private fun LyricSheet(
             ) {
                 Text(
                     text = "暂无歌词",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MiuixTheme.textStyles.headline2,
                     color = fluidOnColor.copy(alpha = 0.5f)
                 )
             }
@@ -1153,7 +1216,7 @@ private fun LyricSheet(
                     modifier = Modifier.weight(1f)
                 )
 
-                FluentIconButton(onClick = onMoreClick) {
+                IconButton(onClick = onMoreClick) {
                     Icon(
                         imageVector = Lucide.EllipsisVertical,
                         contentDescription = "更多",
@@ -1191,7 +1254,11 @@ private data class AcclLyricConfig(
     val showPhonetic: Boolean = true,
     val useBlur: Boolean = true,
     val blurDelta: Int = 3,
-    val textAlign: String = "center"
+    val textAlign: String = "center",
+    val glowEffect: Boolean = true,
+    val breathingDotsSize: Int = 16,
+    val translationTextSizeSp: Int = 14,
+    val translationFontWeight: Int = 400
 )
 
 @Composable
@@ -1207,11 +1274,16 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
     val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = true)
     val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
     val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
+    val glowEffect by repository.acclLyricGlowEffect.collectAsState(initial = true)
+    val breathingDotsSize by repository.acclLyricBreathingDotsSize.collectAsState(initial = 16)
+    val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = 14)
+    val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
 
     return remember(
         mainTextSize, accompanimentTextSize, phoneticTextSize,
         mainFontWeight, accompanimentFontWeight, phoneticFontWeight,
-        showTranslation, showPhonetic, useBlur, blurDelta, textAlign
+        showTranslation, showPhonetic, useBlur, blurDelta, textAlign,
+        glowEffect, breathingDotsSize, translationTextSize, translationFontWeight
     ) {
         AcclLyricConfig(
             mainTextSizeSp = mainTextSize,
@@ -1224,7 +1296,11 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
             showPhonetic = showPhonetic,
             useBlur = useBlur,
             blurDelta = blurDelta,
-            textAlign = textAlign
+            textAlign = textAlign,
+            glowEffect = glowEffect,
+            breathingDotsSize = breathingDotsSize,
+            translationTextSizeSp = translationTextSize,
+            translationFontWeight = translationFontWeight
         )
     }
 }
@@ -1241,9 +1317,15 @@ private fun KaraokeLyricsViewWrapper(
     onLineClicked: (ISyncedLine) -> Unit = {}
 ) {
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
-    val lyricBlendMode = if (isDarkTheme) BlendMode.Plus else BlendMode.Multiply
-    val breathingDotsDefaults = remember(isDarkTheme) {
+    // 混合模式：发光效果开关关闭时用普通绘制（SrcOver）
+    val lyricBlendMode = when {
+        !acclLyricConfig.glowEffect -> BlendMode.SrcOver
+        isDarkTheme -> BlendMode.Plus
+        else -> BlendMode.Multiply
+    }
+    val breathingDotsDefaults = remember(isDarkTheme, acclLyricConfig.breathingDotsSize) {
         com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeBreathingDotsDefaults(
+            size = acclLyricConfig.breathingDotsSize.dp,
             breathingDotsColor = fluidOnColor
         )
     }
@@ -1270,6 +1352,9 @@ private fun KaraokeLyricsViewWrapper(
         )
     }
 
+    // 播放进度（毫秒）。用 Compose State 驱动歌词高亮（KaraokeLyricsView 内部
+    // 的 derivedStateOf 依赖 State 变化重算），但更新频率限制为 100ms/次：
+    // 既保证歌词同步，又把重组频率从每帧（120Hz）降到 10 次/秒，避免 ANR。
     var localPositionMs by remember { mutableIntStateOf(currentPosition.toInt().coerceAtLeast(0)) }
 
     LaunchedEffect(currentPosition) {
@@ -1282,31 +1367,48 @@ private fun KaraokeLyricsViewWrapper(
     LaunchedEffect(isPlaying) {
         if (!isPlaying) return@LaunchedEffect
         var lastFrameNs = System.nanoTime()
+        var lastPublishedMs = localPositionMs
         while (isActive) {
             withFrameNanos { frameNs ->
                 val deltaMs = ((frameNs - lastFrameNs) / 1_000_000).toInt().coerceAtLeast(0)
                 lastFrameNs = frameNs
-                localPositionMs += deltaMs
+                lastPublishedMs += deltaMs
+                // 帧对齐 + 20fps 限频（50ms）。
+                // 主线程栈证明：时间 State 每帧更新会让 KaraokeLyricsView 的
+                // LazyColumn 在每次绘制时重新测量（Lookahead 双重测量），
+                // 16ms（60fps）在模拟器上导致测量风暴 ANR。50ms 平衡流畅度与负载。
+                if (lastPublishedMs - localPositionMs >= 50) {
+                    localPositionMs = lastPublishedMs
+                }
             }
         }
     }
 
-    var ready by remember { mutableStateOf(false) }
-    LaunchedEffect(lyrics) {
-        ready = false
-        delay(300)
-        ready = true
-    }
-
-    if (ready) {
-        KaraokeLyricsView(
-            listState = listState,
-            lyrics = lyrics,
-            currentPosition = { localPositionMs },
-            onLineClicked = onLineClicked,
-            onLinePressed = {},
-            modifier = modifier,
-            textColor = fluidOnColor,
+    // 歌词视图常驻：不再用 ready 门控销毁重建。
+    // 之前每次切歌都会销毁 KaraokeLyricsView、300ms 后全量重建
+    // （LazyColumn 首布局 + 可见行组合 + Crossfade + Lookahead 双重测量），
+    // 一次性大开销压在主线程 → 切歌 ANR。常驻后歌词变化由库内部平滑处理。
+    //
+    // 翻译行没有独立样式参数（库写死继承 LocalTextStyle），
+    // 用 CompositionLocal 提供翻译行字号 + 字重。
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalTextStyle provides TextStyle(
+            fontSize = acclLyricConfig.translationTextSizeSp.sp,
+            fontWeight = FontWeight(acclLyricConfig.translationFontWeight.coerceIn(1, 1000))
+        )
+    ) {
+    KaraokeLyricsView(
+        listState = listState,
+        lyrics = lyrics,
+        currentPosition = { localPositionMs },
+        onLineClicked = onLineClicked,
+        onLinePressed = {},
+        // clearAndSetSemantics：砍掉整棵歌词树的语义节点。
+        // 切歌/滚动时 Compose 会为语义树做全局排序遍历（SemanticsSortKt），
+        // 几百行歌词 × 频繁滚动导致大量分配，堆 192MB 被打满 OOM。
+        // 歌词行不需要无障碍朗读，此优化不影响显示。
+        modifier = modifier.clearAndSetSemantics { },
+        textColor = fluidOnColor,
             blendMode = lyricBlendMode,
             breathingDotsDefaults = breathingDotsDefaults,
             normalLineTextStyle = normalLineTextStyle,
@@ -1375,13 +1477,13 @@ private fun PlaceholderCoverContent() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)),
+            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "♪",
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            style = MiuixTheme.textStyles.title1,
+            color = MiuixTheme.colorScheme.onSurface.copy(alpha = 0.4f)
         )
     }
 }
@@ -1396,6 +1498,9 @@ private fun PlayerCoverSection(
     onLongClickCover: () -> Unit,
     onCoverBitmapLoaded: (ImageBitmap?) -> Unit,
     modifier: Modifier = Modifier,
+    cornerRadiusDp: Int = 12,
+    rotating: Boolean = false,
+    isPlaying: Boolean = false,
     useSharedTransition: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
@@ -1428,21 +1533,44 @@ private fun PlayerCoverSection(
             }
         }
 
+        // 圆形旋转封面：固定为正方形（非正方形封面裁切为方形显示）
+        val displayWidth = if (rotating) baseCoverWidth.coerceAtMost(baseCoverHeight) else baseCoverWidth
+        val displayHeight = if (rotating) baseCoverWidth.coerceAtMost(baseCoverHeight) else baseCoverHeight
+
         val coverWidth by animateDpAsState(
-            targetValue = baseCoverWidth * coverSizeMultiplier,
+            targetValue = displayWidth * coverSizeMultiplier,
             animationSpec = tween(300, easing = FastOutSlowInEasing),
             label = "coverWidth"
         )
         val coverHeight by animateDpAsState(
-            targetValue = baseCoverHeight * coverSizeMultiplier,
+            targetValue = displayHeight * coverSizeMultiplier,
             animationSpec = tween(300, easing = FastOutSlowInEasing),
             label = "coverHeight"
         )
 
+        val coverShape = if (rotating) CircleShape else RoundedCornerShape(cornerRadiusDp.dp)
+
+        // 圆形旋转封面：播放时匀速旋转（约 20s/圈），暂停时冻结
+        var rotation by remember { mutableFloatStateOf(0f) }
+        LaunchedEffect(rotating, isPlaying) {
+            if (!rotating || !isPlaying) return@LaunchedEffect
+            var lastNs = System.nanoTime()
+            while (isActive) {
+                withFrameNanos { now ->
+                    val deltaMs = (now - lastNs) / 1_000_000f
+                    lastNs = now
+                    rotation = (rotation + deltaMs * 0.018f) % 360f
+                }
+            }
+        }
+
         val baseCoverModifier = Modifier
             .size(coverWidth, coverHeight)
-            .shadow(20.dp, RoundedCornerShape(FluentLargeCorner))
-            .clip(RoundedCornerShape(FluentLargeCorner))
+            .graphicsLayer {
+                if (rotating) rotationZ = rotation
+            }
+            .shadow(20.dp, coverShape)
+            .clip(coverShape)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -1501,7 +1629,7 @@ private fun PlayerCoverSection(
                     Image(
                         bitmap = bmp,
                         contentDescription = null,
-                        contentScale = ContentScale.Fit,
+                        contentScale = if (rotating) ContentScale.Crop else ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -1538,7 +1666,7 @@ private fun PlayerSongInfoSection(
     Column(modifier = sharedModifier.then(modifier).fillMaxWidth()) {
         Text(
             text = currentSong?.title ?: "未在播放",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            style = MiuixTheme.textStyles.headline2.copy(fontWeight = FontWeight.Bold),
             color = fluidOnColorSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1556,7 +1684,7 @@ private fun PlayerSongInfoSection(
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = currentSong?.let { "${it.artist} - ${it.album}" } ?: "选择一首歌曲开始",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MiuixTheme.textStyles.body1,
             color = fluidOnColorTertiary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -1643,7 +1771,7 @@ private fun PlayerProgressSection(
             ) {
                 Text(
                     text = seekBubbleText,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MiuixTheme.textStyles.footnote2,
                     color = fluidOnColorSecondary
                 )
             }
@@ -1665,7 +1793,7 @@ private fun PlayerControlsSection(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FluentIconButton(onClick = { viewModel.toggleShuffle() }) {
+        IconButton(onClick = { viewModel.toggleShuffle() }) {
             PlayerIcon(
                 imageVector = Lucide.Shuffle,
                 contentDescription = "随机播放",
@@ -1674,7 +1802,7 @@ private fun PlayerControlsSection(
             )
         }
 
-        FluentIconButton(onClick = { viewModel.previous() }) {
+        IconButton(onClick = { viewModel.previous() }) {
             PlayerIcon(
                 imageVector = Lucide.SkipBack,
                 contentDescription = "上一首",
@@ -1682,7 +1810,7 @@ private fun PlayerControlsSection(
             )
         }
 
-        FluentIconButton(onClick = { viewModel.playPause() }) {
+        IconButton(onClick = { viewModel.playPause() }) {
             PlayerIcon(
                 imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
                 contentDescription = if (isPlaying) "暂停" else "播放",
@@ -1690,7 +1818,7 @@ private fun PlayerControlsSection(
             )
         }
 
-        FluentIconButton(onClick = { viewModel.next() }) {
+        IconButton(onClick = { viewModel.next() }) {
             PlayerIcon(
                 imageVector = Lucide.SkipForward,
                 contentDescription = "下一首",
@@ -1698,7 +1826,7 @@ private fun PlayerControlsSection(
             )
         }
 
-        FluentIconButton(onClick = { viewModel.toggleRepeatMode() }) {
+        IconButton(onClick = { viewModel.toggleRepeatMode() }) {
             PlayerIcon(
                 imageVector = when (repeatMode) {
                     Player.REPEAT_MODE_ONE -> Lucide.Repeat1
@@ -1716,6 +1844,7 @@ private fun PlayerControlsSection(
 private fun PlayerBottomActionsSection(
     openQueue: () -> Unit,
     onShowMore: () -> Unit,
+    onAddToPlaylistClick: () -> Unit,
     isDarkTheme: Boolean
 ) {
     // 上划打开播放队列（整排底栏图标上方居中）
@@ -1743,7 +1872,7 @@ private fun PlayerBottomActionsSection(
             .fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        FluentIconButton(onClick = { /* TODO: 音频输出 */ }) {
+        IconButton(onClick = { /* TODO: 音频输出 */ }) {
             PlayerIcon(
                 imageVector = Lucide.Volume2,
                 contentDescription = "音频输出",
@@ -1751,7 +1880,7 @@ private fun PlayerBottomActionsSection(
             )
         }
 
-        FluentIconButton(onClick = { /* TODO: 添加到歌单 */ }) {
+        IconButton(onClick = onAddToPlaylistClick) {
             PlayerIcon(
                 imageVector = Lucide.FolderPlus,
                 contentDescription = "添加到歌单",
@@ -1759,7 +1888,7 @@ private fun PlayerBottomActionsSection(
             )
         }
 
-        FluentIconButton(onClick = { openQueue() }) {
+        IconButton(onClick = { openQueue() }) {
             PlayerIcon(
                 imageVector = Lucide.ListMusic,
                 contentDescription = "播放队列",
@@ -1767,7 +1896,7 @@ private fun PlayerBottomActionsSection(
             )
         }
 
-        FluentIconButton(onClick = { /* TODO: 倍速 */ }) {
+        IconButton(onClick = { /* TODO: 倍速 */ }) {
             PlayerIcon(
                 imageVector = Lucide.Gauge,
                 contentDescription = "倍速",
@@ -1775,7 +1904,7 @@ private fun PlayerBottomActionsSection(
             )
         }
 
-        FluentIconButton(onClick = { onShowMore() }) {
+        IconButton(onClick = { onShowMore() }) {
             PlayerIcon(
                 imageVector = Lucide.EllipsisVertical,
                 contentDescription = "更多",
@@ -1816,7 +1945,7 @@ private fun PlayerLyricsPane(
         ) {
             Text(
                 text = "暂无歌词",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MiuixTheme.textStyles.headline2,
                 color = fluidOnColor.copy(alpha = 0.5f)
             )
         }
@@ -1836,9 +1965,14 @@ private fun PlayerLyricsPreviewSection(
     modifier: Modifier = Modifier
 ) {
     val lyricLines = lyrics?.lines ?: emptyList()
-    val currentLine = lyricLines.getOrNull(currentLyricIndex.coerceAtLeast(0))
-    val nextLine = lyricLines.getOrNull((currentLyricIndex + 1).coerceAtMost(lyricLines.lastIndex))
+    // currentLyricIndex=-1（前奏，还没到第一句）时与第一行对齐，
+    // 下一句取其后一行，避免把第一行再显示一遍
+    val currentIndex = currentLyricIndex.coerceAtLeast(0)
+    val currentLine = lyricLines.getOrNull(currentIndex)
+    val nextLine = lyricLines.getOrNull(currentIndex + 1)
     val lyricTextAlign = if (lyricAlignCenter) TextAlign.Center else TextAlign.Start
+    // 当前句实际占几行：折行后（两行）不再显示第二行的翻译/下一句
+    var currentLineCount by remember { mutableIntStateOf(1) }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -1850,33 +1984,30 @@ private fun PlayerLyricsPreviewSection(
         horizontalAlignment = if (lyricAlignCenter) Alignment.CenterHorizontally else Alignment.Start
     ) {
         if (lyricLines.isNotEmpty() && currentLine != null) {
+            // 第一行：当前句，一行放不下自动折行，上限两行；两行同字号
             Text(
                 text = currentLine.lyricContent(),
                 modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.body1,
                 color = fluidOnColorSecondary,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                textAlign = lyricTextAlign
+                textAlign = lyricTextAlign,
+                onTextLayout = { currentLineCount = it.lineCount }
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            val translation = currentLine.lyricTranslation()
-            if (!translation.isNullOrEmpty()) {
+            // 第二行：当前句未折行时显示翻译（有则翻译，无则下一句）；
+            // 都没有时保留空行占位，保持两行高度稳定
+            if (currentLineCount <= 1) {
+                Spacer(modifier = Modifier.height(2.dp))
+                val translation = currentLine.lyricTranslation()
+                val secondLine = if (!translation.isNullOrBlank()) translation
+                else nextLine?.lyricContent()
                 Text(
-                    text = translation,
+                    text = secondLine?.takeIf { it.isNotBlank() } ?: " ",
                     modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = fluidOnColorSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = lyricTextAlign
-                )
-            } else if (nextLine != null) {
-                Text(
-                    text = nextLine.lyricContent(),
-                    modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = fluidOnColorSecondary,
+                    style = MiuixTheme.textStyles.body1,
+                    color = if (secondLine.isNullOrBlank()) fluidOnColorVeryHint
+                    else fluidOnColorSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = lyricTextAlign
@@ -1884,18 +2015,18 @@ private fun PlayerLyricsPreviewSection(
             }
         } else {
             Text(
-                text = "暂无歌词",
+                text = "Beyond words.",
                 modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MiuixTheme.textStyles.body1,
                 color = fluidOnColorHint,
                 maxLines = 1,
                 textAlign = lyricTextAlign
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "点击导入歌词",
+                text = "无言以和。",
                 modifier = Modifier.fillMaxWidth().fluidBlend(targetBlendMode),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body1,
                 color = fluidOnColorVeryHint,
                 maxLines = 1,
                 textAlign = lyricTextAlign
@@ -1903,3 +2034,4 @@ private fun PlayerLyricsPreviewSection(
         }
     }
 }
+

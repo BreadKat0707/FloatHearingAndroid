@@ -25,9 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,9 +40,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import cn.lemondrop.fhreborn.util.BackgroundImageUtils
-import io.github.composefluent.component.Switcher
-import io.github.composefluent.component.Text
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private const val KEY_BG_TYPE = "bg_type"
 private const val KEY_BG_COLOR = "bg_color"
@@ -138,7 +138,7 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                         ColorSwatch(
                             label = label,
                             swatchColor = if (hex.isBlank()) {
-                                MaterialTheme.colorScheme.background
+                                MiuixTheme.colorScheme.background
                             } else {
                                 Color(android.graphics.Color.parseColor(hex))
                             },
@@ -159,7 +159,7 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                         .fillMaxWidth()
                         .height(160.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .background(MiuixTheme.colorScheme.surfaceVariant)
                         .clickable {
                             pickImageLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -184,7 +184,7 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                     } else {
                         Text(
                             text = "点击选择图片",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
                 }
@@ -192,8 +192,8 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (previewBitmap != null) "点击预览可重新选择图片" else "尚未选择图片",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -217,13 +217,13 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .background(MiuixTheme.colorScheme.errorContainer)
                         .padding(12.dp)
                 ) {
                     Text(
                         text = "⚠ 实验性功能：目前仅实现壁纸模糊，材质显示效果尚未调整，会有显示异常（拖影、内容叠叠），极度不建议开启。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onErrorContainer
                     )
                 }
                 SliderRow(
@@ -241,18 +241,18 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "替代材质",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "切换云母的 tint/噪点风格",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
-                    Switcher(
+                    Switch(
                         checked = bgMicaAlt,
-                        onCheckStateChange = { checked ->
+                        onCheckedChange = { checked ->
                             scope.launch { viewModel.repository.setBoolean(KEY_BG_MICA_ALT, checked) }
                         }
                     )
@@ -261,8 +261,8 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "云母会实时透出系统壁纸并跨窗口模糊，需设备开启跨窗口模糊（受省电模式/开发者选项/GPU 影响）；动态壁纸会跟随变化。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
             }
         }
@@ -275,8 +275,8 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
 private fun SectionTitle(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
+        style = MiuixTheme.textStyles.title3,
+        color = MiuixTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
     )
 }
@@ -298,8 +298,8 @@ private fun TypeOption(
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface
         )
     }
 }
@@ -322,15 +322,15 @@ private fun ColorSwatch(
                 .background(swatchColor)
                 .border(
                     width = if (selected) 3.dp else 1.dp,
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    color = if (selected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.outline,
                     shape = CircleShape
                 )
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = if (selected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
     }
 }
@@ -346,14 +346,14 @@ private fun SliderRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
             Text(
                 text = value.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.primary
             )
         }
         Slider(

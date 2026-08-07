@@ -14,9 +14,12 @@ import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.scanner.MediaScanner
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.util.ArtistSplitter
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -172,6 +175,10 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val _scanProgress = MutableStateFlow<ScanProgress>(ScanProgress.Idle)
     val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
+    /** 手动刷新完成事件：发出扫描到的歌曲数，用于 Snackbar 提示 */
+    private val _refreshCompleted = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    val refreshCompleted: SharedFlow<Int> = _refreshCompleted.asSharedFlow()
+
     private var hasAutoScanned = false
 
     private val _searchQuery = MutableStateFlow("")
@@ -245,6 +252,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * 手动从 MediaStore 刷新：读取系统媒体库中的音频文件变动（新增/删除/元数据修改）。
+     * 完成后通过 [refreshCompleted] 发出扫描到的歌曲数。
      */
     fun refreshMediaStore() {
         viewModelScope.launch {
@@ -254,6 +262,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 if (progress is ScanProgress.Completed) {
                     val removed = repository.replaceAllSongs(progress.songs)
                     _scanProgress.value = progress.copy(removed = removed)
+                    _refreshCompleted.tryEmit(progress.songs.size)
                 }
             }
         }

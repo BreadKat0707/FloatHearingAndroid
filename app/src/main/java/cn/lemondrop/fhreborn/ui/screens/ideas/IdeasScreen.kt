@@ -4,25 +4,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverIconButton
-import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
-import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+import cn.lemondrop.fhreborn.LocalDrawerToggle
+import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.runtime.CompositionLocalProvider
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun IdeasScreen(
@@ -30,54 +30,47 @@ fun IdeasScreen(
     onNavigate: (String) -> Unit,
     playerViewModel: PlayerViewModel
 ) {
-    var showDrawer by remember { mutableStateOf(false) }
-
-    val titleText: @Composable () -> Unit = {
-        Text(
-            text = "想法",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-
-    val menuButton: @Composable () -> Unit = {
-        CloverIconButton(
-            icon = Lucide.Menu,
-            contentDescription = "菜单",
-            onClick = { showDrawer = true }
-        )
-    }
-
-    CloverAdaptiveShellScaffold(
-        strategy = CloverShellStrategy.BottomCombined,
-        title = titleText,
-        navigationIcon = menuButton,
-        background = { AppBackgroundLayer() },
-        overlay = { state ->
-            AppDrawer(
-                visible = showDrawer,
-                onDismiss = { showDrawer = false },
-                currentRoute = currentRoute,
-                onNavigate = { route ->
-                    showDrawer = false
-                    onNavigate(route)
-                },
-                hazeState = state.hazeState,
-                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-            )
+    val drawerVisible = LocalDrawerVisible.current
+    val drawerToggle = LocalDrawerToggle.current
+    AppShell(
+        drawerVisible = drawerVisible.value,
+        onDismissDrawer = { drawerVisible.value = false },
+        currentRoute = currentRoute,
+        onNavigate = { route ->
+            onNavigate(route)
         },
-        content = { state ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = state.contentPadding.calculateTopPadding()),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "想法页面（占位）",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AppBackgroundLayer()
+            Scaffold(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            topBar = {
+                BlurTopBar(
+                    title = "想法",
+                navigationIcon = {
+                    IconButton(onClick = { drawerToggle() }) {
+                        Icon(
+                            imageVector = Lucide.Menu,
+                            contentDescription = "菜单"
+                        )
+                    }
+                }
+            )
         }
-    )
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "想法页面（占位）",
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+            )
+        }
+    }
+    }
+    }
 }

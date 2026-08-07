@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,13 +39,13 @@ fun PlayDurationLineChart(
     title: String? = null
 ) {
     val textMeasurer = rememberTextMeasurer()
-    val surfaceColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val lineColor = MaterialTheme.colorScheme.primary
-    val pointColor = MaterialTheme.colorScheme.primary
-    val textStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
-    val titleStyle = MaterialTheme.typography.labelMedium.copy(color = labelColor)
+    val surfaceColor = MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val gridColor = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.2f)
+    val labelColor = MiuixTheme.colorScheme.onSurfaceVariantSummary
+    val lineColor = MiuixTheme.colorScheme.primary
+    val pointColor = MiuixTheme.colorScheme.primary
+    val textStyle = MiuixTheme.textStyles.footnote2.copy(color = labelColor)
+    val titleStyle = MiuixTheme.textStyles.footnote1.copy(color = labelColor)
 
     Canvas(
         modifier = modifier

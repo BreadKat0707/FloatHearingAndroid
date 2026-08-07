@@ -6,19 +6,19 @@ junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.13.0"
-kotlin = "2.2.10"
+kotlin = "2.3.10"
 composeBom = "2026.02.01"
 
 # Added
 room = "2.7.1"
-ksp = "2.2.10-2.0.2"
+ksp = "2.3.10"
 media3 = "1.7.0"
 navigationCompose = "2.9.0"
 datastore = "1.1.6"
-haze = "1.7.2"
 coroutines = "1.10.2"
 lucide = "1.0.0"
 jaudiotagger = "3.0.1"
+miuix = "0.9.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,10 +53,6 @@ navigation-compose = { group = "androidx.navigation", name = "navigation-compose
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-# Haze
-haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
-haze-materials = { group = "dev.chrisbanes.haze", name = "haze-materials", version.ref = "haze" }
-
 # Coroutines
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 
@@ -65,6 +61,12 @@ lucide = { group = "com.composables", name = "icons-lucide", version.ref = "luci
 
 # JAudioTagger - 音频标签读取
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
+
+# Miuix UI
+miuix-ui = { group = "top.yukonga.miuix.kmp", name = "miuix-ui", version.ref = "miuix" }
+miuix-preference = { group = "top.yukonga.miuix.kmp", name = "miuix-preference", version.ref = "miuix" }
+miuix-blur = { group = "top.yukonga.miuix.kmp", name = "miuix-blur", version.ref = "miuix" }
+miuix-squircle = { group = "top.yukonga.miuix.kmp", name = "miuix-squircle", version.ref = "miuix" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

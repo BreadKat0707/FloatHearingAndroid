@@ -71,14 +71,14 @@ val resolvedVersionName = computeVersionName()
 android {
     namespace = "cn.lemondrop.fhreborn"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
+        version = release(37) {
+            minorApiLevel = 0
         }
     }
 
     defaultConfig {
         applicationId = "cn.lemondrop.fhreborn"
-        minSdk = 31
+        minSdk = 33
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName
@@ -165,12 +165,11 @@ kotlin {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.material3:material3-window-size-class")
     implementation(libs.androidx.compose.animation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
@@ -195,17 +194,14 @@ dependencies {
     // Lucide icons00
     implementation(libs.lucide)
 
-    implementation("io.github.compose-fluent:fluent:v0.1.0")
-
     // JAudioTagger - 读取音频内嵌歌词（USLT / VorbisComment LYRICS）
     implementation(libs.jaudiotagger)
 
-
-    // Clover UI
-    implementation("cn.lemondrop.clover:clover-ui:0.1.1-SNAPSHOT")
-
-    // Haze - Material Design 毛玻璃效果
-    implementation("dev.chrisbanes.haze:haze:1.7.2")
+    // Miuix UI
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.preference)
+    implementation(libs.miuix.blur)
+    implementation(libs.miuix.squircle)
 
     //Accompanist Lyric
     implementation("com.mocharealm.accompanist:lyrics-ui:1.0.19")

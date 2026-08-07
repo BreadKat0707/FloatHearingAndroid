@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -43,13 +43,14 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import top.yukonga.miuix.kmp.basic.IconButton
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.X
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Text
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 全屏播放队列
@@ -153,7 +154,7 @@ fun PlayerQueueScreen(
                         .width(36.dp)
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        .background(MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.4f))
                 )
 
                 Row(
@@ -163,16 +164,16 @@ fun PlayerQueueScreen(
                 ) {
                     Text(
                         text = "播放队列 (${queue.size})",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = MiuixTheme.textStyles.title2,
+                        color = MiuixTheme.colorScheme.onSurface
                     )
 
-                    FluentIconButton(onClick = onBack) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Lucide.X,
                             contentDescription = "关闭",
                             modifier = Modifier.size(22.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MiuixTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -184,7 +185,7 @@ fun PlayerQueueScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .nestedScroll(nestedScrollConnection),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 itemsIndexed(queue, key = { index, song -> "${song.id}_$index" }) { index, song ->
                     QueueItem(
@@ -223,27 +224,27 @@ private fun QueueItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = song.title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isCurrent) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                color = if (isCurrent) MiuixTheme.colorScheme.primary
+                else MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "${song.artist} - ${song.album}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        FluentIconButton(onClick = onRemove) {
+        IconButton(onClick = onRemove) {
             Icon(
                 imageVector = Lucide.X,
                 contentDescription = "移除",
                 modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
     }

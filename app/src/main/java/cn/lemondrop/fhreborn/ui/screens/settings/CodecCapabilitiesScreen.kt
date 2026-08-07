@@ -11,17 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverSizes
-import dev.chrisbanes.haze.HazeState
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 查看本机支持的音视频编解码器内容（纯内容组件，不带外壳）。
@@ -30,8 +28,7 @@ import io.github.composefluent.component.Text
 @Composable
 fun CodecCapabilitiesContent(
     paddingValues: PaddingValues,
-    bottomOverlayHeight: Dp,
-    hazeState: HazeState
+    bottomOverlayHeight: Dp
 ) {
     val codecs = remember { loadCodecList() }
 
@@ -40,16 +37,16 @@ fun CodecCapabilitiesContent(
             .fillMaxSize()
             .padding(
                 top = paddingValues.calculateTopPadding(),
-                start = CloverSizes.listOuterHorizontalPadding,
-                end = CloverSizes.listOuterHorizontalPadding
+                start = 16.dp,
+                end = 16.dp
             ),
         contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
     ) {
         item {
             Text(
                 text = "共 ${codecs.size} 个编解码器",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
         }
@@ -97,8 +94,8 @@ private fun CodecItem(codec: CodecInfo) {
     ) {
         Text(
             text = codec.name,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            style = MiuixTheme.textStyles.title3,
+            color = MiuixTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
@@ -107,14 +104,14 @@ private fun CodecItem(codec: CodecInfo) {
                 append(" · ")
                 append(if (codec.isHardwareAccelerated) "硬件加速" else "软件/非硬解")
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = codec.supportedMimeTypesDescription,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
     }
 }

@@ -4,25 +4,25 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.material.CloverWallpaperMica
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.util.BackgroundImageUtils
 
 /**
  * 主页面共享背景层：纯色 / 自选图片（亮度 + 模糊）/ 云母（系统壁纸实时透出）。
  *
- * 只渲染背景，不含上层内容。各页面通过 CloverAdaptiveShellScaffold 的 background 参数引入，
+ * 只渲染背景，不含上层内容。各页面通过 scaffold 的 background 参数引入，
  * 统一背景以透到所有页面。
  */
 @Composable
@@ -60,20 +60,60 @@ fun AppBackgroundLayer(modifier: Modifier = Modifier) {
                 Box(
                     modifier = modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(MiuixTheme.colorScheme.background)
                 )
             }
         }
         "mica" -> {
-            CloverWallpaperMica(
-                modifier = modifier.fillMaxSize(),
-                isAlt = bgMicaAlt,
-                blurRadius = bgMicaBlur.dp
-            ) {}
+            val wallpaperBitmap = remember {
+                try {
+                    val wm = context.getSystemService(android.app.WallpaperManager::class.java)
+                    wm?.drawable?.let { drawable ->
+                        val bmp = android.graphics.Bitmap.createBitmap(
+                            drawable.intrinsicWidth.coerceAtLeast(1),
+                            drawable.intrinsicHeight.coerceAtLeast(1),
+                            android.graphics.Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = android.graphics.Canvas(bmp)
+                        drawable.setBounds(0, 0, canvas.width, canvas.height)
+                        drawable.draw(canvas)
+                        bmp
+                    }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            if (wallpaperBitmap != null) {
+                Box(modifier = modifier.fillMaxSize()) {
+                    Image(
+                        bitmap = wallpaperBitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(bgMicaBlur.dp)
+                    )
+                    // Mica 色调层
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                if (bgMicaAlt) MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                else MiuixTheme.colorScheme.surface.copy(alpha = 0.6f)
+                            )
+                    )
+                }
+            } else {
+                Box(
+                    modifier = modifier
+                        .fillMaxSize()
+                        .background(MiuixTheme.colorScheme.surface)
+                )
+            }
         }
         else -> {
             val solidColor = if (bgColor.isBlank()) {
-                MaterialTheme.colorScheme.background
+                MiuixTheme.colorScheme.background
             } else {
                 Color(android.graphics.Color.parseColor(bgColor))
             }

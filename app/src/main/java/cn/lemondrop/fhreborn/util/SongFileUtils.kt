@@ -4,9 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,14 +82,14 @@ object SongFileUtils {
             if (song.trackNumber != null) appendLine("音轨号：${song.trackNumber}")
             if (!file.exists()) appendLine("状态：文件不存在")
         }
-        AlertDialog(
+        FhBottomSheet(
+            show = true,
+            title = "歌曲属性",
             onDismissRequest = onDismiss,
-            title = { Text("歌曲属性") },
-            text = { Text(message) },
-            confirmButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("确定")
-                }
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer,
+            content = {
+                Text(text = message)
+                TextButton(text = "确定", onClick = onDismiss)
             }
         )
     }

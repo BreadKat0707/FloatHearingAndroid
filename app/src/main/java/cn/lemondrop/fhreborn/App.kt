@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,12 +40,17 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
+import kotlinx.coroutines.launch
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.theme.FloatHearingTheme
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
-import cn.lemondrop.clover.CloverTheme
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.MiuixPopupUtils
+
 import cn.lemondrop.fhreborn.ui.components.MiniPlayBar
+import cn.lemondrop.fhreborn.ui.components.ScheduledPauseDialog
 import cn.lemondrop.fhreborn.ui.screens.album.AlbumDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.artist.ArtistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
@@ -54,6 +60,7 @@ import cn.lemondrop.fhreborn.ui.screens.ideas.IdeasScreen
 import cn.lemondrop.fhreborn.ui.screens.library.LibraryScreen
 import cn.lemondrop.fhreborn.ui.screens.onboarding.OnboardingScreen
 import cn.lemondrop.fhreborn.ui.screens.player.PlayerScreen
+import cn.lemondrop.fhreborn.ui.screens.playlists.PlaylistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.playlists.PlaylistsScreen
 import cn.lemondrop.fhreborn.ui.screens.settings.SettingsScreen
 import cn.lemondrop.fhreborn.ui.screens.statistics.StatisticsScreen
@@ -81,6 +88,9 @@ sealed class Screen(val route: String) {
             return "album/${Uri.encode(albumName)}/$artistPart"
         }
     }
+    data object PlaylistDetail : Screen("playlist/{playlistId}") {
+        fun createRoute(playlistId: Long) = "playlist/$playlistId"
+    }
 }
 
 /**
@@ -95,6 +105,26 @@ val LocalPredictiveBackEnabled = staticCompositionLocalOf { false }
  * 页面内容底部需要 spacer 时可以使用此值，避免被悬浮的 PlayBar 遮挡。
  */
 val LocalGlobalPlayBarHeight = staticCompositionLocalOf { 160.dp }
+
+/**
+ * 全局抽屉展开状态（MutableState 引用）。由 App 根提供：
+ * - 页面 menu 按钮通过 [LocalDrawerToggle] 切换它
+ * - AppShell 读它控制侧边栏/底部弹层
+ * - MiniPlayBar 读它计算避让宽度
+ */
+val LocalDrawerVisible = staticCompositionLocalOf { mutableStateOf(false) }
+
+/**
+ * 全局抽屉 toggle 入口（负责切换 + 大屏时持久化状态）。
+ * 页面 menu 按钮直接调用：onClick = { LocalDrawerToggle.current() }
+ */
+val LocalDrawerToggle = staticCompositionLocalOf<() -> Unit> { {} }
+
+/**
+ * 播放器覆盖层是否打开。播放器打开时，页面自身的 BackHandler 必须让位，
+ * 让返回键先关闭播放器（BackHandler 后组合者优先，否则页面会抢走返回事件）。
+ */
+val LocalPlayerOpen = staticCompositionLocalOf { false }
 
 @Composable
 fun FHRebornApp() {
@@ -124,6 +154,30 @@ fun FHRebornApp() {
     )
 
     var showPlayer by remember { mutableStateOf(false) }
+
+    // 全局抽屉展开状态（大屏侧边栏 / 小屏 BottomSheet 共用）
+    val drawerVisibleState = remember { mutableStateOf(false) }
+    val isLargeScreen = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
+    val savedDrawerExpanded by appSettingsRepository.drawerExpanded.collectAsState(initial = true)
+    val appScope = rememberCoroutineScope()
+
+    // 打开设置时希望直达的分类（如播放器"歌词设置"→ 设置-歌词）
+    val pendingSettingsCategory = remember { mutableStateOf<String?>(null) }
+
+    // 大屏：启动时恢复上次的侧边栏展开状态（跨启动记住）
+    LaunchedEffect(savedDrawerExpanded, isLargeScreen) {
+        if (isLargeScreen) drawerVisibleState.value = savedDrawerExpanded
+    }
+
+    // 全局 toggle：切换展开状态；大屏时持久化（小屏 BottomSheet 的一次性行为不持久化）
+    val toggleDrawer: () -> Unit = {
+        drawerVisibleState.value = !drawerVisibleState.value
+        if (isLargeScreen) {
+            appScope.launch {
+                appSettingsRepository.setDrawerExpanded(drawerVisibleState.value)
+            }
+        }
+    }
 
     // 通知栏/媒体控件等外部入口要求打开播放器页面
     LaunchedEffect(playerViewModel) {
@@ -203,10 +257,21 @@ fun FHRebornApp() {
     CompositionLocalProvider(
         LocalAppDarkTheme provides isDarkTheme,
         LocalPredictiveBackEnabled provides predictiveBack,
-        LocalGlobalPlayBarHeight provides globalPlayBarHeight
+        LocalGlobalPlayBarHeight provides globalPlayBarHeight,
+        LocalDrawerVisible provides drawerVisibleState,
+        LocalDrawerToggle provides toggleDrawer,
+        LocalPlayerOpen provides showPlayer
     ) {
-        CloverTheme(darkTheme = isDarkTheme, dynamicColor = useDynamicColor) {
-        FloatHearingTheme(darkTheme = isDarkTheme, useDynamicColor = useDynamicColor) {
+        FloatHearingTheme(
+            darkTheme = isDarkTheme,
+            useDynamicColor = useDynamicColor,
+            themeMode = themeMode
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = MiuixTheme.colorScheme.background,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            ) { padding ->
             Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
@@ -249,14 +314,34 @@ fun FHRebornApp() {
                 PlaylistsScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Playlists.route,
                     onNavigate = topLevelNavigate,
+                    playerViewModel = playerViewModel,
+                    onOpenPlaylist = { playlistId ->
+                        navController.navigate(Screen.PlaylistDetail.createRoute(playlistId))
+                    }
+                )
+            }
+
+            composable(Screen.PlaylistDetail.route) { backStackEntry ->
+                val playlistId = backStackEntry.arguments?.getString("playlistId")?.toLongOrNull() ?: 0L
+                PlaylistDetailScreen(
+                    playlistId = playlistId,
+                    onBack = { navController.navigateUp() },
                     playerViewModel = playerViewModel
                 )
             }
 
-            composable(Screen.FolderBrowser.route) {
+            composable(Screen.FolderBrowser.route) { backStackEntry ->
                 FolderBrowserScreen(
+                    currentRoute = backStackEntry.destination.route ?: Screen.FolderBrowser.route,
                     playerViewModel = playerViewModel,
-                    onBack = { navController.navigateUp() }
+                    onBack = { navController.navigateUp() },
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(Screen.Library.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
 
@@ -280,7 +365,8 @@ fun FHRebornApp() {
                 SettingsScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Settings.route,
                     onNavigate = topLevelNavigate,
-                    playerViewModel = playerViewModel
+                    playerViewModel = playerViewModel,
+                    initialCategoryKey = pendingSettingsCategory.value
                 )
             }
 
@@ -336,13 +422,15 @@ fun FHRebornApp() {
 
         // 全局迷你播放条（悬浮在主页面/详情页底部）
         if (shouldShowPlayBar) {
+            // 大屏且侧边栏展开时，PlayBar 让出左侧侧边栏区域，只覆盖内容区宽度
+            val sidebarInset = if (isLargeScreen && drawerVisibleState.value) cn.lemondrop.fhreborn.ui.components.SidebarWidth else 0.dp
             MiniPlayBar(
                 playerViewModel = playerViewModel,
                 onClick = { showPlayer = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(start = 16.dp, end = 16.dp, bottom = playBarBottomOffset)
+                    .padding(start = sidebarInset, end = 16.dp, bottom = playBarBottomOffset)
             )
         }
 
@@ -358,6 +446,14 @@ fun FHRebornApp() {
                 onNavigateToArtist = { artist ->
                     showPlayer = false
                     navController.navigate(Screen.ArtistDetail.createRoute(artist))
+                },
+                onOpenSettingsCategory = { category ->
+                    // 播放器 → 设置指定分类：先关播放器，再导航到设置并直达分类
+                    pendingSettingsCategory.value = category
+                    showPlayer = false
+                    navController.navigate(Screen.Settings.route) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }

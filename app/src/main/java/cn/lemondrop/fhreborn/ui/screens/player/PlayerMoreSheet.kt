@@ -4,20 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverMenuItem
-import cn.lemondrop.clover.CloverWindowBottomSheet
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import com.composables.icons.lucide.Album
@@ -36,7 +36,9 @@ import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.Timer
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.Volume2
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 
 private data class MoreMenuItem(
     val label: String,
@@ -83,8 +85,10 @@ fun PlayerMoreSheet(
         MoreMenuItem("删除文件", Lucide.Trash2, onDeleteClick)
     )
 
-    CloverWindowBottomSheet(
-        onDismiss = onDismiss
+    FhBottomSheet(
+        show = true,
+        onDismissRequest = onDismiss,
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         song?.let { currentSong ->
             Row(
@@ -100,15 +104,15 @@ fun PlayerMoreSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = currentSong.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = currentSong.artist,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -119,21 +123,35 @@ fun PlayerMoreSheet(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
+                    .background(MiuixTheme.colorScheme.outline)
             )
         }
 
         LazyColumn {
             items(menuItems, key = { it.label }) { item ->
-                CloverMenuItem(
-                    label = item.label,
-                    icon = item.icon,
-                    isDestructive = item.label == "删除文件",
-                    onClick = {
-                        item.onClick()
-                        onDismiss()
-                    }
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            item.onClick()
+                            onDismiss()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = if (item.label == "删除文件") MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = item.label,
+                        style = MiuixTheme.textStyles.body1,
+                        color = if (item.label == "删除文件") MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }

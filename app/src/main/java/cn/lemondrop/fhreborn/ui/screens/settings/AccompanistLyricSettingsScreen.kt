@@ -12,8 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,17 +24,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverDialog
-import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Lucide
-import dev.chrisbanes.haze.HazeState
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Slider
-import io.github.composefluent.component.Switcher
-import io.github.composefluent.component.Text
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Icon
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * Accompanist Lyric 设置内容（纯内容组件，不带外壳）。
@@ -44,8 +43,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AccompanistLyricSettingsContent(
     paddingValues: PaddingValues,
-    bottomOverlayHeight: Dp,
-    hazeState: HazeState
+    bottomOverlayHeight: Dp
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
@@ -62,14 +60,18 @@ fun AccompanistLyricSettingsContent(
     val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = true)
     val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
     val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
+    val glowEffect by repository.acclLyricGlowEffect.collectAsState(initial = true)
+    val breathingDotsSize by repository.acclLyricBreathingDotsSize.collectAsState(initial = 16)
+    val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = 14)
+    val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = paddingValues.calculateTopPadding()),
         contentPadding = PaddingValues(
-            start = CloverSizes.listOuterHorizontalPadding,
-            end = CloverSizes.listOuterHorizontalPadding,
+            start = 16.dp,
+            end = 16.dp,
             bottom = bottomOverlayHeight + 16.dp
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -93,6 +95,7 @@ fun AccompanistLyricSettingsContent(
                 range = 100f..900f,
                 steps = 7,
                 valueText = "$mainFontWeight",
+                keyPoints = listOf(100f, 200f, 300f, 400f, 500f, 600f, 700f, 800f, 900f),
                 onValueChange = { scope.launch { repository.setAcclLyricMainFontWeight(it.toInt()) } }
             )
         }
@@ -116,6 +119,7 @@ fun AccompanistLyricSettingsContent(
                 range = 100f..900f,
                 steps = 7,
                 valueText = "$accompanimentFontWeight",
+                keyPoints = listOf(100f, 200f, 300f, 400f, 500f, 600f, 700f, 800f, 900f),
                 onValueChange = { scope.launch { repository.setAcclLyricAccompanimentFontWeight(it.toInt()) } }
             )
         }
@@ -139,6 +143,7 @@ fun AccompanistLyricSettingsContent(
                 range = 100f..900f,
                 steps = 7,
                 valueText = "$phoneticFontWeight",
+                keyPoints = listOf(100f, 200f, 300f, 400f, 500f, 600f, 700f, 800f, 900f),
                 onValueChange = { scope.launch { repository.setAcclLyricPhoneticFontWeight(it.toInt()) } }
             )
         }
@@ -159,8 +164,31 @@ fun AccompanistLyricSettingsContent(
                 onCheckedChange = { scope.launch { repository.setAcclLyricShowPhonetic(it) } }
             )
         }
+        item {
+            SliderSettingItem(
+                title = "翻译文字大小",
+                value = translationTextSize,
+                range = 10f..28f,
+                steps = 17,
+                valueText = "${translationTextSize}sp",
+                enabled = showTranslation,
+                onValueChange = { scope.launch { repository.setAcclLyricTranslationTextSizeSp(it.toInt()) } }
+            )
+        }
+        item {
+            SliderSettingItem(
+                title = "翻译文字粗细",
+                value = translationFontWeight,
+                range = 100f..900f,
+                steps = 7,
+                valueText = "$translationFontWeight",
+                enabled = showTranslation,
+                keyPoints = listOf(100f, 200f, 300f, 400f, 500f, 600f, 700f, 800f, 900f),
+                onValueChange = { scope.launch { repository.setAcclLyricTranslationFontWeight(it.toInt()) } }
+            )
+        }
 
-        // 模糊
+        // 效果
         item { SectionHeader("效果") }
         item {
             ToggleSettingItem(
@@ -180,14 +208,32 @@ fun AccompanistLyricSettingsContent(
                 onValueChange = { scope.launch { repository.setAcclLyricBlurDelta(it.toInt()) } }
             )
         }
+        item {
+            ToggleSettingItem(
+                title = "歌词发光效果",
+                summary = "深色模式叠加发光混合，浅色模式加深对比",
+                checked = glowEffect,
+                onCheckedChange = { scope.launch { repository.setAcclLyricGlowEffect(it) } }
+            )
+        }
+        item {
+            SliderSettingItem(
+                title = "呼吸点大小",
+                value = breathingDotsSize,
+                range = 8f..32f,
+                steps = 23,
+                valueText = "${breathingDotsSize}dp",
+                onValueChange = { scope.launch { repository.setAcclLyricBreathingDotsSize(it.toInt()) } }
+            )
+        }
 
         // 对齐方式：当前 Accompanist Lyric 版本不支持全局强制对齐，仅跟随歌词本身标注
         item { SectionHeader("对齐方式") }
         item {
             Text(
                 text = "当前 Accompanist Lyric 版本不支持全局歌词对齐，仅跟随歌词本身标注。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
         }
@@ -198,8 +244,8 @@ fun AccompanistLyricSettingsContent(
 private fun SectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
+        style = MiuixTheme.textStyles.title3,
+        color = MiuixTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
     )
 }
@@ -212,6 +258,7 @@ private fun SliderSettingItem(
     steps: Int,
     valueText: String,
     enabled: Boolean = true,
+    keyPoints: List<Float>? = null,
     onValueChange: (Float) -> Unit
 ) {
     Column(
@@ -226,13 +273,13 @@ private fun SliderSettingItem(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                style = MiuixTheme.textStyles.body1,
+                color = if (enabled) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.38f)
             )
             Text(
                 text = valueText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                style = MiuixTheme.textStyles.body2,
+                color = if (enabled) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.38f)
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -240,8 +287,9 @@ private fun SliderSettingItem(
             value = value.toFloat(),
             onValueChange = onValueChange,
             valueRange = range,
-            steps = steps,
             enabled = enabled,
+            keyPoints = keyPoints,
+            showKeyPoints = keyPoints != null,
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -251,17 +299,14 @@ private fun SliderSettingItem(
 private fun ToggleSettingItem(
     title: String,
     checked: Boolean,
+    summary: String? = null,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    cn.lemondrop.fhreborn.ui.components.FhListItem(
+    top.yukonga.miuix.kmp.preference.SwitchPreference(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
         title = title,
-        onClick = { onCheckedChange(!checked) },
-        trailing = {
-            Switcher(
-                checked = checked,
-                onCheckStateChange = onCheckedChange
-            )
-        }
+        summary = summary,
     )
 }
 
@@ -275,46 +320,36 @@ private fun SelectionSettingItem(
     var showDialog by remember { mutableStateOf(false) }
 
     if (showDialog) {
-        CloverDialog(
-            visible = true,
+        FhBottomSheet(
+            show = true,
             onDismissRequest = { showDialog = false },
             title = title,
-            buttons = { }
-        ) {
-            options.forEach { (key, label) ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = selectedLabel == label,
-                        onClick = {
-                            onSelected(key)
-                            showDialog = false
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(text = label)
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer,
+            content = {
+                options.forEach { (key, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedLabel == label,
+                            onClick = {
+                                onSelected(key)
+                                showDialog = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(text = label)
+                    }
                 }
             }
-        }
+        )
     }
 
-    cn.lemondrop.fhreborn.ui.components.FhListItem(
+    top.yukonga.miuix.kmp.preference.ArrowPreference(
         title = title,
         onClick = { showDialog = true },
-        trailing = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = selectedLabel)
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Lucide.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
     )
 }

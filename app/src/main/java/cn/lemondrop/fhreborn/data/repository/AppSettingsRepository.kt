@@ -28,6 +28,10 @@ class AppSettingsRepository(private val context: Context) {
     val useDynamicColor: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("dynamic_color")] ?: false }
     suspend fun setUseDynamicColor(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("dynamic_color")] = value }
 
+    // 大屏侧边栏展开状态（跨启动记住）
+    val drawerExpanded: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("drawer_expanded")] ?: true }
+    suspend fun setDrawerExpanded(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("drawer_expanded")] = value }
+
     val accentColor: Flow<String> = dataStore.data.map { it[stringPreferencesKey("accent_color")] ?: "default" }
     suspend fun setAccentColor(value: String) = dataStore.edit { it[stringPreferencesKey("accent_color")] = value }
 
@@ -103,6 +107,27 @@ class AppSettingsRepository(private val context: Context) {
 
     val acclLyricTextAlign: Flow<String> = dataStore.data.map { it[stringPreferencesKey("accl_lyric_text_align")] ?: "center" }
     suspend fun setAcclLyricTextAlign(value: String) = dataStore.edit { it[stringPreferencesKey("accl_lyric_text_align")] = value }
+
+    val acclLyricGlowEffect: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_glow")] ?: true }
+    suspend fun setAcclLyricGlowEffect(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_glow")] = value }
+
+    val acclLyricBreathingDotsSize: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_dots_size")] ?: 16 }
+    suspend fun setAcclLyricBreathingDotsSize(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_dots_size")] = value }
+
+    val acclLyricTranslationTextSizeSp: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_translation_size")] ?: 14 }
+    suspend fun setAcclLyricTranslationTextSizeSp(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_translation_size")] = value }
+
+    val acclLyricTranslationFontWeight: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_translation_font_weight")] ?: 400 }
+    suspend fun setAcclLyricTranslationFontWeight(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_translation_font_weight")] = value }
+
+    // ========== 播放器封面 ==========
+    /** 播放器封面圆角（dp） */
+    val playerCoverCornerRadius: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_corner_radius")] ?: 12 }
+    suspend fun setPlayerCoverCornerRadius(value: Int) = dataStore.edit { it[intPreferencesKey("player_cover_corner_radius")] = value }
+
+    /** 圆形旋转封面（启用后非正方形封面裁切为方形显示） */
+    val playerCoverRotating: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("player_cover_rotating")] ?: false }
+    suspend fun setPlayerCoverRotating(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("player_cover_rotating")] = value }
 
     // ========== 媒体库 ==========
     val autoScanOnLaunch: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("auto_scan")] ?: true }

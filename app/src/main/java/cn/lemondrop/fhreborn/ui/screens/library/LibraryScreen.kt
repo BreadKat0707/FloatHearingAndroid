@@ -4,24 +4,20 @@ import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
@@ -31,98 +27,87 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.HorizontalDivider
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.ListItem
-import io.github.composefluent.component.Text
-import io.github.composefluent.component.ProgressRing
-import androidx.compose.ui.graphics.TransformOrigin
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.lemondrop.fhreborn.LocalDrawerToggle
+import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.Screen
-import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.Song
-import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import cn.lemondrop.fhreborn.scanner.ScanProgress
+import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppDrawer
+import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.components.FhListItem
-import cn.lemondrop.fhreborn.ui.components.FlyoutMenu
-import cn.lemondrop.fhreborn.ui.components.FlyoutMenuItem
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
 import cn.lemondrop.fhreborn.ui.components.SortSheet
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
-import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
+import cn.lemondrop.fhreborn.ui.theme.BlurNavigationBar
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
+import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PermissionUtils
-import cn.lemondrop.clover.CloverIconButton
-import cn.lemondrop.clover.CloverMenuItem
-import cn.lemondrop.clover.CloverNavItem
-import cn.lemondrop.clover.CloverSizes
-import cn.lemondrop.clover.CloverTitleBar
-import cn.lemondrop.clover.CloverWindowBottomSheet
-import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
-import cn.lemondrop.clover.ui.layout.CloverShellStrategy
-import com.composables.icons.lucide.Album
+import com.composables.icons.lucide.DiscAlbum
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.CheckCheck
 import com.composables.icons.lucide.LayoutList
 import com.composables.icons.lucide.EllipsisVertical
 import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.FolderOpen
-import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.MapPin
 import com.composables.icons.lucide.Menu
-import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.UserRound
+import com.composables.icons.lucide.X
 import com.composables.icons.lucide.Music
-import com.composables.icons.lucide.Pause
-import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.Repeat
 import com.composables.icons.lucide.RotateCcw
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Shuffle
-import com.composables.icons.lucide.SkipForward
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextField
+import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 
 @Composable
 fun LibraryScreen(
@@ -133,6 +118,9 @@ fun LibraryScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: LibraryViewModel = viewModel(
         factory = LibraryViewModel.Factory(context.applicationContext as Application)
+    )
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = PlaylistViewModel.Factory(context.applicationContext as Application)
     )
 
     val songs by viewModel.songs.collectAsState(initial = emptyList())
@@ -154,30 +142,48 @@ fun LibraryScreen(
 
     var isSearching by remember { mutableStateOf(false) }
     var selectedNavIndex by remember { mutableIntStateOf(0) }
-    var showDrawer by remember { mutableStateOf(false) }
     var showFolderBrowser by remember { mutableStateOf(false) }
     var folderBrowserInitialPath by remember { mutableStateOf(listOf<String>()) }
-    var selectedSongId by remember { mutableStateOf<Long?>(null) }
-    var playingSongId by remember { mutableStateOf<Long?>(null) }
     var showSongMenu by remember { mutableStateOf(false) }
     var menuSong by remember { mutableStateOf<Song?>(null) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
-    var showTitleBarMenu by remember { mutableStateOf(false) }
+
     var showArtistChooser by remember { mutableStateOf(false) }
     var showSongProperties by remember { mutableStateOf(false) }
+
+    // 多选模式（批量加入歌单）
+    var multiSelectMode by remember { mutableStateOf(false) }
+    val selectedSongIds = remember { mutableStateSetOf<Long>() }
+    var showBatchAddSheet by remember { mutableStateOf(false) }
     var pendingLocateSongId by remember { mutableStateOf<Long?>(null) }
 
     val displaySongs = if (searchQuery.isNotBlank()) searchResults else songs
 
     // 系统 insets
 
+    // 抽屉（侧边栏）可见状态
+    val drawerVisible = LocalDrawerVisible.current
+    val drawerToggle = LocalDrawerToggle.current
+
     // 底部控件高度
     val miniPlayBarHeight = LocalGlobalPlayBarHeight.current
     val navBarHeight = 64.dp
 
+    // 刷新完成 Snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+    LaunchedEffect(viewModel) {
+        viewModel.refreshCompleted.collect { count ->
+            snackbarScope.launch {
+                snackbarHostState.showSnackbar("刷新完成，扫描到 $count 首歌曲")
+            }
+        }
+    }
+
     val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
 
-    // 定位当前播放：切到“歌曲”标签后滚动到对应项
+    // 定位当前播放：切到"歌曲"标签后滚动到对应项
     LaunchedEffect(pendingLocateSongId, displaySongs) {
         val targetId = pendingLocateSongId ?: return@LaunchedEffect
         val index = displaySongs.indexOfFirst { it.id == targetId }
@@ -190,10 +196,10 @@ fun LibraryScreen(
 
     val navItems = remember {
         listOf(
-            CloverNavItem("歌曲", Lucide.Music),
-            CloverNavItem("专辑", Lucide.Album),
-            CloverNavItem("艺术家", Lucide.Mic),
-            CloverNavItem("文件夹", Lucide.FolderOpen)
+            "歌曲" to Lucide.Music,
+            "专辑" to Lucide.DiscAlbum,
+            "艺术家" to Lucide.UserRound,
+            "文件夹" to Lucide.FolderOpen
         )
     }
 
@@ -206,39 +212,8 @@ fun LibraryScreen(
                 3 -> "文件夹"
                 else -> "媒体库"
             },
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-
-    val menuButton: @Composable () -> Unit = {
-        CloverIconButton(
-            icon = Lucide.Menu,
-            contentDescription = "菜单",
-            onClick = { showDrawer = true }
-        )
-    }
-
-    val titleActions: @Composable RowScope.() -> Unit = {
-        CloverIconButton(
-            icon = Lucide.Search,
-            contentDescription = "搜索",
-            onClick = { /* TODO: 搜索 */ }
-        )
-        CloverIconButton(
-            icon = Lucide.Repeat,
-            contentDescription = "全部顺序循环",
-            onClick = { /* TODO: 全部顺序循环 */ }
-        )
-        CloverIconButton(
-            icon = Lucide.Shuffle,
-            contentDescription = "全部随机",
-            onClick = { /* TODO: 全部随机 */ }
-        )
-        CloverIconButton(
-            icon = Lucide.EllipsisVertical,
-            contentDescription = "更多",
-            onClick = { showTitleBarMenu = true }
+            style = MiuixTheme.textStyles.title1,
+            color = MiuixTheme.colorScheme.onSurface
         )
     }
 
@@ -248,19 +223,18 @@ fun LibraryScreen(
             modifier = Modifier
                 .fillMaxSize(),
             contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             // 搜索栏
             if (isSearching) {
                 item {
-                    OutlinedTextField(
+                    TextField(
                         value = searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("搜索歌曲、艺术家、专辑...") },
+                        label = "搜索",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        singleLine = true
+                            .padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -275,7 +249,12 @@ fun LibraryScreen(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ProgressRing(modifier = Modifier.size(24.dp))
+                            // 扫描状态指示
+                        Icon(
+                                imageVector = Lucide.RotateCcw,
+                                contentDescription = "扫描中",
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -294,11 +273,9 @@ fun LibraryScreen(
             when (selectedNavIndex) {
                 0 -> SongsContent(
                     songs = displaySongs,
-                    selectedSongId = selectedSongId,
-                    playingSongId = playingSongId,
+                    selectionMode = multiSelectMode,
+                    selectedSongIds = selectedSongIds,
                     onSongClick = { song ->
-                        selectedSongId = song.id
-                        playingSongId = song.id
                         playerViewModel.playSongs(displaySongs, displaySongs.indexOf(song))
                     },
                     onMoreClick = { song ->
@@ -308,12 +285,17 @@ fun LibraryScreen(
                 )
                 1 -> AlbumsContent(
                     albums = albums,
+                    selectionMode = multiSelectMode,
+                    selectedSongIds = selectedSongIds,
                     onAlbumClick = { album ->
                         onNavigate(Screen.AlbumDetail.createRoute(album.name, album.artist))
                     }
                 )
                 2 -> ArtistsContent(
                     artists = artists,
+                    allSongs = viewModel.songs.value,
+                    selectionMode = multiSelectMode,
+                    selectedSongIds = selectedSongIds,
                     onArtistClick = { artist ->
                         onNavigate(Screen.ArtistDetail.createRoute(artist.name))
                     }
@@ -321,6 +303,8 @@ fun LibraryScreen(
                 3 -> FoldersContent(
                     songs = displaySongs,
                     hiddenFolders = hiddenFolders,
+                    selectionMode = multiSelectMode,
+                    selectedSongIds = selectedSongIds,
                     onFolderClick = { pathParts ->
                         folderBrowserInitialPath = pathParts
                         showFolderBrowser = true
@@ -336,176 +320,339 @@ fun LibraryScreen(
         }
     }
 
-    CloverAdaptiveShellScaffold(
-        strategy = CloverShellStrategy.BottomCombined,
-        title = titleText,
-        navigationIcon = menuButton,
-        actions = titleActions,
-        items = navItems,
-        selectedIndex = selectedNavIndex,
-        onItemSelected = { selectedNavIndex = it },
-        background = { AppBackgroundLayer() },
-        overlay = { state ->
-            // Drawer 底部弹出菜单
-            cn.lemondrop.fhreborn.ui.components.AppDrawer(
-                visible = showDrawer,
-                onDismiss = { showDrawer = false },
-                currentRoute = currentRoute,
-                onNavigate = { route ->
-                    showDrawer = false
-                    if (route == Screen.FolderBrowser.route) {
-                        showFolderBrowser = true
-                    } else {
-                        onNavigate(route)
-                    }
+    AppShell(
+        drawerVisible = drawerVisible.value,
+        onDismissDrawer = { drawerVisible.value = false },
+        currentRoute = currentRoute,
+        onNavigate = { route ->
+            if (route == Screen.FolderBrowser.route) {
+                showFolderBrowser = true
+            } else {
+                onNavigate(route)
+            }
+        },
+        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AppBackgroundLayer()
+        Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        topBar = {
+            BlurTopBar(
+                title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else when (selectedNavIndex) {
+                    0 -> "媒体库"
+                    1 -> "专辑"
+                    2 -> "艺术家"
+                    3 -> "文件夹"
+                    else -> "媒体库"
                 },
-                hazeState = state.hazeState,
-                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-            )
-
-            // 标题栏 Flyout 菜单（浮动于底部栏之上）
-            if (showTitleBarMenu) {
-                TitleBarFlyoutMenu(
-                    visible = showTitleBarMenu,
-                    onDismiss = { showTitleBarMenu = false },
-                    hazeState = state.hazeState,
-                    onSortClick = { showSortSheet = true },
-                    onRefreshClick = { viewModel.refreshMediaStore() },
-                    onMultiSelectClick = { /* TODO: multi-select */ },
-                    onScrollToTop = {
-                        // TODO: 回到顶部
-                    },
-                    onLocateCurrent = {
-                        currentSong?.let { song ->
-                            selectedNavIndex = 0
-                            pendingLocateSongId = song.id
+                navigationIcon = {
+                    if (multiSelectMode) {
+                        IconButton(onClick = {
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }) {
+                            Icon(
+                                imageVector = Lucide.X,
+                                contentDescription = "退出多选"
+                            )
                         }
-                    },
-                    onLayoutToggle = {
-                        // TODO: 切换列表布局
-                    }
-                )
-            }
-
-            // 浏览路径 — 文件管理器式覆盖层
-            if (showFolderBrowser) {
-                BackHandler { showFolderBrowser = false }
-                FolderBrowserOverlay(
-                    songs = songs,
-                    initialPath = folderBrowserInitialPath,
-                    playerViewModel = playerViewModel,
-                    onDismiss = { showFolderBrowser = false }
-                )
-            }
-
-            // 排序弹窗
-            if (showSortSheet) {
-                BackHandler { showSortSheet = false }
-                SortSheet(
-                    currentField = sortField,
-                    currentOrder = sortOrder,
-                    onDismiss = { showSortSheet = false },
-                    onSelectField = { viewModel.setSortField(it) },
-                    onToggleOrder = { viewModel.toggleSortOrder() }
-                )
-            }
-
-            // 歌曲上下文菜单
-            if (showSongMenu && menuSong != null) {
-                BackHandler { showSongMenu = false }
-                SongMenuSheet(
-                    song = menuSong!!,
-                    onDismiss = { showSongMenu = false },
-                    onPlayNext = {
-                        // TODO: 将歌曲加入播放队列的下一首
-                    },
-                    onAddToPlaylist = {
-                        // TODO: 加入歌单
-                    },
-                    onViewAlbum = {
-                        menuSong?.let { s ->
-                            onNavigate(Screen.AlbumDetail.createRoute(s.album, s.albumArtist))
-                        }
-                    },
-                    onViewArtist = {
-                        menuSong?.let { s ->
-                            val separators = viewModel.artistSeparators.value
-                            val artistList = ArtistSplitter.split(s.artist, separators)
-                            if (artistList.size == 1) {
-                                showSongMenu = false
-                                onNavigate(Screen.ArtistDetail.createRoute(artistList.first()))
-                            } else if (artistList.isNotEmpty()) {
-                                showSongMenu = false
-                                showArtistChooser = true
-                            }
-                        }
-                    },
-                    onGoToFolder = {
-                        // TODO: 转至文件夹
-                    },
-                    onShare = {
-                        menuSong?.let { s ->
-                            cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, s)
-                        }
-                    },
-                    onOpenWith = {
-                        menuSong?.let { s ->
-                            cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, s)
-                        }
-                    },
-                    onProperties = {
-                        menuSong?.let { s ->
-                            showSongProperties = true
-                        }
-                    },
-                    onDelete = {
-                        // TODO: 删除文件
-                    }
-                )
-            }
-
-            // 多艺术家选择器
-            if (showArtistChooser && menuSong != null) {
-                val separators = viewModel.artistSeparators.value
-                val artistList = remember(menuSong, separators) {
-                    ArtistSplitter.split(menuSong!!.artist, separators)
-                }
-                BackHandler { showArtistChooser = false }
-                CloverWindowBottomSheet(
-                    onDismiss = { showArtistChooser = false },
-                    title = "选择艺术家"
-                ) {
-                    Column(modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding)) {
-                        artistList.forEach { artist ->
-                            FhListItem(
-                                title = artist,
-                                onClick = {
-                                    showArtistChooser = false
-                                    onNavigate(Screen.ArtistDetail.createRoute(artist))
-                                }
+                    } else {
+                        IconButton(onClick = { drawerToggle() }) {
+                            Icon(
+                                imageVector = Lucide.Menu,
+                                contentDescription = "菜单"
                             )
                         }
                     }
+                },
+                actions = {
+                    if (multiSelectMode) {
+                        IconButton(onClick = {
+                            // 全选当前标签可见歌曲
+                            val all = when (selectedNavIndex) {
+                                0 -> displaySongs.map { it.id }
+                                1 -> albums.flatMap { it.songs }.map { it.id }
+                                2 -> artists.flatMap { artist ->
+                                    viewModel.songs.value.filter { it.artist == artist.name }.map { it.id }
+                                }
+                                3 -> displaySongs.filterNot { song ->
+                                    hiddenFolders.any { h -> song.path.startsWith(h) }
+                                }.map { it.id }
+                                else -> emptyList()
+                            }
+                            if (selectedSongIds.size == all.distinct().size) {
+                                selectedSongIds.clear()
+                            } else {
+                                selectedSongIds.clear()
+                                selectedSongIds.addAll(all)
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Lucide.CheckCheck,
+                                contentDescription = "全选"
+                            )
+                        }
+                    } else {
+                    IconButton(onClick = { /* TODO: 搜索 */ }) {
+                        Icon(
+                            imageVector = Lucide.Search,
+                            contentDescription = "搜索"
+                        )
+                    }
+                    IconButton(onClick = { /* TODO: 全部顺序循环 */ }) {
+                        Icon(
+                            imageVector = Lucide.Repeat,
+                            contentDescription = "全部顺序循环"
+                        )
+                    }
+                    IconButton(onClick = { /* TODO: 全部随机 */ }) {
+                        Icon(
+                            imageVector = Lucide.Shuffle,
+                            contentDescription = "全部随机"
+                        )
+                    }
+                    OverlayIconDropdownMenu(
+                        entries = listOf(
+                            DropdownEntry(
+                                items = listOf(
+                                    DropdownItem("刷新", icon = { mod -> Icon(Lucide.RotateCcw, null, modifier = mod) }, onClick = { viewModel.refreshMediaStore() }),
+                                    DropdownItem("排序", icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) }, onClick = { showSortSheet = true }),
+                                    DropdownItem("多选", icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) }, onClick = {
+                                        multiSelectMode = true
+                                        selectedSongIds.clear()
+                                    }),
+                                    DropdownItem("回到顶部", icon = { mod -> Icon(Lucide.ArrowUp, null, modifier = mod) }, onClick = { /* TODO */ }),
+                                    DropdownItem("定位当前播放", icon = { mod -> Icon(Lucide.MapPin, null, modifier = mod) }, onClick = {
+                                        currentSong?.let { song ->
+                                            selectedNavIndex = 0
+                                            pendingLocateSongId = song.id
+                                        }
+                                    }),
+                                    DropdownItem("列表布局", icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) }, onClick = { /* TODO */ }),
+                                )
+                            )
+                        ),
+                        minHeight = 40.dp,
+                        minWidth = 40.dp,
+                    ) {
+                        Icon(
+                            imageVector = Lucide.EllipsisVertical,
+                            contentDescription = "更多"
+                        )
+                    }
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            BlurNavigationBar() {
+                navItems.forEachIndexed { index, (label, icon) ->
+                    NavigationBarItem(
+                        selected = selectedNavIndex == index,
+                        onClick = { selectedNavIndex = index },
+                        icon = icon,
+                        label = label
+                    )
                 }
             }
-
-            // 歌曲属性弹窗
-            if (showSongProperties && menuSong != null) {
-                BackHandler { showSongProperties = false }
-                cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
-                    song = menuSong!!,
-                    onDismiss = { showSongProperties = false }
-                )
-            }
-        },
-        content = { state ->
-            libraryBody(
-                PaddingValues(top = 8.dp),
-                miniPlayBarHeight
+        }
+    ) { padding ->
+        // 浏览路径 — 文件管理器式覆盖层
+        if (showFolderBrowser) {
+            BackHandler { showFolderBrowser = false }
+            FolderBrowserOverlay(
+                songs = songs,
+                initialPath = folderBrowserInitialPath,
+                playerViewModel = playerViewModel,
+                onDismiss = { showFolderBrowser = false }
             )
         }
-    )
 
+        // 排序弹窗
+        if (showSortSheet) {
+            BackHandler { showSortSheet = false }
+            SortSheet(
+                currentField = sortField,
+                currentOrder = sortOrder,
+                onDismiss = { showSortSheet = false },
+                onSelectField = { viewModel.setSortField(it) },
+                onToggleOrder = { viewModel.toggleSortOrder() }
+            )
+        }
+
+        // 歌曲上下文菜单
+        if (showSongMenu && menuSong != null) {
+            BackHandler { showSongMenu = false }
+            SongMenuSheet(
+                song = menuSong!!,
+                onDismiss = { showSongMenu = false },
+                onPlayNext = {
+                    // TODO: 将歌曲加入播放队列的下一首
+                },
+                onAddToPlaylist = {
+                    showSongMenu = false
+                    showAddToPlaylist = true
+                },
+                onViewAlbum = {
+                    menuSong?.let { s ->
+                        onNavigate(Screen.AlbumDetail.createRoute(s.album, s.albumArtist))
+                    }
+                },
+                onViewArtist = {
+                    menuSong?.let { s ->
+                        val separators = viewModel.artistSeparators.value
+                        val artistList = ArtistSplitter.split(s.artist, separators)
+                        if (artistList.size == 1) {
+                            showSongMenu = false
+                            onNavigate(Screen.ArtistDetail.createRoute(artistList.first()))
+                        } else if (artistList.isNotEmpty()) {
+                            showSongMenu = false
+                            showArtistChooser = true
+                        }
+                    }
+                },
+                onGoToFolder = {
+                    // TODO: 转至文件夹
+                },
+                onShare = {
+                    menuSong?.let { s ->
+                        cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, s)
+                    }
+                },
+                onOpenWith = {
+                    menuSong?.let { s ->
+                        cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, s)
+                    }
+                },
+                onProperties = {
+                    menuSong?.let { s ->
+                        showSongProperties = true
+                    }
+                },
+                onDelete = {
+                    // TODO: 删除文件
+                }
+            )
+        }
+
+        // 多艺术家选择器
+        if (showArtistChooser && menuSong != null) {
+            val separators = viewModel.artistSeparators.value
+            val artistList = remember(menuSong, separators) {
+                ArtistSplitter.split(menuSong!!.artist, separators)
+            }
+            BackHandler { showArtistChooser = false }
+            FhBottomSheet(
+                show = true,
+                onDismissRequest = { showArtistChooser = false },
+                title = "选择艺术家",
+                backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+            ) {
+                Column {
+                    artistList.forEach { artist ->
+                        FhListItem(
+                            title = artist,
+                            onClick = {
+                                showArtistChooser = false
+                                onNavigate(Screen.ArtistDetail.createRoute(artist))
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+    // 加入歌单弹窗
+    if (showAddToPlaylist && menuSong != null) {
+        AddToPlaylistSheet(
+            songIds = listOf(menuSong!!.id),
+            viewModel = playlistViewModel,
+            onDismiss = { showAddToPlaylist = false }
+        )
+    }
+
+    // 歌曲属性弹窗
+    if (showSongProperties && menuSong != null) {
+            BackHandler { showSongProperties = false }
+            cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
+                song = menuSong!!,
+                onDismiss = { showSongProperties = false }
+            )
+        }
+
+        // 主内容
+        libraryBody(
+            padding,
+            miniPlayBarHeight
+        )
+
+        // 刷新完成提示（悬浮于内容区底部）
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            SnackbarHost(
+                state = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+
+        // 多选底部操作栏
+        if (multiSelectMode) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(bottom = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MiuixTheme.colorScheme.surfaceContainer)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "已选 ${selectedSongIds.size} 首",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    Button(
+                        onClick = {
+                            if (selectedSongIds.isNotEmpty()) {
+                                showBatchAddSheet = true
+                            }
+                        },
+                        enabled = selectedSongIds.isNotEmpty()
+                    ) {
+                        Text("加入歌单")
+                    }
+                }
+            }
+        }
+
+        // 批量加入歌单弹窗
+        if (showBatchAddSheet) {
+            BackHandler {
+                showBatchAddSheet = false
+            }
+            AddToPlaylistSheet(
+                songIds = selectedSongIds.toList(),
+                viewModel = playlistViewModel,
+                onDismiss = {
+                    showBatchAddSheet = false
+                    multiSelectMode = false
+                    selectedSongIds.clear()
+                }
+            )
+        }
+    }
+        }
+    }
 
 }
 
@@ -513,24 +660,31 @@ fun LibraryScreen(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.SongsContent(
     songs: List<Song>,
-    selectedSongId: Long?,
-    playingSongId: Long?,
+    selectionMode: Boolean = false,
+    selectedSongIds: SnapshotStateSet<Long>? = null,
     onSongClick: (Song) -> Unit,
     onMoreClick: (Song) -> Unit
 ) {
     item {
         Text(
             text = "${songs.size} 首歌曲",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
     }
     items(songs, key = { it.id }) { song ->
         SongItem(
             song = song,
-            isSelected = song.id == selectedSongId,
-            isPlaying = song.id == playingSongId,
+            selectionMode = selectionMode,
+            selected = selectedSongIds?.contains(song.id) == true,
+            onToggleSelect = {
+                if (selectedSongIds?.contains(song.id) == true) {
+                    selectedSongIds.remove(song.id)
+                } else {
+                    selectedSongIds?.add(song.id)
+                }
+            },
             onClick = { onSongClick(song) },
             onMoreClick = { onMoreClick(song) }
         )
@@ -539,13 +693,15 @@ private fun androidx.compose.foundation.lazy.LazyListScope.SongsContent(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
     albums: List<LibraryViewModel.Album>,
+    selectionMode: Boolean = false,
+    selectedSongIds: SnapshotStateSet<Long>? = null,
     onAlbumClick: (LibraryViewModel.Album) -> Unit
 ) {
     item {
         Text(
             text = "${albums.size} 张专辑",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
     }
@@ -562,7 +718,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
             rowAlbums.forEach { album ->
                 AlbumItem(
                     album = album,
-                    onClick = { onAlbumClick(album) },
+                    selectionMode = selectionMode,
+                    selected = selectedSongIds?.let { sel ->
+                        album.songs.isNotEmpty() && album.songs.all { it.id in sel }
+                    } == true,
+                    onClick = {
+                        if (selectionMode && selectedSongIds != null) {
+                            val ids = album.songs.map { it.id }
+                            val allSelected = ids.isNotEmpty() && ids.all { it in selectedSongIds }
+                            if (allSelected) {
+                                ids.forEach { selectedSongIds.remove(it) }
+                            } else {
+                                selectedSongIds.addAll(ids)
+                            }
+                        } else {
+                            onAlbumClick(album)
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -575,20 +747,41 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(
     artists: List<LibraryViewModel.Artist>,
+    allSongs: List<Song> = emptyList(),
+    selectionMode: Boolean = false,
+    selectedSongIds: SnapshotStateSet<Long>? = null,
     onArtistClick: (LibraryViewModel.Artist) -> Unit
 ) {
     item {
         Text(
             text = "${artists.size} 位艺术家",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
     }
     items(artists.size, key = { artists[it].name }) { index ->
+        val artist = artists[index]
         ArtistItem(
-            artist = artists[index],
-            onClick = { onArtistClick(artists[index]) }
+            artist = artist,
+            selectionMode = selectionMode,
+            selected = selectedSongIds?.let { sel ->
+                val ids = allSongs.filter { it.artist == artist.name }.map { it.id }
+                ids.isNotEmpty() && ids.all { it in sel }
+            } == true,
+            onClick = {
+                if (selectionMode && selectedSongIds != null) {
+                    val ids = allSongs.filter { it.artist == artist.name }.map { it.id }
+                    val allSelected = ids.isNotEmpty() && ids.all { it in selectedSongIds }
+                    if (allSelected) {
+                        ids.forEach { selectedSongIds.remove(it) }
+                    } else {
+                        selectedSongIds.addAll(ids)
+                    }
+                } else {
+                    onArtistClick(artist)
+                }
+            }
         )
     }
 }
@@ -596,6 +789,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(
 private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     songs: List<Song>,
     hiddenFolders: Set<String>,
+    selectionMode: Boolean = false,
+    selectedSongIds: SnapshotStateSet<Long>? = null,
     onFolderClick: (List<String>) -> Unit,
     onHideFolder: (String) -> Unit
 ) {
@@ -611,7 +806,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                     .padding(64.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("暂无歌曲", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("暂无歌曲", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
             }
         }
         return
@@ -623,8 +818,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     item {
         Text(
             text = "${sortedFolders.size} 个文件夹",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
     }
@@ -636,46 +831,64 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        val parts = folderPath.split('/').filter { it.isNotEmpty() }
-                        onFolderClick(parts)
+                        if (selectionMode && selectedSongIds != null) {
+                            val ids = folderSongs.map { it.id }
+                            val allSelected = ids.isNotEmpty() && ids.all { it in selectedSongIds }
+                            if (allSelected) {
+                                ids.forEach { selectedSongIds.remove(it) }
+                            } else {
+                                selectedSongIds.addAll(ids)
+                            }
+                        } else {
+                            val parts = folderPath.split('/').filter { it.isNotEmpty() }
+                            onFolderClick(parts)
+                        }
                     }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (selectionMode && selectedSongIds != null) {
+                    val allSelected = folderSongs.isNotEmpty() && folderSongs.all { it.id in selectedSongIds }
+                    SelectionIndicator(
+                        selected = allSelected,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
                 Icon(
                     imageVector = Lucide.FolderOpen,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MiuixTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = folderPath.substringAfterLast('/'),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = folderPath,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${folderSongs.size} 首歌曲",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                 }
-                FluentIconButton(onClick = { showOptions = true }) {
+                IconButton(onClick = { showOptions = true }) {
                     Icon(
                         imageVector = Lucide.EllipsisVertical,
                         contentDescription = "更多",
                         modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                 }
             }
@@ -700,15 +913,32 @@ private fun FolderOptionsSheet(
     onDismiss: () -> Unit,
     onHide: () -> Unit
 ) {
-    CloverWindowBottomSheet(onDismiss = onDismiss) {
-        CloverMenuItem(
-            label = "在音乐库隐藏",
-            icon = Lucide.EyeOff,
-            onClick = {
-                onHide()
-                onDismiss()
-            }
-        )
+    FhBottomSheet(
+        show = true,
+        onDismissRequest = onDismiss,
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onHide()
+                    onDismiss()
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Lucide.EyeOff,
+                contentDescription = "在音乐库隐藏",
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "在音乐库隐藏",
+                style = MiuixTheme.textStyles.body1
+            )
+        }
     }
 }
 
@@ -723,16 +953,16 @@ private fun SongItemSmall(song: Song) {
     ) {
         Text(
             text = song.title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = formatDuration(song.duration),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.footnote2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
     }
 }
@@ -749,88 +979,122 @@ private fun formatDuration(ms: Long): String {
 @Composable
 internal fun SongItem(
     song: Song,
-    isSelected: Boolean,
-    isPlaying: Boolean,
     onClick: () -> Unit,
-    onMoreClick: () -> Unit
+    onMoreClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    onToggleSelect: (() -> Unit)? = null
 ) {
-    val indicatorHeight = when {
-        isPlaying -> 40.dp
-        isSelected -> 24.dp
-        else -> 0.dp
-    }
-
-    FhListItem(
-        title = song.title,
-        subtitle = "${song.artist} - ${song.album}",
-        onClick = onClick,
-        leading = {
-            // 左侧指示条区域
-            Box(
-                modifier = Modifier
-                    .padding(end = 12.dp)
-                    .width(3.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (indicatorHeight > 0.dp) {
-                    Box(
-                        modifier = Modifier
-                            .width(3.dp)
-                            .height(indicatorHeight)
-                            .clip(RoundedCornerShape(1.5.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+    if (selectionMode) {
+        FhListItem(
+            title = song.title,
+            summary = "${song.artist} - ${song.album}",
+            onClick = { onToggleSelect?.invoke() },
+            leading = {
+                SelectionIndicator(
+                    selected = selected,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                SongCoverImage(
+                    songId = song.id,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        )
+    } else {
+        FhListItem(
+            title = song.title,
+            summary = "${song.artist} - ${song.album}",
+            onClick = onClick,
+            leading = {
+                SongCoverImage(
+                    songId = song.id,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            trailing = {
+                IconButton(onClick = onMoreClick) {
+                    Icon(
+                        imageVector = Lucide.EllipsisVertical,
+                        contentDescription = "更多",
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
+        )
+    }
+}
 
-            SongCoverImage(
-                songId = song.id,
-                modifier = Modifier.size(48.dp)
+/** 多选勾选指示器：圆形，选中时 primary 填充 */
+@Composable
+internal fun SelectionIndicator(
+    selected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (selected) MiuixTheme.colorScheme.primary
+                else MiuixTheme.colorScheme.surfaceVariant
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Lucide.Check,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MiuixTheme.colorScheme.onPrimary
             )
-        },
-        trailing = {
-            FluentIconButton(onClick = onMoreClick) {
-                Icon(
-                    imageVector = Lucide.EllipsisVertical,
-                    contentDescription = "更多",
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
-    )
+    }
 }
 
 @Composable
 internal fun AlbumItem(
     album: LibraryViewModel.Album,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
 ) {
     Column(
         modifier = modifier.clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        SongCoverImage(
-            songId = album.coverSongId,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(8.dp))
-        )
+        Box {
+            SongCoverImage(
+                songId = album.coverSongId,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+            if (selectionMode) {
+                SelectionIndicator(
+                    selected = selected,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(22.dp)
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = album.name,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
             text = album.artist,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
@@ -841,7 +1105,9 @@ internal fun AlbumItem(
 @Composable
 private fun ArtistItem(
     artist: LibraryViewModel.Artist,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -850,17 +1116,24 @@ private fun ArtistItem(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (selectionMode) {
+            SelectionIndicator(
+                selected = selected,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+        }
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surface),
+                .background(MiuixTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = artist.name.take(1).uppercase(),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MiuixTheme.textStyles.title3,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
 
@@ -869,15 +1142,15 @@ private fun ArtistItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = artist.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "${artist.albumCount} 张专辑 · ${artist.songCount} 首歌曲",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -885,40 +1158,10 @@ private fun ArtistItem(
     }
 }
 
-// ===== 标题栏 Flyout 菜单（浮动于底部栏之上） =====
-
-@Composable
-private fun TitleBarFlyoutMenu(
-    visible: Boolean,
-    onDismiss: () -> Unit,
-    hazeState: HazeState,
-    onSortClick: () -> Unit = {},
-    onRefreshClick: () -> Unit = {},
-    onMultiSelectClick: () -> Unit = {},
-    onScrollToTop: () -> Unit = {},
-    onLocateCurrent: () -> Unit = {},
-    onLayoutToggle: () -> Unit = {}
-) {
-    val items = listOf(
-        FlyoutMenuItem("刷新", Lucide.RotateCcw) { onRefreshClick() },
-        FlyoutMenuItem("排序", Lucide.ArrowUpDown) { onSortClick() },
-        FlyoutMenuItem("多选", Lucide.ListChecks) { onMultiSelectClick() },
-        FlyoutMenuItem("回到顶部", Lucide.ArrowUp) { onScrollToTop() },
-        FlyoutMenuItem("定位当前播放", Lucide.MapPin) { onLocateCurrent() },
-        FlyoutMenuItem("列表布局", Lucide.LayoutList) { onLayoutToggle() }
-    )
-
-    FlyoutMenu(
-        visible = visible,
-        onDismiss = onDismiss,
-        items = items,
-        hazeState = hazeState
-    )
-}
 
 // ===== 浏览路径 — 文件管理器式层级浏览 =====
 
-data class FileNode(
+internal data class FileNode(
     val name: String,
     val path: String,
     val isDirectory: Boolean,
@@ -926,7 +1169,7 @@ data class FileNode(
     val song: Song? = null
 )
 
-private fun buildFileTree(songs: List<Song>): FileNode {
+internal fun buildFileTree(songs: List<Song>): FileNode {
     val root = FileNode(name = "", path = "", isDirectory = true)
     for (song in songs) {
         val parts = song.path.split('/').filter { it.isNotEmpty() }
@@ -960,7 +1203,6 @@ internal fun FolderBrowserOverlay(
 ) {
     val rootNode = remember(songs) { buildFileTree(songs) }
     var currentPath by remember { mutableStateOf(initialPath) }
-    val playingSongId by playerViewModel.currentSong.collectAsState()
 
     val currentNode = remember(rootNode, currentPath) {
         var node = rootNode
@@ -985,7 +1227,7 @@ internal fun FolderBrowserOverlay(
 
     val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
     val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
-    val bottomControlsHeight = CloverSizes.titleBarHeight + navBarPadding
+    val bottomControlsHeight = 56.dp + navBarPadding
 
     // 地址栏路径：根 > 一级 > 二级
     val breadcrumb = listOf("根") + currentPath
@@ -1030,8 +1272,8 @@ internal fun FolderBrowserOverlay(
                     val isLast = index == breadcrumb.lastIndex
                     Text(
                         text = name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body2,
+                        color = if (isLast) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
                         modifier = Modifier.clickable(enabled = !isLast) {
                             // breadcrumb: ["根", part0, part1, ...]
                             // 点击根 -> 空路径；点击第 n 个 -> 保留前 n-1 段
@@ -1043,7 +1285,7 @@ internal fun FolderBrowserOverlay(
                             imageVector = Lucide.ChevronRight,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
                 }
@@ -1067,7 +1309,7 @@ internal fun FolderBrowserOverlay(
                                 .padding(64.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("此目录为空", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("此目录为空", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                         }
                     }
                 } else {
@@ -1082,8 +1324,6 @@ internal fun FolderBrowserOverlay(
                     items(songsInCurrent, key = { it.id }) { song ->
                         SongItem(
                             song = song,
-                            isSelected = false,
-                            isPlaying = song.id == playingSongId?.id,
                             onClick = {
                                 playerViewModel.playSongs(songsInCurrent, songsInCurrent.indexOf(song))
                             },
@@ -1095,18 +1335,10 @@ internal fun FolderBrowserOverlay(
         }
 
         // 底部标题栏
-        CloverTitleBar(
-            title = {
-                Text(
-                    text = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            leading = {
-                FluentIconButton(onClick = {
+        BlurTopBar(
+            title = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
+            navigationIcon = {
+                IconButton(onClick = {
                     if (currentPath.isEmpty()) {
                         onDismiss()
                     } else {
@@ -1116,8 +1348,6 @@ internal fun FolderBrowserOverlay(
                     Icon(
                         imageVector = Lucide.ArrowLeft,
                         contentDescription = if (currentPath.isEmpty()) "关闭" else "返回上级",
-                        modifier = Modifier.size(22.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             },
@@ -1133,13 +1363,13 @@ internal fun FolderBrowserOverlay(
 }
 
 @Composable
-private fun FileBrowserItemRow(
+internal fun FileBrowserItemRow(
     item: FileNode,
     onClick: () -> Unit
 ) {
     FhListItem(
         title = item.name,
-        subtitle = if (!item.isDirectory && item.song != null) {
+        summary = if (!item.isDirectory && item.song != null) {
             "${item.song.artist} · ${formatDuration(item.song.duration)}"
         } else null,
         onClick = onClick,
@@ -1148,7 +1378,7 @@ private fun FileBrowserItemRow(
                 imageVector = if (item.isDirectory) Lucide.FolderOpen else Lucide.Music,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         },
         trailing = if (item.isDirectory) {
@@ -1157,7 +1387,7 @@ private fun FileBrowserItemRow(
                     imageVector = Lucide.ChevronRight,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
             }
         } else null

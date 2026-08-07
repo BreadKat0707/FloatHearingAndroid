@@ -17,8 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,16 +38,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.ui.screens.player.PlayerBackground
-import cn.lemondrop.fhreborn.ui.theme.FluentIconButton
+import top.yukonga.miuix.kmp.basic.IconButton
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
-import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Pause
 import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.SkipForward
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -83,13 +82,13 @@ fun SongCoverImage(
         Box(
             modifier = modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surface),
+                .background(MiuixTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "♪",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MiuixTheme.textStyles.title3,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
     }
@@ -122,15 +121,15 @@ fun MiniPlayBar(
             .border(
                 width = 1.dp,
                 color = Color(0xFFAFAFAF).copy(alpha = 0.5f),
-                shape = RoundedCornerShape(FluentLargeCorner)
+                shape = RoundedCornerShape(12.dp)
             )
-            .clip(RoundedCornerShape(FluentLargeCorner))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(FluentLargeCorner))
+                .clip(RoundedCornerShape(12.dp))
         ) {
             PlayerBackground(
                 songId = currentSong?.id,
@@ -167,14 +166,14 @@ fun MiniPlayBar(
                     )
                     Text(
                         text = currentSong?.artist ?: "Make some sounds",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MiuixTheme.textStyles.footnote1,
                         color = fluidOnColorSecondary,
                         maxLines = 1
                     )
                 }
 
                 currentSong?.let {
-                    FluentIconButton(onClick = { playerViewModel.playPause() }) {
+                    IconButton(onClick = { playerViewModel.playPause() }) {
                         Icon(
                             imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
                             contentDescription = if (isPlaying) "暂停" else "播放",
@@ -187,7 +186,7 @@ fun MiniPlayBar(
                             tint = fluidOnColor.copy(alpha = 0.6f)
                         )
                     }
-                    FluentIconButton(onClick = { playerViewModel.next() }) {
+                    IconButton(onClick = { playerViewModel.next() }) {
                         Icon(
                             imageVector = Lucide.SkipForward,
                             contentDescription = "下一首",

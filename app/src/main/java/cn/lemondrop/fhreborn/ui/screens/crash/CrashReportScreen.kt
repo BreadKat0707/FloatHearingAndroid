@@ -21,24 +21,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cn.lemondrop.clover.CloverButton
-import cn.lemondrop.clover.CloverTitleBar
 import com.composables.icons.lucide.Copy
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.X
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 
 @Composable
 fun CrashReportScreen(
@@ -55,25 +54,38 @@ fun CrashReportScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = cutoutLeft + cutoutRight)
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
+            .background(MiuixTheme.colorScheme.windowDimming.copy(alpha = 0.6f)),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxSize(0.92f)
                 .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 4.dp
+            color = MiuixTheme.colorScheme.surface
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 顶部标题栏
+                BlurTopBar(
+                    title = "应用发生异常"
+                )
+
+                // 副标题说明
+                Text(
+                    text = "上次使用时应用意外停止，以下是错误详情",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+
                 // 崩溃日志内容
                 LazyColumn(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .padding(top = 16.dp, bottom = 72.dp)
+                        .padding(top = 8.dp, bottom = 8.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .padding(12.dp),
                     contentPadding = PaddingValues(bottom = 8.dp)
                 ) {
@@ -83,52 +95,34 @@ fun CrashReportScreen(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
                 }
 
-                // 底部标题栏（含操作按钮）
-                CloverTitleBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = "应用发生异常",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "上次使用时应用意外停止，以下是错误详情",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    trailing = {
-                        CloverButton(
-                            onClick = onDismiss,
-                            colors = cn.lemondrop.clover.CloverButtonDefaults.outlinedColors()
-                        ) {
-                            Text("关闭")
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        CloverButton(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText("崩溃日志", crashLog)
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
-                            }
-                        ) {
-                            Icon(imageVector = Lucide.Copy, contentDescription = "复制")
-                            Text("复制")
-                        }
-                    },
+                // 底部操作按钮
+                Row(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = cutoutLeft + cutoutRight)
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(onClick = onDismiss) {
+                        Text("关闭")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("崩溃日志", crashLog)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Icon(imageVector = Lucide.Copy, contentDescription = "复制")
+                        Text("复制")
+                    }
+                }
             }
         }
     }

@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,10 +26,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverButton
-import cn.lemondrop.clover.CloverIconButton
-import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
-import cn.lemondrop.clover.ui.layout.CloverShellStrategy
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
@@ -42,7 +36,13 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Disc
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Play
-import io.github.composefluent.component.Icon
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 专辑详情页。
@@ -83,93 +83,81 @@ fun AlbumDetailScreen(
         releaseYear?.let { append(" · $it") }
     }
 
-    val titleText: @Composable () -> Unit = {
-        Text(
-            text = "专辑",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-
-    val backButton: @Composable () -> Unit = {
-        CloverIconButton(
-            icon = Lucide.ArrowLeft,
-            contentDescription = "返回",
-            onClick = onBack
-        )
-    }
-
-    CloverAdaptiveShellScaffold(
-        strategy = CloverShellStrategy.BottomCombined,
-        title = titleText,
-        navigationIcon = backButton,
-        background = { AppBackgroundLayer() },
-        overlay = { _ ->
-            // 全局 MiniPlayBar 在 App.kt 中托管
-        },
-        content = { state ->
-            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = state.contentPadding.calculateTopPadding())
-            ) {
-                // 头部：封面 + 专辑信息 + 播放按钮
-                item {
-                    AlbumHeader(
-                        album = displayAlbum,
-                        artist = displayArtist,
-                        meta = meta,
-                        coverSongId = coverSongId,
-                        onPlayAlbum = {
-                            if (songs.isNotEmpty()) playerViewModel.playSongs(songs, 0)
-                        }
-                    )
-                }
-
-                // 曲目列表（按碟号分组）
-                itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                    Column {
-                        if (hasMultipleDiscs &&
-                            (index == 0 || songs[index - 1].discNumber != song.discNumber)
-                        ) {
-                            SectionHeader("Disc ${song.discNumber ?: 1}")
-                        }
-                        SongItem(
-                            song = song,
-                            isSelected = false,
-                            isPlaying = song.id == currentSong?.id,
-                            onClick = { playerViewModel.playSongs(songs, index) },
-                            onMoreClick = { }
+    Scaffold(
+        topBar = {
+            BlurTopBar(
+                title = "专辑",
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Lucide.ArrowLeft,
+                            contentDescription = "返回",
+                            tint = MiuixTheme.colorScheme.onSurface
                         )
                     }
                 }
+            )
+        }
+    ) { padding ->
+        val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues()
+        ) {
+            // 头部：封面 + 专辑信息 + 播放按钮
+            item {
+                AlbumHeader(
+                    album = displayAlbum,
+                    artist = displayArtist,
+                    meta = meta,
+                    coverSongId = coverSongId,
+                    onPlayAlbum = {
+                        if (songs.isNotEmpty()) playerViewModel.playSongs(songs, 0)
+                    }
+                )
+            }
 
-                // 参与的艺术家
-                if (participatingArtists.isNotEmpty()) {
-                    item {
-                        SectionHeader("参与的艺术家")
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                            participatingArtists.forEach { artist ->
-                                Text(
-                                    text = artist,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 6.dp)
-                                )
-                            }
+            // 曲目列表（按碟号分组）
+            itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                Column {
+                    if (hasMultipleDiscs &&
+                        (index == 0 || songs[index - 1].discNumber != song.discNumber)
+                    ) {
+                        SectionHeader("Disc ${song.discNumber ?: 1}")
+                    }
+                    SongItem(
+                        song = song,
+                        onClick = { playerViewModel.playSongs(songs, index) },
+                        onMoreClick = { }
+                    )
+                }
+            }
+
+            // 参与的艺术家
+            if (participatingArtists.isNotEmpty()) {
+                item {
+                    SectionHeader("参与的艺术家")
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                        participatingArtists.forEach { artist ->
+                            Text(
+                                text = artist,
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            )
                         }
                     }
                 }
-
-                // 底部留白，避免内容被底栏/迷你播放条遮挡
-                item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
             }
+
+            // 底部留白，避免内容被底栏/迷你播放条遮挡
+            item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
         }
-    )
+    }
 }
 
 @Composable
@@ -198,14 +186,14 @@ private fun AlbumHeader(
                 modifier = Modifier
                     .size(160.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MiuixTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Lucide.Disc,
                     contentDescription = null,
                     modifier = Modifier.size(56.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
             }
         }
@@ -214,40 +202,39 @@ private fun AlbumHeader(
 
         Text(
             text = album,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.title1,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = artist,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = meta,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        CloverButton(onClick = onPlayAlbum) {
+        Button(onClick = onPlayAlbum) {
             Icon(
                 imageVector = Lucide.Play,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
+                tint = MiuixTheme.colorScheme.onPrimary
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "播放专辑",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = MiuixTheme.colorScheme.onPrimary
             )
         }
 
@@ -259,8 +246,8 @@ private fun AlbumHeader(
 private fun SectionHeader(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
+        style = MiuixTheme.textStyles.title3,
+        color = MiuixTheme.colorScheme.primary,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)

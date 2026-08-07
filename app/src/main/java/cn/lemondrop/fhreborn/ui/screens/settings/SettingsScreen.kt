@@ -21,11 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.InputChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,28 +34,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.lemondrop.clover.CloverButton
-import cn.lemondrop.clover.CloverDialog
-import cn.lemondrop.clover.CloverDialogPosition
-import cn.lemondrop.clover.CloverIconButton
-import cn.lemondrop.clover.CloverSizes
-import cn.lemondrop.clover.CloverWindowBottomSheet
-import cn.lemondrop.clover.CloverWindowDialog
-import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
-import cn.lemondrop.clover.ui.layout.CloverShellStrategy
+
+import cn.lemondrop.fhreborn.LocalDrawerToggle
+import cn.lemondrop.fhreborn.LocalDrawerVisible
+import cn.lemondrop.fhreborn.LocalPlayerOpen
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.model.SettingCategory
 import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppDrawer
-import cn.lemondrop.fhreborn.ui.theme.FluentLargeCorner
+import cn.lemondrop.fhreborn.ui.components.AppShell
+import cn.lemondrop.fhreborn.ui.components.FhListItem
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
-import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Heart
@@ -73,18 +63,27 @@ import com.composables.icons.lucide.Puzzle
 import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
 import com.composables.icons.lucide.X
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Slider
-import io.github.composefluent.component.Switcher
-import io.github.composefluent.component.Text
-import androidx.compose.material3.Slider as M3Slider
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextField
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.RadioButtonPreference
+import top.yukonga.miuix.kmp.preference.SliderPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SettingsScreen(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    playerViewModel: PlayerViewModel
+    playerViewModel: PlayerViewModel,
+    initialCategoryKey: String? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: SettingsViewModel = viewModel(
@@ -93,11 +92,18 @@ fun SettingsScreen(
     val settingsRepository = remember { SettingsRepository(context) }
     val scope = rememberCoroutineScope()
     val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = setOf(" / "))
+    val drawerVisible = LocalDrawerVisible.current
+    val drawerToggle = LocalDrawerToggle.current
 
-    var currentPage by remember { mutableStateOf<SettingsPage>(SettingsPage.Home) }
+    // 外部可指定直达分类（如播放器"歌词设置"→ 设置-歌词）；
+    // remember 的 key 变化会重新初始化，导航复用实例时也能生效
+    var currentPage by remember(initialCategoryKey) {
+        mutableStateOf(
+            if (initialCategoryKey != null) SettingsPage.Category(initialCategoryKey) else SettingsPage.Home
+        )
+    }
     var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
-    var showDrawer by remember { mutableStateOf(false) }
 
     val onNavigateItem: (SettingItem) -> Unit = { item ->
         when (item.key) {
@@ -119,8 +125,11 @@ fun SettingsScreen(
         }
     }
 
+    // 播放器覆盖层打开时让位：返回键优先关闭播放器（由 App 层处理）
+    val playerOpen = LocalPlayerOpen.current
+
     // 系统返回键：子页返回设置主页，分隔符弹窗优先关闭
-    BackHandler(enabled = currentPage != SettingsPage.Home) {
+    BackHandler(enabled = currentPage != SettingsPage.Home && !playerOpen) {
         currentPage = SettingsPage.Home
         viewModel.navigateBack()
     }
@@ -130,68 +139,59 @@ fun SettingsScreen(
 
     val isHome = currentPage == SettingsPage.Home
 
-    val titleText: @Composable () -> Unit = {
+    val pageTitle = {
         val page = currentPage
-        Text(
-            text = when (page) {
-                SettingsPage.Home -> "设置"
-                is SettingsPage.Category -> when (page.key) {
-                    "language" -> "语言"
-                    "personalize" -> "个性化"
-                    "features" -> "功能"
-                    "output" -> "输出"
-                    "lyrics" -> "歌词"
-                    "library" -> "媒体库"
-                    "about" -> "关于"
-                    else -> "设置"
-                }
-                SettingsPage.Background -> "背景"
-                SettingsPage.CodecCapabilities -> "本机编解码器"
-                SettingsPage.AccompanistLyric -> "Accompanist Lyric 设置"
-                SettingsPage.OpenSourceLicenses -> "开源许可"
-                SettingsPage.PlayerBackground -> "播放器页面背景"
-            },
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-
-    val menuButton: @Composable () -> Unit = {
-        CloverIconButton(
-            icon = Lucide.Menu,
-            contentDescription = "菜单",
-            onClick = { showDrawer = true }
-        )
-    }
-
-    val backButton: @Composable () -> Unit = {
-        CloverIconButton(
-            icon = Lucide.ArrowLeft,
-            contentDescription = "返回",
-            onClick = {
-                currentPage = SettingsPage.Home
-                viewModel.navigateBack()
+        when (page) {
+            SettingsPage.Home -> "设置"
+            is SettingsPage.Category -> when (page.key) {
+                "language" -> "语言"
+                "personalize" -> "个性化"
+                "features" -> "功能"
+                "output" -> "输出"
+                "lyrics" -> "歌词"
+                "library" -> "媒体库"
+                "about" -> "关于"
+                else -> "设置"
             }
-        )
+            SettingsPage.Background -> "背景"
+            SettingsPage.CodecCapabilities -> "本机编解码器"
+            SettingsPage.AccompanistLyric -> "Accompanist Lyric 设置"
+            SettingsPage.OpenSourceLicenses -> "开源许可"
+            SettingsPage.PlayerBackground -> "播放器页面背景"
+        }
     }
 
-    CloverAdaptiveShellScaffold(
-        strategy = CloverShellStrategy.BottomCombined,
-        title = titleText,
-        navigationIcon = if (isHome) menuButton else backButton,
-        background = { AppBackgroundLayer() },
-        overlay = { state ->
-            AppDrawer(
-                visible = showDrawer,
-                onDismiss = { showDrawer = false },
-                currentRoute = currentRoute,
-                onNavigate = { route ->
-                    showDrawer = false
-                    onNavigate(route)
-                },
-                hazeState = state.hazeState,
-                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-            )
+    AppShell(
+        drawerVisible = drawerVisible.value,
+        onDismissDrawer = { drawerVisible.value = false },
+        currentRoute = currentRoute,
+        onNavigate = { route ->
+            onNavigate(route)
+        },
+        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
+    ) {
+        Scaffold(
+            topBar = {
+                BlurTopBar(
+                    title = pageTitle(),
+                    navigationIcon = {
+                        if (isHome) {
+                            IconButton(onClick = { drawerToggle() }) {
+                                Icon(Lucide.Menu, "菜单", tint = MiuixTheme.colorScheme.onSurface)
+                            }
+                        } else {
+                            IconButton(onClick = {
+                                currentPage = SettingsPage.Home
+                                viewModel.navigateBack()
+                            }) {
+                                Icon(Lucide.ArrowLeft, "返回", tint = MiuixTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
 
             if (showArtistSeparatorSheet) {
                 ArtistSeparatorSheet(
@@ -212,10 +212,8 @@ fun SettingsScreen(
                     onDismiss = { currentSelectionItem = null }
                 )
             }
-        },
-        content = { state ->
-            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
-            Box(modifier = Modifier.fillMaxSize()) {
+
+            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 when (currentPage) {
                     SettingsPage.Home,
                     is SettingsPage.Category -> SettingsListContent(
@@ -226,35 +224,30 @@ fun SettingsScreen(
                             viewModel.selectCategory(key)
                         },
                         onSettingItemClick = onSettingItemClick,
-                        paddingValues = state.contentPadding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
 
                     SettingsPage.Background -> BackgroundSettingsContent(viewModel)
                     SettingsPage.CodecCapabilities -> CodecCapabilitiesContent(
-                        paddingValues = state.contentPadding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        hazeState = state.hazeState
+                        paddingValues = PaddingValues(),
+                        bottomOverlayHeight = bottomOverlayHeight
                     )
                     SettingsPage.AccompanistLyric -> AccompanistLyricSettingsContent(
-                        paddingValues = state.contentPadding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        hazeState = state.hazeState
+                        paddingValues = PaddingValues(),
+                        bottomOverlayHeight = bottomOverlayHeight
                     )
                     SettingsPage.OpenSourceLicenses -> OpenSourceLicensesContent(
-                        paddingValues = state.contentPadding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        hazeState = state.hazeState
+                        paddingValues = PaddingValues(),
+                        bottomOverlayHeight = bottomOverlayHeight
                     )
                     SettingsPage.PlayerBackground -> PlayerBackgroundPickerContent(
-                        paddingValues = state.contentPadding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        hazeState = state.hazeState
+                        paddingValues = PaddingValues(),
+                        bottomOverlayHeight = bottomOverlayHeight
                     )
                 }
             }
         }
-    )
+    }
 }
 
 private sealed class SettingsPage {
@@ -273,14 +266,11 @@ private fun SettingsListContent(
     currentPage: SettingsPage,
     onCategoryClick: (String) -> Unit,
     onSettingItemClick: (SettingItem) -> Unit,
-    paddingValues: PaddingValues,
     bottomOverlayHeight: Dp
 ) {
     val selectedCategory = (currentPage as? SettingsPage.Category)?.key
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = paddingValues.calculateTopPadding()),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -321,19 +311,19 @@ private fun ArtistSeparatorSheet(
     var current by remember { mutableStateOf(separators.toSortedSet()) }
     var input by remember { mutableStateOf("") }
 
-    CloverWindowBottomSheet(
-        onDismiss = onDismiss,
-        title = "艺术家分隔符"
+    FhBottomSheet(
+        show = true,
+        onDismissRequest = onDismiss,
+        title = "艺术家分隔符",
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = CloverSizes.listOuterHorizontalPadding)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Text(
                 text = "用于拆分歌曲艺术家字段。例如添加 \" / \" 后，\"A / B\" 会被识别为两个艺术家 A 和 B。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -343,11 +333,16 @@ private fun ArtistSeparatorSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 current.forEach { sep ->
-                    InputChip(
-                        selected = false,
-                        onClick = { },
-                        label = { Text("\"$sep\"") },
-                        trailingIcon = {
+                    // 使用 Card 替代 InputChip
+                    Card(
+                        modifier = Modifier.clickable { }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(text = "\"$sep\"")
+                            Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Lucide.X,
                                 contentDescription = "删除",
@@ -356,10 +351,11 @@ private fun ArtistSeparatorSheet(
                                     .clickable {
                                         current = current.toMutableSet().apply { remove(sep) }.toSortedSet()
                                         onSave(current)
-                                    }
+                                    },
+                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                             )
                         }
-                    )
+                    }
                 }
             }
 
@@ -369,16 +365,14 @@ private fun ArtistSeparatorSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
+                TextField(
                     value = input,
                     onValueChange = { input = it },
-                    label = { Text("添加分隔符") },
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    label = "添加分隔符"
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                CloverButton(
-                    text = "添加",
+                Button(
                     onClick = {
                         if (input.isNotBlank()) {
                             current = current.toMutableSet().apply { add(input) }.toSortedSet()
@@ -386,19 +380,22 @@ private fun ArtistSeparatorSheet(
                             onSave(current)
                         }
                     }
-                )
+                ) {
+                    Text("添加")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            CloverButton(
-                text = "恢复默认",
+            Button(
                 onClick = {
                     current = setOf(" / ").toSortedSet()
                     onSave(current)
                 },
                 modifier = Modifier.fillMaxWidth()
-            )
+            ) {
+                Text("恢复默认")
+            }
         }
     }
 }
@@ -408,18 +405,11 @@ private fun CategoryItem(
     category: SettingCategory,
     onClick: () -> Unit
 ) {
-    cn.lemondrop.fhreborn.ui.components.FhListItem(
+    ArrowPreference(
         title = category.title,
         onClick = onClick,
-        leading = category.icon?.let {
-            { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-        },
-        trailing = {
-            Icon(
-                imageVector = Lucide.ChevronRight,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
+        startAction = category.icon?.let {
+            { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(22.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
         }
     )
 }
@@ -430,118 +420,67 @@ private fun SettingItemRow(
     viewModel: SettingsViewModel,
     onClick: (SettingItem) -> Unit
 ) {
-    // 根据类型只读取对应的值，避免类型转换崩溃
-    val toggleValue by when (item.type) {
-        is SettingType.Toggle -> viewModel.getToggleValue(item.key, item.defaultValue as? Boolean ?: false)
-            .collectAsState(initial = item.defaultValue as? Boolean ?: false)
-        else -> remember { mutableStateOf(item.defaultValue as? Boolean ?: false) }
-    }
-
-    val stringValue by when (item.type) {
-        is SettingType.Selection -> viewModel.getStringValue(item.key, item.defaultValue as? String ?: "")
-            .collectAsState(initial = item.defaultValue as? String ?: "")
-        else -> remember { mutableStateOf(item.defaultValue as? String ?: "") }
-    }
-
-    val sliderValue by when (item.type) {
-        is SettingType.Slider -> viewModel.getIntValue(item.key, (item.defaultValue as? Number)?.toInt() ?: 0)
-            .collectAsState(initial = (item.defaultValue as? Number)?.toInt() ?: 0)
-        else -> remember { mutableStateOf((item.defaultValue as? Number)?.toInt() ?: 0) }
-    }
-
-    // Slider 类型使用 Column 布局，其他使用 Row
-    if (item.type is SettingType.Slider) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 3.dp)
-                .clip(RoundedCornerShape(FluentLargeCorner))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.icon != null) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(14.dp))
+    when (item.type) {
+        is SettingType.Toggle -> {
+            val toggleValue by viewModel.getToggleValue(item.key, item.defaultValue as? Boolean ?: false)
+                .collectAsState(initial = item.defaultValue as? Boolean ?: false)
+            SwitchPreference(
+                checked = toggleValue,
+                onCheckedChange = { viewModel.toggleSetting(item) },
+                title = item.title,
+                summary = item.description,
+                startAction = item.icon?.let {
+                    { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (item.description != null) {
-                        Text(
-                            text = item.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Text(
-                    text = sliderValue.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            val sliderType = item.type as SettingType.Slider
-            M3Slider(
-                value = sliderValue.toFloat(),
-                onValueChange = { viewModel.setIntSetting(item.key, it.toInt()) },
-                valueRange = sliderType.min..sliderType.max,
-                steps = sliderType.steps,
-                modifier = Modifier.fillMaxWidth()
             )
         }
-    } else {
-        cn.lemondrop.fhreborn.ui.components.FhListItem(
-            title = item.title,
-            subtitle = item.description,
-            onClick = { onClick(item) },
-            leading = item.icon?.let {
-                { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-            },
-            trailing = {
-                when (item.type) {
-                    is SettingType.Toggle -> {
-                        Switcher(
-                            checked = toggleValue,
-                            onCheckStateChange = { viewModel.toggleSetting(item) }
-                        )
-                    }
-                    is SettingType.Selection -> {
-                        val options = (item.type as SettingType.Selection).options
-                        val selectedLabel = options.find { it.key == stringValue }?.label ?: stringValue
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = selectedLabel)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Lucide.ChevronRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                    is SettingType.Info -> {
-                        val infoText = item.defaultValue?.toString() ?: ""
-                        Text(text = infoText)
-                    }
-                    else -> {
-                        Icon(
-                            imageVector = Lucide.ChevronRight,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+        is SettingType.Selection -> {
+            val stringValue by viewModel.getStringValue(item.key, item.defaultValue as? String ?: "")
+                .collectAsState(initial = item.defaultValue as? String ?: "")
+            val options = (item.type as SettingType.Selection).options
+            val selectedLabel = options.find { it.key == stringValue }?.label ?: stringValue
+            ArrowPreference(
+                title = item.title,
+                summary = selectedLabel,
+                onClick = { onClick(item) },
+                startAction = item.icon?.let {
+                    { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
                 }
-            }
-        )
+            )
+        }
+        is SettingType.Slider -> {
+            val sliderValue by viewModel.getIntValue(item.key, (item.defaultValue as? Number)?.toInt() ?: 0)
+                .collectAsState(initial = (item.defaultValue as? Number)?.toInt() ?: 0)
+            val sliderType = item.type as SettingType.Slider
+            SliderPreference(
+                value = sliderValue.toFloat(),
+                onValueChange = { viewModel.setIntSetting(item.key, it.toInt()) },
+                title = item.title,
+                summary = item.description,
+                valueText = sliderValue.toString(),
+                valueRange = sliderType.min..sliderType.max,
+                steps = sliderType.steps,
+                startAction = item.icon?.let {
+                    { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
+                }
+            )
+        }
+        is SettingType.Navigation -> {
+            ArrowPreference(
+                title = item.title,
+                summary = item.description,
+                onClick = { onClick(item) },
+                startAction = item.icon?.let {
+                    { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
+                }
+            )
+        }
+        else -> {
+            FhListItem(
+                title = item.title,
+                summary = item.defaultValue?.toString(),
+            )
+        }
     }
 }
 
@@ -555,40 +494,24 @@ private fun SelectionDialog(
         .collectAsState(initial = item.defaultValue as? String ?: "")
     val selectionType = item.type as? SettingType.Selection ?: return
 
-    CloverWindowDialog(
-        visible = true,
+    FhBottomSheet(
+        show = true,
         onDismissRequest = onDismiss,
         title = item.title,
-        position = CloverDialogPosition.Bottom,
-        buttons = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    ) {
-        selectionType.options.forEach { option ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        viewModel.setStringSetting(item.key, option.key)
-                        onDismiss()
-                    }
-                    .padding(vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer,
+        content = {
+            selectionType.options.forEach { option ->
+                RadioButtonPreference(
+                    title = option.label,
                     selected = option.key == stringValue,
                     onClick = {
                         viewModel.setStringSetting(item.key, option.key)
                         onDismiss()
                     }
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = option.label)
             }
         }
-    }
+    )
 }
 
 // ========== 设置分类定义 ==========
@@ -618,6 +541,12 @@ private fun buildCategories(): List<SettingCategory> {
                 SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
                 SettingItem("main_bg", "主页面背景", "纯色 / 自选图片 / 云母", null, SettingType.Navigation),
                 SettingItem("player_bg", "播放器页面背景", "旋转流体 / AGSL 流体 / 封面模糊", null, SettingType.Navigation),
+
+                // 播放器
+                SettingItem("", "播放器", null, null, SettingType.Info),
+                SettingItem("player_cover_corner_radius", "封面圆角", "播放器封面圆角大小", null, SettingType.Slider(0f, 32f, 16), 12),
+                SettingItem("player_cover_rotating", "圆形旋转封面", "非正方形封面将裁切为方形显示", null, SettingType.Toggle, false),
+
                 SettingItem("predictive_back", "预测性返回手势", "返回时预览上一页（实验，可能有异常）", null, SettingType.Toggle, false)
             )
         ),

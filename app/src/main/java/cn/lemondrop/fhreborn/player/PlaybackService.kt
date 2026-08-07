@@ -46,6 +46,10 @@ class PlaybackService : MediaLibraryService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var periodicSaveJob: Job? = null
 
+    /** 防抖：多个回调在短时间内的保存请求合并为一次 */
+    private var saveRequested = false
+    private var debouncedSaveJob: Job? = null
+
     private val db by lazy { AppDatabase.getInstance(applicationContext) }
 
     override fun onCreate() {
@@ -74,11 +78,11 @@ class PlaybackService : MediaLibraryService() {
 
             override fun onIsPlayingChanged(playing: Boolean) {
                 // 暂停/停止时立即保存，防止切出应用后位置丢失
-                if (!playing) serviceScope.launch { savePlaybackState() }
+                if (!playing) requestSavePlaybackState()
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                serviceScope.launch { savePlaybackState() }
+                requestSavePlaybackState()
             }
 
             override fun onPositionDiscontinuity(
@@ -86,16 +90,16 @@ class PlaybackService : MediaLibraryService() {
                 newPosition: Player.PositionInfo,
                 reason: Int
             ) {
-                serviceScope.launch { savePlaybackState() }
+                requestSavePlaybackState()
             }
         })
 
         player = exoPlayer
 
-        // 后台持续播放时定期保存进度
+        // 后台持续播放时定期保存进度（防抖合并后的兜底保存）
         periodicSaveJob = serviceScope.launch {
             while (isActive) {
-                delay(3000)
+                delay(10_000)
                 savePlaybackState()
             }
         }
@@ -149,7 +153,13 @@ class PlaybackService : MediaLibraryService() {
 
         // Service 被系统回收或重新启动后，从数据库恢复播放状态，
         // 确保通知栏/控制中心能继续显示当前歌曲和控制。
-        restorePlaybackState()
+        // 延迟恢复：setMediaItems(数百首队列) 在模拟器上可能耗时数十秒，
+        // 立即执行会把主线程占满，触发 executing service 20s 超时 ANR。
+        // 先让 onCreate 快速完成、startForeground 生效，再慢慢恢复。
+        serviceScope.launch {
+            delay(2000)
+            restorePlaybackState()
+        }
 
         // 立即进入前台，避免切出 App 后被系统回收
         startForeground(
@@ -164,8 +174,10 @@ class PlaybackService : MediaLibraryService() {
 
     override fun onDestroy() {
         periodicSaveJob?.cancel()
-        // 释放前同步保存一次，避免进程被杀导致进度丢失
-        runBlocking(serviceScope.coroutineContext) {
+        debouncedSaveJob?.cancel()
+        // 释放前同步保存一次。runBlocking 在 IO 线程执行，不阻塞主线程，
+        // 避免主线程等待 Room 写入造成 ANR；内部读取会切回主线程（ExoPlayer 线程约束）。
+        runBlocking(Dispatchers.IO) {
             savePlaybackState()
         }
         serviceScope.cancel()
@@ -200,17 +212,59 @@ class PlaybackService : MediaLibraryService() {
                     songs.indexOfFirst { it.id == state.currentSongId }.coerceAtLeast(0)
                 } else 0
 
+                // MediaItem 构建（轻量但量大）在 IO 线程完成，主线程只做 setMediaItems
+                val mediaItems = songs.map { it.toMediaItem() }
+
+                // 拆分批次恢复：一次 setMediaItems 处理几百首在模拟器上会长时间占满
+                // 主线程（ANR 风险），先恢复当前歌曲 + 小范围队列，剩余分批补全。
+                val batchSize = 100
                 withContext(Dispatchers.Main) {
                     val currentPlayer = player ?: return@withContext
-                    currentPlayer.setMediaItems(songs.map { it.toMediaItem() })
-                    currentPlayer.seekTo(currentIndex, state.position)
+                    // 已有媒体项说明用户/前端已经设置了新队列（或热启动），
+                    // 此时若用 DB 旧状态覆盖，会抢走新队列并还原旧的 shuffle/repeat
+                    //（典型现象：点歌单随机播放，几秒后变成按上次的顺序播放）。
+                    if (currentPlayer.mediaItemCount > 0) return@withContext
+                    // 第一批：包含当前歌曲的 100 首窗口
+                    val start = (currentIndex - batchSize / 2).coerceAtLeast(0)
+                    val firstBatch = mediaItems.subList(start, (start + batchSize).coerceAtMost(mediaItems.size))
+                    currentPlayer.setMediaItems(firstBatch)
+                    currentPlayer.seekTo(
+                        (currentIndex - start).coerceIn(0, firstBatch.size - 1),
+                        state.position
+                    )
                     currentPlayer.repeatMode = state.repeatMode
                     currentPlayer.shuffleModeEnabled = state.shuffleMode
                     currentPlayer.prepare()
+
+                    // 剩余部分分批补全（让主线程有空隙处理输入事件）
+                    if (firstBatch.size < mediaItems.size) {
+                        serviceScope.launch {
+                            delay(500)
+                            withContext(Dispatchers.Main) {
+                                val remaining = ArrayList(mediaItems)
+                                remaining.removeAll(firstBatch.toSet())
+                                currentPlayer.addMediaItems(remaining)
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "恢复播放状态失败", e)
             }
+        }
+    }
+
+    /**
+     * 防抖保存请求：多个高频回调（切歌/seek/暂停）在短时间内的保存合并为一次，
+     * 避免并发保存风暴压垮主线程和数据库。
+     */
+    private fun requestSavePlaybackState() {
+        if (saveRequested) return
+        saveRequested = true
+        debouncedSaveJob = serviceScope.launch {
+            delay(500)
+            saveRequested = false
+            savePlaybackState()
         }
     }
 

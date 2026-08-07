@@ -12,7 +12,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverSpacing
 import cn.lemondrop.fhreborn.ui.screens.statistics.components.ChartPoint
 import cn.lemondrop.fhreborn.ui.screens.statistics.components.PlayDurationLineChart
 import cn.lemondrop.fhreborn.ui.screens.statistics.components.StatHeaderCard
@@ -34,17 +33,17 @@ fun WeekTab(
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(
-            start = CloverSpacing.lg,
-            end = CloverSpacing.lg,
+            start = 24.dp,
+            end = 24.dp,
             top = 16.dp,
             bottom = 88.dp
         ),
-        verticalArrangement = Arrangement.spacedBy(CloverSpacing.lg)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatHeaderCard(
                     title = "本周播放时长",

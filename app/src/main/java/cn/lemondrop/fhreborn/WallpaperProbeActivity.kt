@@ -22,10 +22,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -41,22 +37,24 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cn.lemondrop.clover.material.CloverWallpaperMica
 import java.util.function.Consumer
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 验证 clover-ui 的 [CloverWallpaperMica]：系统壁纸实时透出 + 跨窗口模糊 + tint/噪点。
+ * 系统壁纸实时透出 + 跨窗口模糊的实验验证 Activity。
  *
  * 本 Activity 使用 [R.style.Theme_FloatHearing_WallpaperProbe]
- * （android:windowShowWallpaper=true + 透明 windowBackground）提供“壁纸透出”这一窗口级前提，
- * 模糊与材质叠加全部交给 CloverWallpaperMica。
+ * （android:windowShowWallpaper=true + 透明 windowBackground）提供"壁纸透出"这一窗口级前提。
+ * 后续可基于此方案查看壁纸透出效果。
  */
 class WallpaperProbeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            MiuixTheme {
                 WallpaperProbeScreen(onBack = { finish() })
             }
         }
@@ -70,7 +68,7 @@ private fun WallpaperProbeScreen(onBack: () -> Unit) {
     var isAlt by remember { mutableStateOf(false) }
     var blurSupported by remember { mutableStateOf(false) }
 
-    // 设备“跨窗口模糊”是否启用（GPU / 省电模式 / 系统设置）
+    // 设备"跨窗口模糊"是否启用（GPU / 省电模式 / 系统设置）
     DisposableEffect(view) {
         val wm = view.context.getSystemService(WindowManager::class.java)
         blurSupported = wm?.isCrossWindowBlurEnabled == true
@@ -79,11 +77,11 @@ private fun WallpaperProbeScreen(onBack: () -> Unit) {
         onDispose { wm?.removeCrossWindowBlurEnabledListener(listener) }
     }
 
-    // clover-ui 的系统壁纸实时 Mica 作为整页背景
-    CloverWallpaperMica(
-        modifier = Modifier.fillMaxSize(),
-        isAlt = isAlt,
-        blurRadius = radiusDp.dp
+    // 用纯色背景替代之前的 CloverWallpaperMica
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1C1B1F))
     ) {
         Column(
             modifier = Modifier

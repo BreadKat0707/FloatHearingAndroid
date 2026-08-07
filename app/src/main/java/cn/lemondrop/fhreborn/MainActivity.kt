@@ -37,6 +37,18 @@ class MainActivity : ComponentActivity() {
         CrashHandler.init(applicationContext)
         enableEdgeToEdge()
 
+        // 开发期诊断：主线程磁盘 IO / 慢调用超过阈值时在 logcat 输出主线程栈（仅 debug 构建）
+        if ((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            android.os.StrictMode.setThreadPolicy(
+                android.os.StrictMode.ThreadPolicy.Builder()
+                    .detectCustomSlowCalls()
+                    .detectDiskReads()
+                    .detectDiskWrites()
+                    .penaltyLog()
+                    .build()
+            )
+        }
+
         appSettingsRepository = AppSettingsRepository(this)
 
         // 根据 App 设置的颜色模式同步状态栏/导航栏图标反色

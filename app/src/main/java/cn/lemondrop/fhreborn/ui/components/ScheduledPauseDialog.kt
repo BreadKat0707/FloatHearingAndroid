@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -21,15 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverDialog
-import cn.lemondrop.clover.CloverIconButton
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Minus
 import com.composables.icons.lucide.MoonStar
-import com.composables.icons.lucide.Plus
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Switcher
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.NumberPicker
+import top.yukonga.miuix.kmp.basic.Switch
+import top.yukonga.miuix.kmp.basic.Text
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 
 /**
  * 计划暂停对话框（统一“定时播放 / 睡眠定时器”）。
@@ -64,38 +63,10 @@ fun ScheduledPauseDialog(
     var minutes by remember { mutableIntStateOf(30) }
     val totalMinutes = hours * 60 + minutes
 
-    CloverDialog(
-        visible = true,
+    FhBottomSheet(
+        show = true,
         onDismissRequest = onDismiss,
-        title = "计划暂停",
-        buttons = {
-            if (hasActiveTimer) {
-                TextButton(onClick = onDismiss) {
-                    Text("关闭")
-                }
-                TextButton(
-                    onClick = {
-                        onCancel()
-                        onDismiss()
-                    }
-                ) {
-                    Text("停止")
-                }
-            } else {
-                TextButton(onClick = onDismiss) {
-                    Text("取消")
-                }
-                TextButton(
-                    enabled = totalMinutes > 0,
-                    onClick = {
-                        onSetTimer(totalMinutes)
-                        onDismiss()
-                    }
-                ) {
-                    Text("开始")
-                }
-            }
-        }
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         if (hasActiveTimer) {
             // 运行态：倒计时 + 开关
@@ -106,33 +77,59 @@ fun ScheduledPauseDialog(
             }
             Text(
                 text = statusText,
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MiuixTheme.textStyles.headline2,
+                color = MiuixTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(16.dp))
             PauseAfterSongSwitch(
                 checked = pauseAfterCurrentSong,
                 onCheckedChange = onSetPauseAfterCurrentSong
             )
-        } else {
-            // 设置态：H:M 步进器 + 开关 + 「播完本曲」
+            Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.End
             ) {
-                Stepper(
-                    value = hours,
-                    unit = "小时",
-                    onDecrease = { if (hours > 0) hours -= 1 },
-                    onIncrease = { if (hours < 23) hours += 1 }
-                )
-                Stepper(
-                    value = minutes,
-                    unit = "分钟",
-                    onDecrease = { if (minutes > 0) minutes -= 1 },
-                    onIncrease = { if (minutes < 59) minutes += 1 }
-                )
+                TextButton(text = "关闭", onClick = onDismiss)
+                TextButton(text = "停止", onClick = {
+                        onCancel()
+                        onDismiss()
+                    })
+            }
+        } else {
+            // 设置态：H:M 选择器 + 开关 + 「播完本曲」
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    NumberPicker(
+                        value = hours,
+                        onValueChange = { hours = it },
+                        range = 0..23,
+                        label = { "$it" },
+                        modifier = Modifier.width(120.dp)
+                    )
+                    Text(
+                        text = "小时",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    NumberPicker(
+                        value = minutes,
+                        onValueChange = { minutes = it },
+                        range = 0..59,
+                        label = { "$it" },
+                        modifier = Modifier.width(120.dp)
+                    )
+                    Text(
+                        text = "分钟",
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -160,14 +157,28 @@ fun ScheduledPauseDialog(
                     imageVector = Lucide.MoonStar,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
                 Spacer(modifier = Modifier.size(12.dp))
                 Text(
                     text = "播完本曲",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(text = "取消", onClick = onDismiss)
+                TextButton(text = "开始",
+                    enabled = totalMinutes > 0,
+                    onClick = {
+                        onSetTimer(totalMinutes)
+                        onDismiss()
+                    })
             }
         }
     }
@@ -186,49 +197,13 @@ private fun PauseAfterSongSwitch(
     ) {
         Text(
             text = "播完当前曲目暂停",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f)
         )
-        Switcher(
+        Switch(
             checked = checked,
-            onCheckStateChange = onCheckedChange
-        )
-    }
-}
-
-@Composable
-private fun Stepper(
-    value: Int,
-    unit: String,
-    onDecrease: () -> Unit,
-    onIncrease: () -> Unit
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        CloverIconButton(
-            icon = Lucide.Minus,
-            contentDescription = null,
-            onClick = onDecrease
-        )
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        ) {
-            Text(
-                text = "$value",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = unit,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        CloverIconButton(
-            icon = Lucide.Plus,
-            contentDescription = null,
-            onClick = onIncrease
+            onCheckedChange = onCheckedChange
         )
     }
 }

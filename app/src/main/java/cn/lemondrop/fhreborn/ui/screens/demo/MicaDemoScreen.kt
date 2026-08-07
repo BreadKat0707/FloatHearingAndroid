@@ -2,7 +2,9 @@ package cn.lemondrop.fhreborn.ui.screens.demo
 
 import android.content.Intent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
 import cn.lemondrop.fhreborn.WallpaperProbeActivity
 import androidx.compose.foundation.layout.Box
@@ -17,22 +19,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
-import cn.lemondrop.clover.material.CloverMicaSurface
-import cn.lemondrop.clover.material.WallpaperLoadStrategy
-import cn.lemondrop.clover.material.rememberWallpaperBitmap
-import cn.lemondrop.clover.CloverIconButton
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun MicaDemoScreen(
@@ -54,16 +53,18 @@ fun MicaDemoScreen(
                 )
         ) {
             // 顶部返回
-            CloverIconButton(
-                icon = Lucide.ArrowLeft,
-                contentDescription = "返回",
-                onClick = onBack
-            )
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Lucide.ArrowLeft,
+                    contentDescription = "返回",
+                    tint = MiuixTheme.colorScheme.onSurface
+                )
+            }
 
             Text(
                 text = "Mica / Mica Alt",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.title1,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
@@ -75,27 +76,29 @@ fun MicaDemoScreen(
                     .padding(bottom = 16.dp)
                     .clickable {
                         context.startActivity(Intent(context, WallpaperProbeActivity::class.java))
-                    },
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                )
+                    }
             ) {
-                Text(
-                    text = "▶ 打开「windowShowWallpaper 直透壁纸」实验",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                ) {
+                    Text(
+                        text = "▶ 打开「windowShowWallpaper 直透壁纸」实验",
+                        color = MiuixTheme.colorScheme.onSurface
+                    )
+                }
             }
 
             Text(
                 text = "壁纸获取方式对比",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.title2,
+                color = MiuixTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            val drawableWallpaper = rememberWallpaperBitmap(WallpaperLoadStrategy.Drawable)
+            val drawableWallpaper = androidx.compose.runtime.remember { null as androidx.compose.ui.graphics.ImageBitmap? }
             MicaSampleCard(
                 title = "getDrawable()",
                 description = "绑定式获取，返回当前壁纸 Drawable。"
@@ -105,7 +108,7 @@ fun MicaDemoScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val peekWallpaper = rememberWallpaperBitmap(WallpaperLoadStrategy.Peek)
+            val peekWallpaper = androidx.compose.runtime.remember { null as androidx.compose.ui.graphics.ImageBitmap? }
             MicaSampleCard(
                 title = "peekDrawable()",
                 description = "非绑定式获取，不会触发动态壁纸重新绑定。"
@@ -115,7 +118,7 @@ fun MicaDemoScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val fastWallpaper = rememberWallpaperBitmap(WallpaperLoadStrategy.Fast)
+            val fastWallpaper = androidx.compose.runtime.remember { null as androidx.compose.ui.graphics.ImageBitmap? }
             MicaSampleCard(
                 title = "getFastDrawable()",
                 description = "API 24+，更轻量的壁纸获取方式。"
@@ -129,7 +132,11 @@ fun MicaDemoScreen(
                 title = "Mica",
                 description = "以桌面壁纸为基底，重度模糊后叠加上主题色 tint 与噪点。"
             ) {
-                CloverMicaSurface(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MiuixTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                ) {
                     DemoContent("Mica 背景区域")
                 }
             }
@@ -140,7 +147,11 @@ fun MicaDemoScreen(
                 title = "Mica Alt",
                 description = "同样基于壁纸模糊，但主题色 tint 与噪点更强，视觉层次更重。"
             ) {
-                CloverMicaSurface(modifier = Modifier.fillMaxSize(), isAlt = true) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MiuixTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                ) {
                     DemoContent("Mica Alt 背景区域")
                 }
             }
@@ -158,26 +169,21 @@ private fun MicaSampleCard(
 ) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface,
+        style = MiuixTheme.textStyles.title2,
+        color = MiuixTheme.colorScheme.onSurface,
         modifier = Modifier.padding(bottom = 4.dp)
     )
     Text(
         text = description,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MiuixTheme.textStyles.body2,
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         modifier = Modifier.padding(bottom = 12.dp)
     )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp),
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.1f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .height(220.dp)
     ) {
         content()
     }
@@ -199,8 +205,8 @@ private fun WallpaperPreview(wallpaper: androidx.compose.ui.graphics.ImageBitmap
         ) {
             Text(
                 text = "未获取到壁纸",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleMedium
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.title3
             )
         }
     }
@@ -213,16 +219,13 @@ private fun DemoContent(text: String) {
         contentAlignment = Alignment.Center
     ) {
         Card(
-            modifier = Modifier.padding(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
-            )
+            modifier = Modifier.padding(24.dp)
         ) {
             Text(
                 text = text,
                 modifier = Modifier.padding(20.dp),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                style = MiuixTheme.textStyles.title3,
+                color = MiuixTheme.colorScheme.onSurface
             )
         }
     }

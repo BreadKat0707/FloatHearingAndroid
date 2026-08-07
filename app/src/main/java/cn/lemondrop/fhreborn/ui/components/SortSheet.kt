@@ -13,23 +13,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverMenuItem
-import cn.lemondrop.clover.CloverWindowBottomSheet
-import cn.lemondrop.clover.CloverSpacing
 import cn.lemondrop.fhreborn.ui.viewmodel.SortField
 import cn.lemondrop.fhreborn.ui.viewmodel.SortOrder
 import com.composables.icons.lucide.ArrowDown
 import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.Lucide
-import io.github.composefluent.component.Icon
-import io.github.composefluent.component.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SortSheet(
@@ -52,9 +50,11 @@ fun SortSheet(
         SortField.DURATION to "曲目时长"
     )
 
-    CloverWindowBottomSheet(
-        onDismiss = onDismiss,
-        title = "排序"
+    FhBottomSheet(
+        show = true,
+        onDismissRequest = onDismiss,
+        title = "排序",
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         // 升序/降序切换
         Row(
@@ -67,7 +67,7 @@ fun SortSheet(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MiuixTheme.colorScheme.surfaceVariant)
                     .clickable(onClick = onToggleOrder)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -76,13 +76,13 @@ fun SortSheet(
                     imageVector = if (currentOrder == SortOrder.ASC) Lucide.ArrowUp else Lucide.ArrowDown,
                     contentDescription = if (currentOrder == SortOrder.ASC) "升序" else "降序",
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MiuixTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = if (currentOrder == SortOrder.ASC) "升序" else "降序",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.primary
                 )
             }
         }
@@ -93,21 +93,38 @@ fun SortSheet(
                 .fillMaxWidth()
                 .height(1.dp)
                 .padding(horizontal = 16.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant)
+                .background(MiuixTheme.colorScheme.outline)
         )
 
         // 排序选项
         LazyColumn {
             items(sortOptions) { (field, label) ->
                 val isSelected = field == currentField
-                CloverMenuItem(
-                    label = label,
-                    icon = if (isSelected) Lucide.Check else null,
-                    onClick = {
-                        onSelectField(field)
-                        onDismiss()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onSelectField(field)
+                            onDismiss()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Lucide.Check,
+                            contentDescription = "已选择",
+                            modifier = Modifier.size(20.dp),
+                            tint = MiuixTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                     }
-                )
+                    Text(
+                        text = label,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }

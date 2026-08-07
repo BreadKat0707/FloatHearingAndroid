@@ -1,8 +1,8 @@
 package cn.lemondrop.fhreborn.ui.theme
 
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import top.yukonga.miuix.kmp.theme.darkColorScheme
+import top.yukonga.miuix.kmp.theme.lightColorScheme
 
 /**
  * FloatHearing 统一调色板。
@@ -64,39 +64,49 @@ object AppColors {
 val AppLightColorScheme = lightColorScheme(
     primary = AppColors.primaryLight,
     onPrimary = AppColors.onPrimaryLight,
+    primaryVariant = AppColors.primaryLight,
+    onPrimaryVariant = AppColors.onPrimaryLight,
+    error = AppColors.errorLight,
+    onError = AppColors.onErrorLight,
     primaryContainer = AppColors.primaryContainerLight,
     onPrimaryContainer = AppColors.onPrimaryContainerLight,
     secondary = AppColors.secondaryLight,
     onSecondary = AppColors.onSecondaryLight,
+    secondaryVariant = AppColors.secondaryLight,
+    onSecondaryVariant = AppColors.onSecondaryLight,
     secondaryContainer = AppColors.secondaryContainerLight,
     onSecondaryContainer = AppColors.onSecondaryContainerLight,
     background = AppColors.backgroundLight,
     onBackground = AppColors.onBackgroundLight,
+    onBackgroundVariant = AppColors.onBackgroundLight,
     surface = AppColors.surfaceLight,
     onSurface = AppColors.onSurfaceLight,
     surfaceVariant = AppColors.surfaceVariantLight,
-    onSurfaceVariant = AppColors.onSurfaceVariantLight,
-    outline = AppColors.outlineLight,
-    error = AppColors.errorLight,
-    onError = AppColors.onErrorLight
+    onSurfaceVariantSummary = AppColors.onSurfaceVariantLight,
+    outline = AppColors.outlineLight
 )
 
 val AppDarkColorScheme = darkColorScheme(
     primary = AppColors.primaryDark,
     onPrimary = AppColors.onPrimaryDark,
+    primaryVariant = AppColors.primaryDark,
+    onPrimaryVariant = AppColors.onPrimaryDark,
+    error = AppColors.errorDark,
+    onError = AppColors.onErrorDark,
     primaryContainer = AppColors.primaryContainerDark,
     onPrimaryContainer = AppColors.onPrimaryContainerDark,
     secondary = AppColors.secondaryDark,
     onSecondary = AppColors.onSecondaryDark,
+    secondaryVariant = AppColors.secondaryDark,
+    onSecondaryVariant = AppColors.onSecondaryDark,
     secondaryContainer = AppColors.secondaryContainerDark,
     onSecondaryContainer = AppColors.onSecondaryContainerDark,
     background = AppColors.backgroundDark,
     onBackground = AppColors.onBackgroundDark,
+    onBackgroundVariant = AppColors.onBackgroundDark,
     surface = AppColors.surfaceDark,
     onSurface = AppColors.onSurfaceDark,
     surfaceVariant = AppColors.surfaceVariantDark,
-    onSurfaceVariant = AppColors.onSurfaceVariantDark,
-    outline = AppColors.outlineDark,
-    error = AppColors.errorDark,
-    onError = AppColors.onErrorDark
+    onSurfaceVariantSummary = AppColors.onSurfaceVariantDark,
+    outline = AppColors.outlineDark
 )

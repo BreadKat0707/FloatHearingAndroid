@@ -1,20 +1,20 @@
 package cn.lemondrop.fhreborn.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverButton
-import cn.lemondrop.clover.CloverWindowBottomSheet
-import cn.lemondrop.clover.CloverSizes
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import com.composables.icons.lucide.Disc
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.User
@@ -43,25 +43,25 @@ fun SongInfoActionSheet(
 ) {
     if (!visible) return
 
-    CloverWindowBottomSheet(
-        onDismiss = onDismiss,
-        title = "歌曲信息"
+    FhBottomSheet(
+        show = visible,
+        onDismissRequest = onDismiss,
+        title = "歌曲信息",
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = CloverSizes.listOuterHorizontalPadding)
+            modifier = Modifier.fillMaxWidth()
         ) {
             artists.forEach { artist ->
                 FhListItem(
                     title = artist,
-                    subtitle = "艺术家",
+                    summary = "艺术家",
                     leading = {
                         Icon(
                             imageVector = Lucide.User,
                             contentDescription = null,
-                            modifier = Modifier.size(CloverSizes.iconMedium),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier.size(20.dp),
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                         )
                     },
                     onClick = { onArtistClick(artist) }
@@ -70,24 +70,16 @@ fun SongInfoActionSheet(
 
             FhListItem(
                 title = album,
-                subtitle = "专辑",
+                summary = "专辑",
                 leading = {
                     Icon(
                         imageVector = Lucide.Disc,
                         contentDescription = null,
-                        modifier = Modifier.size(CloverSizes.iconMedium),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.size(20.dp),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                 },
                 onClick = onAlbumClick
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            CloverButton(
-                text = "取消",
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
             )
         }
     }

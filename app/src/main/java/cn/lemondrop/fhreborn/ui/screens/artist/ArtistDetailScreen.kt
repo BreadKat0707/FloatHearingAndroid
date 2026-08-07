@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,11 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverIconButton
-import cn.lemondrop.clover.CloverSizes
-import cn.lemondrop.clover.CloverSpacing
-import cn.lemondrop.clover.ui.layout.CloverAdaptiveShellScaffold
-import cn.lemondrop.clover.ui.layout.CloverShellStrategy
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.screens.library.AlbumItem
@@ -35,7 +26,13 @@ import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
-import io.github.composefluent.component.Icon
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Scaffold
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import top.yukonga.miuix.kmp.basic.TabRow
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * 艺术家详情页。
@@ -50,114 +47,93 @@ fun ArtistDetailScreen(
     playerViewModel: PlayerViewModel,
     libraryViewModel: LibraryViewModel
 ) {
-    val currentSong by playerViewModel.currentSong.collectAsState()
-    val isPlaying by playerViewModel.isPlaying.collectAsState()
-
     val songs = remember(artistName) { libraryViewModel.getArtistSongs(artistName) }
     val albums = remember(artistName) { libraryViewModel.getArtistAlbums(artistName) }
     val guestAlbums = remember(artistName) { libraryViewModel.getGuestAlbumsForArtist(artistName) }
 
-    val tabs = listOf(
+    val tabTitles = listOf(
         "歌曲 (${songs.size})",
         "专辑 (${albums.size})",
         "参与 (${guestAlbums.size})"
     )
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    val titleText: @Composable () -> Unit = {
-        Text(
-            text = artistName,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-
-    val backButton: @Composable () -> Unit = {
-        CloverIconButton(
-            icon = Lucide.ArrowLeft,
-            contentDescription = "返回",
-            onClick = onBack
-        )
-    }
-
-    CloverAdaptiveShellScaffold(
-        strategy = CloverShellStrategy.BottomCombined,
-        title = titleText,
-        navigationIcon = backButton,
-        background = { AppBackgroundLayer() },
-        overlay = { _ ->
-            // 全局 MiniPlayBar 在 App.kt 中托管
-        },
-        content = { state ->
-            val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = state.contentPadding.calculateTopPadding())
-            ) {
-                Text(
-                    text = artistName,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.md)
-                )
-
-                TabRow(selectedTabIndex = selectedTab) {
-                    tabs.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(title) }
+    Scaffold(
+        topBar = {
+            BlurTopBar(
+                title = artistName,
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Lucide.ArrowLeft,
+                            contentDescription = "返回",
+                            tint = MiuixTheme.colorScheme.onSurface
                         )
                     }
                 }
+            )
+        }
+    ) { padding ->
+        val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            Text(
+                text = artistName,
+                style = MiuixTheme.textStyles.title1,
+                color = MiuixTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+            )
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    when (selectedTab) {
-                        0 -> {
-                            itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                                SongItem(
-                                    song = song,
-                                    isSelected = false,
-                                    isPlaying = song.id == currentSong?.id && isPlaying,
-                                    onClick = { playerViewModel.playSongs(songs, index) },
-                                    onMoreClick = { }
-                                )
-                            }
-                        }
-                        1 -> {
-                            itemsIndexed(albums, key = { _, album -> album.name + album.artist }) { _, album ->
-                                AlbumItem(
-                                    album = album,
-                                    onClick = { onNavigateToAlbum(album.name, album.artist) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.sm)
-                                )
-                            }
-                        }
-                        2 -> {
-                            itemsIndexed(guestAlbums, key = { _, album -> album.name + album.artist }) { _, album ->
-                                AlbumItem(
-                                    album = album,
-                                    onClick = { onNavigateToAlbum(album.name, album.artist) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = CloverSizes.listOuterHorizontalPadding, vertical = CloverSpacing.sm)
-                                )
-                            }
+            TabRow(
+                tabs = tabTitles,
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it }
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (selectedTab) {
+                    0 -> {
+                        itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
+                            SongItem(
+                                song = song,
+                                onClick = { playerViewModel.playSongs(songs, index) },
+                                onMoreClick = { }
+                            )
                         }
                     }
-
-                    item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
+                    1 -> {
+                        itemsIndexed(albums, key = { _, album -> album.name + album.artist }) { _, album ->
+                            AlbumItem(
+                                album = album,
+                                onClick = { onNavigateToAlbum(album.name, album.artist) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                    2 -> {
+                        itemsIndexed(guestAlbums, key = { _, album -> album.name + album.artist }) { _, album ->
+                            AlbumItem(
+                                album = album,
+                                onClick = { onNavigateToAlbum(album.name, album.artist) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                 }
+
+                item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
             }
         }
-    )
+    }
 }

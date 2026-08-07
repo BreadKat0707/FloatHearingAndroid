@@ -15,19 +15,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cn.lemondrop.clover.CloverListItem
-import cn.lemondrop.clover.CloverSpacing
 import cn.lemondrop.fhreborn.data.db.dao.TopAlbumStat
 import cn.lemondrop.fhreborn.data.db.dao.TopArtistStat
 import cn.lemondrop.fhreborn.data.db.dao.TopSongStat
-import io.github.composefluent.component.Text
+import cn.lemondrop.fhreborn.ui.components.FhListItem
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun StatHeaderCard(
@@ -38,20 +37,20 @@ fun StatHeaderCard(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             .padding(16.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.title2,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -72,9 +71,9 @@ fun TopSongsList(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 songs.forEachIndexed { index, song ->
-                    CloverListItem(
+                    FhListItem(
                         title = song.title,
-                        subtitle = "${song.artist} · ${song.album}",
+                        summary = "${song.artist} · ${song.album}",
                         onClick = { },
                         leading = {
                             RankBadge(rank = index + 1)
@@ -82,8 +81,8 @@ fun TopSongsList(
                         trailing = {
                             Text(
                                 text = "${song.count} 次",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                             )
                         }
                     )
@@ -106,13 +105,13 @@ fun TopArtistsRow(
             EmptyHint(emptyText)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(artists) { artist ->
                     StatChip(
                         title = artist.artist,
-                        subtitle = "${artist.count} 次 · ${formatDurationShort(artist.totalDuration)}"
+                        subtitle = "${artist.count} 次 · ${statFormatDurationShort(artist.totalDuration)}"
                     )
                 }
             }
@@ -133,7 +132,7 @@ fun TopAlbumsRow(
             EmptyHint(emptyText)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(albums) { album ->
@@ -151,8 +150,8 @@ fun TopAlbumsRow(
 fun SectionTitle(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurface
+        style = MiuixTheme.textStyles.title3,
+        color = MiuixTheme.colorScheme.onSurface
     )
 }
 
@@ -163,13 +162,13 @@ fun EmptyHint(text: String) {
             .fillMaxWidth()
             .height(64.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
         )
     }
 }
@@ -177,11 +176,11 @@ fun EmptyHint(text: String) {
 @Composable
 private fun RankBadge(rank: Int) {
     val background = if (rank <= 3) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MiuixTheme.colorScheme.surfaceVariant
     }
-    val textColor = if (rank <= 3) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val textColor = if (rank <= 3) MiuixTheme.colorScheme.onPrimary else MiuixTheme.colorScheme.onSurfaceVariantSummary
     Box(
         modifier = Modifier
             .size(28.dp)
@@ -191,7 +190,7 @@ private fun RankBadge(rank: Int) {
     ) {
         Text(
             text = rank.toString(),
-            style = MaterialTheme.typography.labelMedium,
+            style = MiuixTheme.textStyles.body2,
             color = textColor
         )
     }
@@ -207,24 +206,36 @@ private fun StatChip(
             .width(140.dp)
             .height(80.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             .padding(12.dp),
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+// 本地短时间格式化辅助（不依赖外部文件）
+private fun statFormatDurationShort(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    return when {
+        hours > 0 -> "${hours}h${minutes}m"
+        minutes > 0 -> "${minutes}m"
+        else -> "${totalSeconds}s"
     }
 }

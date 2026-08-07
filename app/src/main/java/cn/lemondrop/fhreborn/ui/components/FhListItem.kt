@@ -1,71 +1,60 @@
 package cn.lemondrop.fhreborn.ui.components
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 通用列表行：抽自媒体库歌曲列表（SongItem）的视觉骨架，统一用于歌曲 / 设置 / 文件夹浏览等。
+ * 通用列表行：Miuix BasicComponent 布局 + 自绘文本。
  *
- * 布局：[leading 槽] [标题 + 可选副标题（各 1 行省略）] [trailing 槽]。
- * - leading 槽可自行 emit 多个子节点（如指示条 + 封面），它们直接成为行的子节点；
- *   leading 之后自动留 12dp 间距。
- * - trailing 槽放控件 / 箭头 / 更多按钮等。
- * - onClick 为空时整行不可点击。
+ * 与直接使用 BasicComponent 的区别：
+ * - 标题用 body1（16sp）而非默认的 headline1（18sp）
+ * - 标题/副标题均单行截断（BasicComponent 内置 Text 不支持 maxLines/overflow）
+ *
+ * @param title 标题
+ * @param summary 副标题（可选）
+ * @param leading 左侧内容（图标/封面等）
+ * @param trailing 右侧内容（控件/箭头等）
+ * @param onClick 点击回调，null 时不可点击
  */
 @Composable
 fun FhListItem(
     title: String,
     modifier: Modifier = Modifier,
-    subtitle: String? = null,
+    summary: String? = null,
     leading: (@Composable () -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    BasicComponent(
+        modifier = modifier,
+        startAction = leading,
+        endActions = trailing,
+        onClick = onClick,
+        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        if (leading != null) {
-            leading()
-            Spacer(modifier = Modifier.width(12.dp))
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
+        Text(
+            text = title,
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (summary != null) {
             Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                text = summary,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        if (trailing != null) {
-            trailing()
         }
     }
 }

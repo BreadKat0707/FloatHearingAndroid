@@ -27,8 +27,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
+import cn.lemondrop.fhreborn.player.effects.BlendView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -56,6 +57,7 @@ sealed class PlayerBackgroundType(val key: String) {
     data object RotatingFluid : PlayerBackgroundType("rotating_fluid")
     data object AgslFluid : PlayerBackgroundType("agsl_fluid")
     data object CoverBlur : PlayerBackgroundType("cover_blur")
+    data object AccordBlend : PlayerBackgroundType("accord_blend")
     data object DefaultColor : PlayerBackgroundType("default_color")
 
     companion object {
@@ -63,6 +65,7 @@ sealed class PlayerBackgroundType(val key: String) {
             RotatingFluid.key -> RotatingFluid
             AgslFluid.key -> AgslFluid
             CoverBlur.key -> CoverBlur
+            AccordBlend.key -> AccordBlend
             DefaultColor.key -> DefaultColor
             else -> CoverBlur
         }
@@ -82,7 +85,7 @@ fun PlayerBackground(
     val type = remember(bgKey) { PlayerBackgroundType.fromKey(bgKey) }
 
     // 跟随 app 主题（而不是系统）判断深浅
-    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val isDarkTheme = MiuixTheme.colorScheme.background.luminance() < 0.5f
 
     when (type) {
         PlayerBackgroundType.RotatingFluid -> FluidBackground(
@@ -94,6 +97,11 @@ fun PlayerBackground(
         PlayerBackgroundType.AgslFluid -> AgslFluidBackground(
             songId = songId,
             isDarkTheme = isDarkTheme,
+            modifier = modifier
+        )
+        PlayerBackgroundType.AccordBlend -> AccordBlendBackground(
+            songId = songId,
+            isPlaying = isPlaying,
             modifier = modifier
         )
         PlayerBackgroundType.CoverBlur -> CoverBlurBackground(
@@ -117,6 +125,26 @@ fun DefaultPlayerBackground(
         modifier = modifier
             .fillMaxSize()
             .background(if (isDarkTheme) Color.Black else Color.White)
+    )
+}
+
+/**
+ * Accord（Gramophone）风格流体背景：封面整图模糊打底，
+ * 左上/右下 1/4 切片以不同速度旋转形成流体感。
+ */
+@Composable
+fun AccordBlendBackground(
+    songId: Long?,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        factory = { BlendView(it) },
+        update = { view ->
+            view.setSong(songId)
+            view.setPlaying(isPlaying)
+        },
+        modifier = modifier.fillMaxSize()
     )
 }
 
