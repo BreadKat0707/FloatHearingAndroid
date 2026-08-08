@@ -64,6 +64,7 @@ fun AccompanistLyricSettingsContent(
     val breathingDotsSize by repository.acclLyricBreathingDotsSize.collectAsState(initial = 16)
     val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = 14)
     val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
+    val linePositionPercent by repository.acclLyricLinePositionPercent.collectAsState(initial = 35)
 
     LazyColumn(
         modifier = Modifier
@@ -227,6 +228,20 @@ fun AccompanistLyricSettingsContent(
             )
         }
 
+        // 当前行位置
+        item { SectionHeader("当前行位置") }
+        item {
+            SliderSettingItem(
+                title = "竖向位置",
+                summary = "当前行歌词中心在视口中的高度占比",
+                value = linePositionPercent,
+                range = 10f..90f,
+                steps = 15,
+                valueText = "$linePositionPercent%",
+                onValueChange = { scope.launch { repository.setAcclLyricLinePositionPercent(it.toInt()) } }
+            )
+        }
+
         // 对齐方式：当前 Accompanist Lyric 版本不支持全局强制对齐，仅跟随歌词本身标注
         item { SectionHeader("对齐方式") }
         item {
@@ -258,6 +273,7 @@ private fun SliderSettingItem(
     steps: Int,
     valueText: String,
     enabled: Boolean = true,
+    summary: String? = null,
     keyPoints: List<Float>? = null,
     onValueChange: (Float) -> Unit
 ) {
@@ -280,6 +296,14 @@ private fun SliderSettingItem(
                 text = valueText,
                 style = MiuixTheme.textStyles.body2,
                 color = if (enabled) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            )
+        }
+        if (summary != null) {
+            Text(
+                text = summary,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
         Spacer(modifier = Modifier.height(8.dp))

@@ -120,6 +120,10 @@ class AppSettingsRepository(private val context: Context) {
     val acclLyricTranslationFontWeight: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_translation_font_weight")] ?: 400 }
     suspend fun setAcclLyricTranslationFontWeight(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_translation_font_weight")] = value }
 
+    /** 当前行歌词在视口中的竖向位置（百分比，行中心对齐） */
+    val acclLyricLinePositionPercent: Flow<Int> = dataStore.data.map { it[intPreferencesKey("accl_lyric_line_position_percent")] ?: 35 }
+    suspend fun setAcclLyricLinePositionPercent(value: Int) = dataStore.edit { it[intPreferencesKey("accl_lyric_line_position_percent")] = value }
+
     // ========== 播放器封面 ==========
     /** 播放器封面圆角（dp） */
     val playerCoverCornerRadius: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_corner_radius")] ?: 12 }

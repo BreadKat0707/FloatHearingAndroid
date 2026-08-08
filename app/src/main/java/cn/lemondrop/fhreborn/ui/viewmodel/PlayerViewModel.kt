@@ -305,6 +305,18 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * 将歌曲追加到播放队列末尾（不打断当前播放）。
+     */
+    fun addToQueue(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val controller = mediaController ?: return
+        ensureServiceStarted()
+        _queue.value = _queue.value + songs
+        controller.addMediaItems(songs.map { it.toMediaItem() })
+        saveState()
+    }
+
+    /**
      * 播放歌单：按歌单默认播放模式设置 repeatMode / shuffle。
      * @param playMode 歌单的 defaultPlayMode（0=顺序 1=列表循环 2=单曲循环 3=随机）
      */

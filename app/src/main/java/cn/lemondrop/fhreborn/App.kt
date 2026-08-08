@@ -33,11 +33,13 @@ import androidx.navigation.navArgument
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
 import kotlinx.coroutines.launch
@@ -126,6 +128,12 @@ val LocalDrawerToggle = staticCompositionLocalOf<() -> Unit> { {} }
  */
 val LocalPlayerOpen = staticCompositionLocalOf { false }
 
+/**
+ * 全局播放条显隐覆盖开关（MutableState 引用）。页面在多选等全屏底部覆盖场景下
+ * 置 true 隐藏 MiniPlayBar，避免遮挡底部工具栏；退出场景后置 false 恢复。
+ */
+val LocalPlayBarOverride = staticCompositionLocalOf { mutableStateOf(false) }
+
 @Composable
 fun FHRebornApp() {
     val context = LocalContext.current
@@ -139,6 +147,10 @@ fun FHRebornApp() {
 
     val themeMode by appSettingsRepository.themeMode.collectAsState(initial = "system")
     val useDynamicColor by appSettingsRepository.useDynamicColor.collectAsState(initial = false)
+    val accentColorSetting by appSettingsRepository.accentColor.collectAsState(initial = "default")
+    val accentColor = remember(accentColorSetting) {
+        cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
+    }
     val isSystemDark = isSystemInDarkTheme()
     val isDarkTheme = when (themeMode) {
         "light" -> false
@@ -208,10 +220,13 @@ fun FHRebornApp() {
             Screen.Statistics.route,
             Screen.Settings.route,
             Screen.AlbumDetail.route,
-            Screen.ArtistDetail.route
+            Screen.ArtistDetail.route,
+            Screen.PlaylistDetail.route
         )
     }
-    val shouldShowPlayBar = currentRoute in playBarRoutes && !showPlayer
+    // 多选等场景下页面通过 LocalPlayBarOverride 置 true 隐藏播放条（同一引用）
+    val playBarOverrideState = remember { mutableStateOf(false) }
+    val shouldShowPlayBar = currentRoute in playBarRoutes && !showPlayer && !playBarOverrideState.value
 
     val playBarBottomOffset = WindowInsets.navigationBars.asPaddingValues()
         .calculateBottomPadding() + 80.dp
@@ -260,12 +275,14 @@ fun FHRebornApp() {
         LocalGlobalPlayBarHeight provides globalPlayBarHeight,
         LocalDrawerVisible provides drawerVisibleState,
         LocalDrawerToggle provides toggleDrawer,
-        LocalPlayerOpen provides showPlayer
+        LocalPlayerOpen provides showPlayer,
+        LocalPlayBarOverride provides playBarOverrideState
     ) {
         FloatHearingTheme(
             darkTheme = isDarkTheme,
             useDynamicColor = useDynamicColor,
-            themeMode = themeMode
+            themeMode = themeMode,
+            accentColor = accentColor
         ) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -273,13 +290,46 @@ fun FHRebornApp() {
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
             ) { padding ->
             Box(modifier = Modifier.fillMaxSize()) {
+            // 二级页面（详情类）用左右滑动推入推出；根页面之间只做内容区上浮淡入
+            val secondaryRoutes = remember {
+                setOf(
+                    Screen.AlbumDetail.route,
+                    Screen.ArtistDetail.route,
+                    Screen.PlaylistDetail.route,
+                    Screen.MicaDemo.route
+                )
+            }
             NavHost(
                 navController = navController,
                 startDestination = if (isOnboardingCompleted == true) Screen.Library.route else Screen.Onboarding.route,
-            enterTransition = { slideInHorizontally(initialOffsetX = { it }) + fadeIn() },
-            exitTransition = { slideOutHorizontally(targetOffsetX = { -it / 4 }) + fadeOut() },
-            popEnterTransition = { slideInHorizontally(initialOffsetX = { -it / 4 }) + fadeIn() },
-            popExitTransition = { slideOutHorizontally(targetOffsetX = { it }) + fadeOut() }
+            enterTransition = {
+                if (targetState.destination.route in secondaryRoutes) {
+                    slideInHorizontally(initialOffsetX = { it }) + fadeIn()
+                } else {
+                    slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(250)) + fadeIn(tween(200))
+                }
+            },
+            exitTransition = {
+                if (initialState.destination.route in secondaryRoutes) {
+                    slideOutHorizontally(targetOffsetX = { -it / 4 }) + fadeOut()
+                } else {
+                    fadeOut(tween(150))
+                }
+            },
+            popEnterTransition = {
+                if (targetState.destination.route in secondaryRoutes) {
+                    slideInHorizontally(initialOffsetX = { -it / 4 }) + fadeIn()
+                } else {
+                    slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(250)) + fadeIn(tween(200))
+                }
+            },
+            popExitTransition = {
+                if (initialState.destination.route in secondaryRoutes) {
+                    slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+                } else {
+                    fadeOut(tween(150))
+                }
+            }
         ) {
             composable(Screen.Onboarding.route) {
                 OnboardingScreen(
@@ -326,7 +376,13 @@ fun FHRebornApp() {
                 PlaylistDetailScreen(
                     playlistId = playlistId,
                     onBack = { navController.navigateUp() },
-                    playerViewModel = playerViewModel
+                    playerViewModel = playerViewModel,
+                    onNavigateToAlbum = { album, artist ->
+                        navController.navigate(Screen.AlbumDetail.createRoute(album, artist))
+                    },
+                    onNavigateToArtist = { artist ->
+                        navController.navigate(Screen.ArtistDetail.createRoute(artist))
+                    }
                 )
             }
 
@@ -422,16 +478,22 @@ fun FHRebornApp() {
 
         // 全局迷你播放条（悬浮在主页面/详情页底部）
         if (shouldShowPlayBar) {
-            // 大屏且侧边栏展开时，PlayBar 让出左侧侧边栏区域，只覆盖内容区宽度
+            // 大屏且侧边栏展开时，播放条只覆盖内容区（从侧边栏右缘开始），在内容区内水平居中
             val sidebarInset = if (isLargeScreen && drawerVisibleState.value) cn.lemondrop.fhreborn.ui.components.SidebarWidth else 0.dp
-            MiniPlayBar(
-                playerViewModel = playerViewModel,
-                onClick = { showPlayer = true },
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(start = sidebarInset, end = 16.dp, bottom = playBarBottomOffset)
-            )
+                    .fillMaxSize()
+                    .padding(start = sidebarInset)
+            ) {
+                MiniPlayBar(
+                    playerViewModel = playerViewModel,
+                    onClick = { showPlayer = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(end = 16.dp, bottom = playBarBottomOffset)
+                )
+            }
         }
 
         // 播放器页（自身管理进入/退出动画）

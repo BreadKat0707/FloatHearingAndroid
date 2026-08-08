@@ -50,6 +50,26 @@ object SongFileUtils {
         context.startActivity(Intent.createChooser(intent, chooserTitle))
     }
 
+    /** 批量分享多首歌曲（ACTION_SEND_MULTIPLE），跳过不存在的文件 */
+    fun shareSongs(context: Context, songs: List<Song>, chooserTitle: String = "分享音频") {
+        val uris = songs.mapNotNull { song ->
+            val file = File(song.path)
+            if (!file.exists()) null
+            else FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+        }
+        if (uris.isEmpty()) return
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = "audio/*"
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, chooserTitle))
+    }
+
     fun formatFileSize(bytes: Long): String {
         if (bytes < 1024) return "${bytes} B"
         val kb = bytes / 1024.0

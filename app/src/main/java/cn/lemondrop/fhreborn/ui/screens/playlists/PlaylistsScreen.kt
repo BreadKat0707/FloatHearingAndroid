@@ -2,8 +2,10 @@ package cn.lemondrop.fhreborn.ui.screens.playlists
 
 import android.app.Application
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,15 +22,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,17 +45,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.dao.PlaylistWithCount
 import cn.lemondrop.fhreborn.data.db.entity.Playlist
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
+import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -89,6 +98,20 @@ fun PlaylistsScreen(
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
     var deletingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
+
+    // 多选模式（批量删除歌单）
+    var multiSelectMode by remember { mutableStateOf(false) }
+    val selectedPlaylistIds = remember { mutableStateSetOf<Long>() }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+
+    // 多选时隐藏全局播放条（底部由多选工具栏接管）；离开页面时复位
+    val playBarOverride = LocalPlayBarOverride.current
+    LaunchedEffect(multiSelectMode) {
+        playBarOverride.value = multiSelectMode
+    }
+    DisposableEffect(Unit) {
+        onDispose { playBarOverride.value = false }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
@@ -199,18 +222,67 @@ fun PlaylistsScreen(
                         PlaylistCard(
                             playlist = playlist,
                             viewModel = viewModel,
-                            onClick = { onOpenPlaylist(playlist.id) },
+                            onClick = {
+                                if (multiSelectMode) {
+                                    if (playlist.id in selectedPlaylistIds) {
+                                        selectedPlaylistIds.remove(playlist.id)
+                                    } else {
+                                        selectedPlaylistIds.add(playlist.id)
+                                    }
+                                } else {
+                                    onOpenPlaylist(playlist.id)
+                                }
+                            },
                             onPlayClick = { viewModel.playPlaylist(playlist.id, playerViewModel) },
-                            onLongClick = { editingPlaylist = playlist },
-                            onMenuClick = { editingPlaylist = playlist }
+                            onLongClick = {
+                                if (multiSelectMode) {
+                                    // 多选中长按：退出多选
+                                    multiSelectMode = false
+                                    selectedPlaylistIds.clear()
+                                } else {
+                                    // 长按进入多选并选中当前项
+                                    multiSelectMode = true
+                                    selectedPlaylistIds.add(playlist.id)
+                                }
+                            },
+                            onMenuClick = { editingPlaylist = playlist },
+                            selectionMode = multiSelectMode,
+                            selected = playlist.id in selectedPlaylistIds
+                        )
+                    }
+                }
+
+                // 多选底部工具栏（悬浮）
+                if (multiSelectMode) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        MultiSelectToolbar(
+                            selectedCount = selectedPlaylistIds.size,
+                            onAddToPlaylist = {},
+                            onAddToQueue = {},
+                            onShare = {},
+                            onDelete = {
+                                if (selectedPlaylistIds.isNotEmpty()) showBatchDeleteConfirm = true
+                            },
+                            onExit = {
+                                multiSelectMode = false
+                                selectedPlaylistIds.clear()
+                            },
+                            showSongActions = false
                         )
                     }
                 }
             }
-            SnackbarHost(
-                state = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+        SnackbarHost(
+            state = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
+        )
         }
     }
 
@@ -286,6 +358,41 @@ fun PlaylistsScreen(
             }
         }
     }
+
+    // 批量删除歌单确认
+    if (showBatchDeleteConfirm) {
+        BackHandler { showBatchDeleteConfirm = false }
+        FhBottomSheet(
+            show = true,
+            onDismissRequest = { showBatchDeleteConfirm = false },
+            title = "删除歌单",
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(
+                    text = "确定删除选中的 ${selectedPlaylistIds.size} 个歌单吗？歌单中的歌曲不会从媒体库删除。",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(text = "取消", onClick = { showBatchDeleteConfirm = false })
+                    TextButton(
+                        text = "删除",
+                        onClick = {
+                            selectedPlaylistIds.forEach { viewModel.deletePlaylist(it) }
+                            showBatchDeleteConfirm = false
+                            multiSelectMode = false
+                            selectedPlaylistIds.clear()
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -295,7 +402,9 @@ private fun PlaylistCard(
     onClick: () -> Unit,
     onPlayClick: () -> Unit,
     onLongClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
 ) {
     var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
     LaunchedEffect(playlist.id, playlist.songCount) {
@@ -313,6 +422,29 @@ private fun PlaylistCard(
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (selectionMode) {
+            // 多选勾选指示
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (selected) MiuixTheme.colorScheme.primary
+                        else MiuixTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected) {
+                    Icon(
+                        imageVector = Lucide.Check,
+                        contentDescription = "已选择",
+                        modifier = Modifier.size(14.dp),
+                        tint = MiuixTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+        }
         PlaylistCover(
             songIds = coverSongIds,
             coverPath = playlist.coverPath,
@@ -337,12 +469,14 @@ private fun PlaylistCard(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
-        IconButton(onClick = onPlayClick) {
-            Icon(
-                imageVector = Lucide.Play,
-                contentDescription = "播放歌单",
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-            )
+        if (!selectionMode) {
+            IconButton(onClick = onPlayClick) {
+                Icon(
+                    imageVector = Lucide.Play,
+                    contentDescription = "播放歌单",
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
         }
     }
 }

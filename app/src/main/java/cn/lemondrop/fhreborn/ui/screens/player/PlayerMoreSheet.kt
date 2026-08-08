@@ -20,30 +20,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
-import com.composables.icons.lucide.Album
-import com.composables.icons.lucide.ExternalLink
-import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.FileText
-import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Gauge
-import com.composables.icons.lucide.Info
-import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Mic
-import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.ScrollText
-import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.Timer
-import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.Volume2
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.SongMenuItems
+import cn.lemondrop.fhreborn.ui.components.SongMenuItem
 
 private data class MoreMenuItem(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    val destructive: Boolean = false
 )
 
 @Composable
@@ -52,6 +45,7 @@ fun PlayerMoreSheet(
     artistSeparators: Set<String>,
     onDismiss: () -> Unit,
     onAddToPlaylistClick: () -> Unit = {},
+    onPlayNextClick: () -> Unit = {},
     onSpeedClick: () -> Unit = {},
     onTimerClick: () -> Unit = {},
     onAudioOutputClick: () -> Unit = {},
@@ -67,22 +61,24 @@ fun PlayerMoreSheet(
     onHideClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {}
 ) {
+    // 公共项与曲目/歌单菜单共用 SongMenuItems 定义（图标与文案全局一致）
     val menuItems = listOf(
-        MoreMenuItem("加入歌单", Lucide.Music, onAddToPlaylistClick),
+        MoreMenuItem(SongMenuItems.PlayNext.label, SongMenuItems.PlayNext.icon, onPlayNextClick),
+        MoreMenuItem(SongMenuItems.AddToPlaylist.label, SongMenuItems.AddToPlaylist.icon, onAddToPlaylistClick),
         MoreMenuItem("倍速", Lucide.Gauge, onSpeedClick),
         MoreMenuItem("计划暂停", Lucide.Timer, onTimerClick),
         MoreMenuItem("输出与音效", Lucide.Volume2, onAudioOutputClick),
-        MoreMenuItem("想法", Lucide.Lightbulb, onThoughtsClick),
+        MoreMenuItem(SongMenuItems.Thoughts.label, SongMenuItems.Thoughts.icon, onThoughtsClick),
         MoreMenuItem("歌词设置", Lucide.FileText, onLyricSettingsClick),
         MoreMenuItem("歌词信息", Lucide.ScrollText, onLyricInfoClick),
-        MoreMenuItem("查看专辑", Lucide.Album, onViewAlbumClick),
-        MoreMenuItem("查看艺术家", Lucide.Mic, onViewArtistClick),
-        MoreMenuItem("转至文件夹", Lucide.FolderOpen, onGoToFolderClick),
-        MoreMenuItem("分享文件", Lucide.Share2, onShareClick),
-        MoreMenuItem("属性", Lucide.Info, onPropertiesClick),
-        MoreMenuItem("用其他 app 打开", Lucide.ExternalLink, onOpenWithClick),
-        MoreMenuItem("隐藏音乐", Lucide.EyeOff, onHideClick),
-        MoreMenuItem("删除文件", Lucide.Trash2, onDeleteClick)
+        MoreMenuItem(SongMenuItems.ViewAlbum.label, SongMenuItems.ViewAlbum.icon, onViewAlbumClick),
+        MoreMenuItem(SongMenuItems.ViewArtist.label, SongMenuItems.ViewArtist.icon, onViewArtistClick),
+        MoreMenuItem(SongMenuItems.GoToFolder.label, SongMenuItems.GoToFolder.icon, onGoToFolderClick),
+        MoreMenuItem(SongMenuItems.Share.label, SongMenuItems.Share.icon, onShareClick),
+        MoreMenuItem(SongMenuItems.Properties.label, SongMenuItems.Properties.icon, onPropertiesClick),
+        MoreMenuItem(SongMenuItems.OpenWith.label, SongMenuItems.OpenWith.icon, onOpenWithClick),
+        MoreMenuItem(SongMenuItems.Hide.label, SongMenuItems.Hide.icon, onHideClick),
+        MoreMenuItem(SongMenuItems.Delete.label, SongMenuItems.Delete.icon, onDeleteClick, destructive = true)
     )
 
     FhBottomSheet(
@@ -143,13 +139,13 @@ fun PlayerMoreSheet(
                         imageVector = item.icon,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
-                        tint = if (item.label == "删除文件") MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        tint = if (item.destructive) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = item.label,
                         style = MiuixTheme.textStyles.body1,
-                        color = if (item.label == "删除文件") MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurface
+                        color = if (item.destructive) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurface
                     )
                 }
             }

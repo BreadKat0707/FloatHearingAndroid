@@ -14,6 +14,7 @@ import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.scanner.MediaScanner
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.util.ArtistSplitter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class SortField {
     TITLE, ARTIST_ALBUM, ALBUM_DISC_TRACK, MODIFIED_TIME, ADDED_TIME,
@@ -265,6 +267,31 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                     _refreshCompleted.tryEmit(progress.songs.size)
                 }
             }
+        }
+    }
+
+    /**
+     * 删除歌曲：从 MediaStore 删除文件后刷新媒体库。
+     * @param onResult 回调成功删除的文件数
+     */
+    fun deleteSongs(context: android.content.Context, songs: List<Song>, onResult: (Int) -> Unit = {}) {
+        if (songs.isEmpty()) return
+        viewModelScope.launch {
+            val deleted = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                var count = 0
+                songs.forEach { song ->
+                    val uri = android.content.ContentUris.withAppendedId(
+                        android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        song.id
+                    )
+                    val rows = runCatching { context.contentResolver.delete(uri, null, null) }
+                        .getOrDefault(0)
+                    if (rows > 0) count++
+                }
+                count
+            }
+            if (deleted > 0) refreshMediaStore()
+            onResult(deleted)
         }
     }
 

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
@@ -21,19 +22,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -44,14 +50,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType
 import cn.lemondrop.fhreborn.data.db.entity.Song
+import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.FhListItem
+import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
+import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
@@ -59,9 +70,11 @@ import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Pencil
+import com.composables.icons.lucide.X
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,17 +85,24 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun PlaylistDetailScreen(
     playlistId: Long,
     onBack: () -> Unit,
-    playerViewModel: PlayerViewModel
+    playerViewModel: PlayerViewModel,
+    onNavigateToAlbum: (String, String?) -> Unit = { _, _ -> },
+    onNavigateToArtist: (String) -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: PlaylistViewModel = viewModel(
         factory = PlaylistViewModel.Factory(context.applicationContext as Application)
+    )
+    // 批量删除文件用（MediaStore 删除 + 刷新媒体库）
+    val libraryViewModel: LibraryViewModel = viewModel(
+        factory = LibraryViewModel.Factory(context.applicationContext as Application)
     )
     val playlist by viewModel.getPlaylist(playlistId).collectAsState(initial = null)
     val songs by viewModel.getSortedSongs(playlistId, playlist?.sortType ?: 0).collectAsState(initial = emptyList())
@@ -92,9 +112,28 @@ fun PlaylistDetailScreen(
     }
 
     var menuSong by remember { mutableStateOf<Song?>(null) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
+    var addTargetSong by remember { mutableStateOf<Song?>(null) }
+    var showSongProperties by remember { mutableStateOf(false) }
+    var propertiesSong by remember { mutableStateOf<Song?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+
+    // 多选模式（批量操作）
+    var multiSelectMode by remember { mutableStateOf(false) }
+    val selectedSongIds = remember { mutableStateSetOf<Long>() }
+    var showBatchAddSheet by remember { mutableStateOf(false) }
+    var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+
+    // 多选时隐藏全局播放条（底部由多选工具栏接管）；离开页面时复位
+    val playBarOverride = LocalPlayBarOverride.current
+    LaunchedEffect(multiSelectMode) {
+        playBarOverride.value = multiSelectMode
+    }
+    DisposableEffect(Unit) {
+        onDispose { playBarOverride.value = false }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
 
@@ -157,30 +196,50 @@ fun PlaylistDetailScreen(
                         }
                     },
                     actions = {
-                        // 排序
-                        IconButton(onClick = { showSortSheet = true }) {
-                            Icon(
-                                imageVector = Lucide.ArrowUpDown,
-                                contentDescription = "排序"
-                            )
-                        }
-                        // 导出
-                        IconButton(onClick = {
-                            pendingExportIsJson = false
-                            pendingExportContent = null
-                            showExportSheet = true
-                        }) {
-                            Icon(
-                                imageVector = Lucide.Download,
-                                contentDescription = "导出歌单"
-                            )
-                        }
-                        // 编辑
-                        IconButton(onClick = { showEditSheet = true }) {
-                            Icon(
-                                imageVector = Lucide.Pencil,
-                                contentDescription = "编辑歌单"
-                            )
+                        if (multiSelectMode) {
+                            // 多选中：仅保留退出按钮
+                            IconButton(onClick = {
+                                multiSelectMode = false
+                                selectedSongIds.clear()
+                            }) {
+                                Icon(
+                                    imageVector = Lucide.X,
+                                    contentDescription = "退出多选"
+                                )
+                            }
+                        } else {
+                            // 多选入口
+                            IconButton(onClick = { multiSelectMode = true }) {
+                                Icon(
+                                    imageVector = Lucide.ListChecks,
+                                    contentDescription = "多选"
+                                )
+                            }
+                            // 排序
+                            IconButton(onClick = { showSortSheet = true }) {
+                                Icon(
+                                    imageVector = Lucide.ArrowUpDown,
+                                    contentDescription = "排序"
+                                )
+                            }
+                            // 导出
+                            IconButton(onClick = {
+                                pendingExportIsJson = false
+                                pendingExportContent = null
+                                showExportSheet = true
+                            }) {
+                                Icon(
+                                    imageVector = Lucide.Download,
+                                    contentDescription = "导出歌单"
+                                )
+                            }
+                            // 编辑
+                            IconButton(onClick = { showEditSheet = true }) {
+                                Icon(
+                                    imageVector = Lucide.Pencil,
+                                    contentDescription = "编辑歌单"
+                                )
+                            }
                         }
                     }
                 )
@@ -272,7 +331,7 @@ fun PlaylistDetailScreen(
                     FhListItem(
                         title = song.title,
                         summary = "${song.artist} - ${song.album}",
-                        modifier = if (isCustomSort) {
+                        modifier = if (isCustomSort && !multiSelectMode) {
                             Modifier
                                 .animateItem()
                                 .zIndex(if (isDragging) 1f else 0f)
@@ -320,12 +379,20 @@ fun PlaylistDetailScreen(
                                 }
                         } else Modifier,
                         onClick = {
-                            viewModel.recordPlay(playlistId)
-                            playerViewModel.playPlaylistSongs(
-                                songs,
-                                songs.indexOf(song).coerceAtLeast(0),
-                                playlist?.defaultPlayMode ?: 0
-                            )
+                            if (multiSelectMode) {
+                                if (song.id in selectedSongIds) {
+                                    selectedSongIds.remove(song.id)
+                                } else {
+                                    selectedSongIds.add(song.id)
+                                }
+                            } else {
+                                viewModel.recordPlay(playlistId)
+                                playerViewModel.playPlaylistSongs(
+                                    songs,
+                                    songs.indexOf(song).coerceAtLeast(0),
+                                    playlist?.defaultPlayMode ?: 0
+                                )
+                            }
                         },
                         leading = {
                             SongCoverImage(
@@ -334,13 +401,76 @@ fun PlaylistDetailScreen(
                             )
                         },
                         trailing = {
-                            IconButton(onClick = { menuSong = song }) {
-                                Icon(
-                                    imageVector = Lucide.EllipsisVertical,
-                                    contentDescription = "更多",
-                                    modifier = Modifier.size(20.dp)
-                                )
+                            if (multiSelectMode) {
+                                // 多选勾选指示
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (song.id in selectedSongIds) MiuixTheme.colorScheme.primary
+                                            else MiuixTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (song.id in selectedSongIds) {
+                                        Icon(
+                                            imageVector = Lucide.Check,
+                                            contentDescription = "已选择",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MiuixTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                }
+                            } else {
+                                IconButton(onClick = { menuSong = song }) {
+                                    Icon(
+                                        imageVector = Lucide.EllipsisVertical,
+                                        contentDescription = "更多",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
+                        }
+                    )
+                }
+            }
+
+            // 多选底部工具栏（悬浮）
+            if (multiSelectMode) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    MultiSelectToolbar(
+                        selectedCount = selectedSongIds.size,
+                        onAddToPlaylist = {
+                            if (selectedSongIds.isNotEmpty()) showBatchAddSheet = true
+                        },
+                        onAddToQueue = {
+                            val songs = displaySongs.filter { it.id in selectedSongIds }
+                            if (songs.isNotEmpty()) {
+                                playerViewModel.addToQueue(songs)
+                                multiSelectMode = false
+                                selectedSongIds.clear()
+                            }
+                        },
+                        onShare = {
+                            val songs = displaySongs.filter { it.id in selectedSongIds }
+                            if (songs.isNotEmpty()) {
+                                cn.lemondrop.fhreborn.util.SongFileUtils.shareSongs(context, songs)
+                                multiSelectMode = false
+                                selectedSongIds.clear()
+                            }
+                        },
+                        onDelete = {
+                            if (selectedSongIds.isNotEmpty()) showBatchDeleteConfirm = true
+                        },
+                        onExit = {
+                            multiSelectMode = false
+                            selectedSongIds.clear()
                         }
                     )
                 }
@@ -348,29 +478,111 @@ fun PlaylistDetailScreen(
         }
     }
 
-    // 歌曲更多菜单：从歌单移除
+    // 歌曲更多菜单：完整曲目菜单 + 歌单上下文"从歌单移除"
     menuSong?.let { song ->
+        SongMenuSheet(
+            song = song,
+            onDismiss = { menuSong = null },
+            onPlayNext = { /* TODO: 加入播放队列下一首 */ },
+            onAddToPlaylist = {
+                addTargetSong = song
+                menuSong = null
+                showAddToPlaylistSheet = true
+            },
+            onThoughts = { /* TODO: 想法 */ },
+            onViewAlbum = { onNavigateToAlbum(song.album, song.albumArtist ?: song.artist) },
+            onViewArtist = { onNavigateToArtist(song.artist) },
+            onGoToFolder = { /* TODO: 转至文件夹 */ },
+            onShare = { cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, song) },
+            onOpenWith = { cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, song) },
+            onProperties = {
+                propertiesSong = song
+                menuSong = null
+                showSongProperties = true
+            },
+            onHide = { /* TODO: 隐藏音乐 */ },
+            onDelete = { /* TODO: 删除文件 */ },
+            onRemoveFromPlaylist = {
+                viewModel.removeSong(playlistId, song.id)
+                menuSong = null
+            }
+        )
+    }
+
+    // 歌曲属性弹窗（菜单"属性"）
+    if (showSongProperties) {
+        BackHandler { showSongProperties = false }
+        propertiesSong?.let { song ->
+            cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
+                song = song,
+                onDismiss = { showSongProperties = false }
+            )
+        }
+    }
+
+    // 加入歌单弹窗（菜单"加入歌单"）
+    if (showAddToPlaylistSheet) {
+        BackHandler { showAddToPlaylistSheet = false }
+        addTargetSong?.let { song ->
+            AddToPlaylistSheet(
+                songIds = listOf(song.id),
+                viewModel = viewModel,
+                onDismiss = { showAddToPlaylistSheet = false }
+            )
+        }
+    }
+
+    // 批量加入歌单弹窗（多选工具栏）
+    if (showBatchAddSheet) {
+        BackHandler { showBatchAddSheet = false }
+        AddToPlaylistSheet(
+            songIds = selectedSongIds.toList(),
+            viewModel = viewModel,
+            onDismiss = {
+                showBatchAddSheet = false
+                multiSelectMode = false
+                selectedSongIds.clear()
+            }
+        )
+    }
+
+    // 批量删除确认（多选工具栏）
+    if (showBatchDeleteConfirm) {
+        BackHandler { showBatchDeleteConfirm = false }
         FhBottomSheet(
             show = true,
-            onDismissRequest = { menuSong = null },
-            title = song.title,
+            onDismissRequest = { showBatchDeleteConfirm = false },
+            title = "删除歌曲",
             backgroundColor = MiuixTheme.colorScheme.surfaceContainer
         ) {
-            FhListItem(
-                title = "从歌单移除",
-                leading = {
-                    Icon(
-                        imageVector = Lucide.Music,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(
+                    text = "确定删除选中的 ${selectedSongIds.size} 首歌曲吗？文件将从设备中移除，此操作不可恢复。",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(text = "取消", onClick = { showBatchDeleteConfirm = false })
+                    TextButton(
+                        text = "删除",
+                        onClick = {
+                            val songs = displaySongs.filter { it.id in selectedSongIds }
+                            showBatchDeleteConfirm = false
+                            libraryViewModel.deleteSongs(context, songs) { deleted ->
+                                snackbarScope.launch {
+                                    snackbarHostState.showSnackbar("已删除 $deleted 首歌曲")
+                                }
+                            }
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }
                     )
-                },
-                onClick = {
-                    viewModel.removeSong(playlistId, song.id)
-                    menuSong = null
                 }
-            )
+            }
         }
     }
 
@@ -421,11 +633,13 @@ fun PlaylistDetailScreen(
         }
     }
 
-    // 导出/导入结果提示
+    // 导出/导入结果提示（避让悬浮播放条；多选时播放条已隐藏，无需避让）
     Box(modifier = Modifier.fillMaxSize()) {
         SnackbarHost(
             state = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
         )
     }
 

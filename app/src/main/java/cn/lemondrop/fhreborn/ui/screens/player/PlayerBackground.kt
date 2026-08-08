@@ -240,7 +240,7 @@ private fun AgslFluidBackgroundImpl(
                     update = { it.setBitmap(bmp) },
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(60.dp)
+                        .blur(90.dp)
                 )
             }
         }

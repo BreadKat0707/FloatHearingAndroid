@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -291,6 +292,12 @@ private fun SettingsListContent(
                         onClick = onSettingItemClick
                     )
                 }
+                // 个性化页：主题与颜色区追加主题色选择器
+                if (category.key == "personalize") {
+                    item {
+                        AccentColorPaletteItem(viewModel = viewModel)
+                    }
+                }
             }
         }
 
@@ -298,6 +305,34 @@ private fun SettingsListContent(
         item {
             Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
         }
+    }
+}
+
+@Composable
+private fun AccentColorPaletteItem(viewModel: SettingsViewModel) {
+    val accentColorSetting by viewModel.getStringValue("accent_color", "default")
+        .collectAsState(initial = "default")
+    val currentColor = remember(accentColorSetting) {
+        cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = "主题色",
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        top.yukonga.miuix.kmp.basic.ColorPalette(
+            color = currentColor,
+            onColorChanged = { color ->
+                val hex = String.format("#%06X", color.toArgb() and 0xFFFFFF)
+                viewModel.setStringSetting("accent_color", hex)
+            }
+        )
     }
 }
 

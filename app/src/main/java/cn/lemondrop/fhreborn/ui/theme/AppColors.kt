@@ -1,6 +1,9 @@
 package cn.lemondrop.fhreborn.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import top.yukonga.miuix.kmp.theme.Colors
 import top.yukonga.miuix.kmp.theme.darkColorScheme
 import top.yukonga.miuix.kmp.theme.lightColorScheme
 
@@ -110,3 +113,31 @@ val AppDarkColorScheme = darkColorScheme(
     onSurfaceVariantSummary = AppColors.onSurfaceVariantDark,
     outline = AppColors.outlineDark
 )
+
+/** 从设置字符串解析主题色："default"（或空）返回默认色，支持 "#RRGGBB" 格式，失败回退默认 */
+fun parseAccentColor(value: String): Color = when {
+    value.isBlank() || value.equals("default", ignoreCase = true) -> AppColors.accent
+    else -> runCatching {
+        val hex = value.removePrefix("#")
+        Color(hex.toLong(16) or 0xFF000000L)
+    }.getOrDefault(AppColors.accent)
+}
+
+/**
+ * 基于主题色生成完整 ColorScheme（非 Monet 模式使用）。
+ * primary 系颜色由 accent 派生，其余色板沿用 AppColors 静态值。
+ */
+fun accentColorScheme(accent: Color, isDark: Boolean): Colors {
+    val base = if (isDark) AppDarkColorScheme else AppLightColorScheme
+    val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
+    val container = if (isDark) lerp(accent, Color.Black, 0.75f) else lerp(accent, Color.White, 0.82f)
+    val onContainer = if (isDark) lerp(accent, Color.White, 0.85f) else lerp(accent, Color.Black, 0.8f)
+    return base.copy(
+        primary = accent,
+        onPrimary = onAccent,
+        primaryVariant = accent,
+        onPrimaryVariant = onAccent,
+        primaryContainer = container,
+        onPrimaryContainer = onContainer
+    )
+}

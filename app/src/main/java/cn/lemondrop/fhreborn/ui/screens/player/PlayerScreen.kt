@@ -100,12 +100,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -186,6 +190,7 @@ fun PlayerScreen(
     val acclUseBlur by appSettingsRepository.acclLyricUseBlurEffect.collectAsState(initial = true)
     val acclBlurDelta by appSettingsRepository.acclLyricBlurDelta.collectAsState(initial = 3)
     val acclTextAlign by appSettingsRepository.acclLyricTextAlign.collectAsState(initial = "center")
+    val acclLinePositionPercent by appSettingsRepository.acclLyricLinePositionPercent.collectAsState(initial = 35)
 
     DisposableEffect(keepScreenOn) {
         val window = (context as? Activity)?.window
@@ -426,11 +431,15 @@ fun PlayerScreen(
 
         if (isTwoPane) {
             // 横屏 / 大屏：左右双栏。左栏播放控件，右栏歌词；竖屏走下方单栏分支。
+            // 左栏列宽锚定封面（未收缩时）的适配宽度：信息/播控/进度条与封面严格对齐；
+            // 封面暂停收缩（×0.92）只作用于封面自身，不影响列宽，避免整列布局跳动。
+            var leftCoverWidth by remember { mutableStateOf<Dp?>(null) }
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(cutoutHorizontalPadding)
-                    .padding(horizontal = 16.dp)
+                    // 大屏双栏左右留白 40dp，不与屏幕边缘贴合；手机横屏紧凑布局维持 16dp
+                    .padding(horizontal = if (isCompactLandscape) 16.dp else 40.dp)
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
@@ -448,11 +457,15 @@ fun PlayerScreen(
                         .fillMaxHeight()
                         .padding(
                             top = statusBarPadding.calculateTopPadding() + 12.dp,
-                            bottom = navBarPadding + 12.dp
+                            bottom = navBarPadding + 24.dp
                         )
                         .padding(horizontal = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // 大屏分支：信息/播控/进度条/底部栏宽度 = 封面实际渲染宽度，整列居中严格对齐。
+                    // 封面未测量前为 null，各 section 维持默认 fillMaxWidth（首帧不闪）
+                    val leftColWidth = leftCoverWidth?.let { Modifier.width(it) } ?: Modifier
+
                     // 手机横屏：小封面+歌曲信息横向排列（类似竖屏歌词页底部面板），下方给控制按钮留足空间
                     if (isCompactLandscape) {
                         Column(
@@ -524,6 +537,7 @@ fun PlayerScreen(
                             targetBlendMode = targetBlendMode,
                             onLongClickCover = { showCoverViewer = true },
                             onCoverBitmapLoaded = { currentCoverBitmap = it },
+                            onCoverWidthMeasured = { leftCoverWidth = it },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
@@ -539,6 +553,7 @@ fun PlayerScreen(
                             currentSong = currentSong,
                             isDarkTheme = isDarkTheme,
                             useSharedTransition = false,
+                            modifier = leftColWidth,
                             onInfoClick = { showSongInfoSheet = true }
                         )
                     }
@@ -550,7 +565,8 @@ fun PlayerScreen(
                         duration = duration,
                         viewModel = viewModel,
                         isDarkTheme = isDarkTheme,
-                        useSharedTransition = false
+                        useSharedTransition = false,
+                        modifier = leftColWidth
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -559,7 +575,8 @@ fun PlayerScreen(
                         isPlaying = isPlaying,
                         isShuffle = shuffleMode,
                         repeatMode = repeatMode,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        modifier = leftColWidth
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -568,7 +585,8 @@ fun PlayerScreen(
                         openQueue = { openQueue() },
                         onShowMore = { showMore = true },
                         onAddToPlaylistClick = { showAddToPlaylist = true },
-                        isDarkTheme = isDarkTheme
+                        isDarkTheme = isDarkTheme,
+                        modifier = leftColWidth
                     )
                 }
 
@@ -600,9 +618,12 @@ fun PlayerScreen(
                             showPhonetic = acclShowPhonetic,
                             useBlur = acclUseBlur,
                             blurDelta = acclBlurDelta,
-                            textAlign = acclTextAlign
+                            textAlign = acclTextAlign,
+                            linePositionPercent = acclLinePositionPercent
                         ),
-                        onLineClicked = { line -> viewModel.seekTo(line.start.toLong()) }
+                        onLineClicked = { line -> viewModel.seekTo(line.start.toLong()) },
+                        // 队列全屏覆盖歌词时暂停逐字刷新，降低无效重绘
+                        refreshEnabled = !isQueueOpen
                     )
                 }
             }
@@ -632,7 +653,9 @@ fun PlayerScreen(
                         showMore = true
                     },
                     animatedVisibilityScope = this@AnimatedContent,
-                    sharedTransitionScope = sharedTransitionScope
+                    sharedTransitionScope = sharedTransitionScope,
+                    // 队列全屏覆盖歌词时暂停逐字刷新，降低无效重绘
+                    refreshEnabled = !isQueueOpen
                 )
             } else {
         Box(
@@ -830,6 +853,7 @@ fun PlayerScreen(
                     showMore = false
                     showAddToPlaylist = true
                 },
+                onPlayNextClick = { viewModel.next() },
                 onSpeedClick = { /* TODO: 倍速 */ },
                 onTimerClick = { viewModel.showScheduledPause() },
                 onAudioOutputClick = { /* TODO: 输出与音效 */ },
@@ -1029,7 +1053,8 @@ private fun LyricSheet(
     onInfoClick: () -> Unit,
     onMoreClick: () -> Unit,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
-    sharedTransitionScope: SharedTransitionScope
+    sharedTransitionScope: SharedTransitionScope,
+    refreshEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val appSettingsRepository = remember { AppSettingsRepository(context) }
@@ -1096,7 +1121,8 @@ private fun LyricSheet(
                     ),
                 onLineClicked = { line ->
                     onSeek(line.start.toLong())
-                }
+                },
+                refreshEnabled = refreshEnabled
             )
         } else {
             // 无歌词提示
@@ -1258,7 +1284,8 @@ private data class AcclLyricConfig(
     val glowEffect: Boolean = true,
     val breathingDotsSize: Int = 16,
     val translationTextSizeSp: Int = 14,
-    val translationFontWeight: Int = 400
+    val translationFontWeight: Int = 400,
+    val linePositionPercent: Int = 35
 )
 
 @Composable
@@ -1278,12 +1305,14 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
     val breathingDotsSize by repository.acclLyricBreathingDotsSize.collectAsState(initial = 16)
     val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = 14)
     val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
+    val linePositionPercent by repository.acclLyricLinePositionPercent.collectAsState(initial = 35)
 
     return remember(
         mainTextSize, accompanimentTextSize, phoneticTextSize,
         mainFontWeight, accompanimentFontWeight, phoneticFontWeight,
         showTranslation, showPhonetic, useBlur, blurDelta, textAlign,
-        glowEffect, breathingDotsSize, translationTextSize, translationFontWeight
+        glowEffect, breathingDotsSize, translationTextSize, translationFontWeight,
+        linePositionPercent
     ) {
         AcclLyricConfig(
             mainTextSizeSp = mainTextSize,
@@ -1300,7 +1329,8 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
             glowEffect = glowEffect,
             breathingDotsSize = breathingDotsSize,
             translationTextSizeSp = translationTextSize,
-            translationFontWeight = translationFontWeight
+            translationFontWeight = translationFontWeight,
+            linePositionPercent = linePositionPercent
         )
     }
 }
@@ -1314,7 +1344,8 @@ private fun KaraokeLyricsViewWrapper(
     isDarkTheme: Boolean,
     acclLyricConfig: AcclLyricConfig,
     modifier: Modifier = Modifier,
-    onLineClicked: (ISyncedLine) -> Unit = {}
+    onLineClicked: (ISyncedLine) -> Unit = {},
+    refreshEnabled: Boolean = true
 ) {
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
     // 混合模式：发光效果开关关闭时用普通绘制（SrcOver）
@@ -1364,8 +1395,8 @@ private fun KaraokeLyricsViewWrapper(
         }
     }
 
-    LaunchedEffect(isPlaying) {
-        if (!isPlaying) return@LaunchedEffect
+    LaunchedEffect(isPlaying, refreshEnabled) {
+        if (!isPlaying || !refreshEnabled) return@LaunchedEffect
         var lastFrameNs = System.nanoTime()
         var lastPublishedMs = localPositionMs
         while (isActive) {
@@ -1373,11 +1404,11 @@ private fun KaraokeLyricsViewWrapper(
                 val deltaMs = ((frameNs - lastFrameNs) / 1_000_000).toInt().coerceAtLeast(0)
                 lastFrameNs = frameNs
                 lastPublishedMs += deltaMs
-                // 帧对齐 + 20fps 限频（50ms）。
-                // 主线程栈证明：时间 State 每帧更新会让 KaraokeLyricsView 的
-                // LazyColumn 在每次绘制时重新测量（Lookahead 双重测量），
-                // 16ms（60fps）在模拟器上导致测量风暴 ANR。50ms 平衡流畅度与负载。
-                if (lastPublishedMs - localPositionMs >= 50) {
+                // 帧对齐 + 30fps 限频（33ms）。
+                // 时间 State 每帧更新会让 KaraokeLyricsView 的 LazyColumn 在每次绘制时
+                // 重新测量（Lookahead 双重测量），16ms（60fps）在模拟器上导致测量风暴 ANR。
+                // 33ms 在动画流畅度（逐字平滑推进）与重绘负载之间折中。
+                if (lastPublishedMs - localPositionMs >= 33) {
                     localPositionMs = lastPublishedMs
                 }
             }
@@ -1391,34 +1422,95 @@ private fun KaraokeLyricsViewWrapper(
     //
     // 翻译行没有独立样式参数（库写死继承 LocalTextStyle），
     // 用 CompositionLocal 提供翻译行字号 + 字重。
-    androidx.compose.runtime.CompositionLocalProvider(
-        androidx.compose.material3.LocalTextStyle provides TextStyle(
-            fontSize = acclLyricConfig.translationTextSizeSp.sp,
-            fontWeight = FontWeight(acclLyricConfig.translationFontWeight.coerceIn(1, 1000))
-        )
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+
+    // 当前行索引：优先取时间命中的行，否则取下一句（前奏/间奏），与库内部逻辑一致
+    val currentLineIndex = remember(lyrics, currentPosition) {
+        val idx = lyrics.lines.indexOfFirst { currentPosition >= it.start && currentPosition < it.end }
+        if (idx != -1) idx
+        else {
+            val next = lyrics.lines.indexOfFirst { it.start > currentPosition }
+            if (next != -1) next else lyrics.lines.lastIndex
+        }
+    }
+
+    // 当前行高估算（主行 + 翻译行 + 行距），用于“行中心对齐到视口百分比位置”的 offset 换算
+    val lineHeightDp = remember(
+        textMeasurer, lyrics, currentLineIndex, normalLineTextStyle,
+        acclLyricConfig.showTranslation, acclLyricConfig.translationTextSizeSp,
+        acclLyricConfig.translationFontWeight
     ) {
-    KaraokeLyricsView(
-        listState = listState,
-        lyrics = lyrics,
-        currentPosition = { localPositionMs },
-        onLineClicked = onLineClicked,
-        onLinePressed = {},
-        // clearAndSetSemantics：砍掉整棵歌词树的语义节点。
-        // 切歌/滚动时 Compose 会为语义树做全局排序遍历（SemanticsSortKt），
-        // 几百行歌词 × 频繁滚动导致大量分配，堆 192MB 被打满 OOM。
-        // 歌词行不需要无障碍朗读，此优化不影响显示。
-        modifier = modifier.clearAndSetSemantics { },
-        textColor = fluidOnColor,
-            blendMode = lyricBlendMode,
-            breathingDotsDefaults = breathingDotsDefaults,
-            normalLineTextStyle = normalLineTextStyle,
-            accompanimentLineTextStyle = accompanimentLineTextStyle,
-            phoneticTextStyle = phoneticTextStyle,
-            showTranslation = acclLyricConfig.showTranslation,
-            showPhonetic = acclLyricConfig.showPhonetic,
-            useBlurEffect = acclLyricConfig.useBlur,
-            blurDelta = acclLyricConfig.blurDelta.toFloat()
-        )
+        var heightPx = 0f
+        lyrics.lines.getOrNull(currentLineIndex)?.let { line ->
+            val mainText = when (line) {
+                is SyncedLine -> line.content
+                is KaraokeLine -> line.syllables.joinToString("") { it.content }
+                else -> ""
+            }
+            if (mainText.isNotBlank()) {
+                heightPx += textMeasurer.measure(
+                    mainText,
+                    normalLineTextStyle.copy(textDirection = TextDirection.Content)
+                ).size.height.toFloat()
+            }
+            if (acclLyricConfig.showTranslation) {
+                val translation = line.lyricTranslation()
+                if (!translation.isNullOrBlank()) {
+                    val translationStyle = TextStyle(
+                        fontSize = acclLyricConfig.translationTextSizeSp.sp,
+                        fontWeight = FontWeight(acclLyricConfig.translationFontWeight.coerceIn(1, 1000))
+                    )
+                    heightPx += with(density) { 6.dp.toPx() } // 主行与翻译行间距
+                    heightPx += textMeasurer.measure(
+                        translation,
+                        translationStyle.copy(textDirection = TextDirection.Content)
+                    ).size.height.toFloat()
+                }
+            }
+        }
+        with(density) { heightPx.toDp() }
+    }
+
+    BoxWithConstraints(modifier = modifier) {
+        // 当前行位置（百分比）：库的滚动目标是「当前行顶边停在 offset + keepAliveZone 处」，
+        // 要让行中心落在视口高度的 p% 处：offset = H*p% - keepAliveZone - 行高/2。
+        // 顶部存在渐隐区，百分比过小时物理上无法满足，clamp 到 0 即可（回退为顶对齐）。
+        val keepAliveZone = 60.dp
+        val offset = (maxHeight * (acclLyricConfig.linePositionPercent / 100f) - keepAliveZone - lineHeightDp / 2)
+            .coerceAtLeast(0.dp)
+
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalTextStyle provides TextStyle(
+                fontSize = acclLyricConfig.translationTextSizeSp.sp,
+                fontWeight = FontWeight(acclLyricConfig.translationFontWeight.coerceIn(1, 1000))
+            )
+        ) {
+            KaraokeLyricsView(
+                listState = listState,
+                lyrics = lyrics,
+                currentPosition = { localPositionMs },
+                onLineClicked = onLineClicked,
+                onLinePressed = {},
+                // clearAndSetSemantics：砍掉整棵歌词树的语义节点。
+                // 切歌/滚动时 Compose 会为语义树做全局排序遍历（SemanticsSortKt），
+                // 几百行歌词 × 频繁滚动导致大量分配，堆 192MB 被打满 OOM。
+                // 歌词行不需要无障碍朗读，此优化不影响显示。
+                modifier = Modifier.fillMaxSize().clearAndSetSemantics { },
+                textColor = fluidOnColor,
+                blendMode = lyricBlendMode,
+                breathingDotsDefaults = breathingDotsDefaults,
+                normalLineTextStyle = normalLineTextStyle,
+                accompanimentLineTextStyle = accompanimentLineTextStyle,
+                phoneticTextStyle = phoneticTextStyle,
+                showTranslation = acclLyricConfig.showTranslation,
+                showPhonetic = acclLyricConfig.showPhonetic,
+                useBlurEffect = acclLyricConfig.useBlur,
+                blurDelta = acclLyricConfig.blurDelta.toFloat(),
+                offset = offset,
+                keepAliveZone = keepAliveZone
+            )
+        }
     }
 }
 
@@ -1497,6 +1589,7 @@ private fun PlayerCoverSection(
     targetBlendMode: BlendMode,
     onLongClickCover: () -> Unit,
     onCoverBitmapLoaded: (ImageBitmap?) -> Unit,
+    onCoverWidthMeasured: (Dp) -> Unit = {},
     modifier: Modifier = Modifier,
     cornerRadiusDp: Int = 12,
     rotating: Boolean = false,
@@ -1507,8 +1600,25 @@ private fun PlayerCoverSection(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    // 上报封面未收缩时的实际渲染宽度（不乘 coverSizeMultiplier）：
+    // 大屏双栏用它作为左栏信息/播控列的宽度锚点，暂停收缩只影响封面自身，不引起整列布局跳动。
+    // onSizeChanged 保证窗口缩放/容器尺寸变化时必定重新上报（比仅依赖重组合更可靠）；
+    // bitmap 异步加载完成后 displayWidth 变化，由下方 LaunchedEffect 兜底再报一次。
     BoxWithConstraints(
-        modifier = modifier,
+        modifier = modifier.onSizeChanged { size ->
+            val bmp = currentCoverBitmap
+            val maxWPx = size.width.toFloat()
+            val maxHPx = size.height.toFloat()
+            val fitW: Float
+            if (bmp != null) {
+                val aspect = bmp.width.toFloat() / bmp.height.toFloat()
+                fitW = if (maxWPx / maxHPx > aspect) maxHPx * aspect else maxWPx
+            } else {
+                fitW = minOf(maxWPx, maxHPx)
+            }
+            val displayW = if (rotating) minOf(fitW, maxHPx) else fitW
+            onCoverWidthMeasured(with(density) { displayW.toDp() })
+        },
         contentAlignment = Alignment.Center
     ) {
         val (baseCoverWidth, baseCoverHeight) = with(density) {
@@ -1536,6 +1646,12 @@ private fun PlayerCoverSection(
         // 圆形旋转封面：固定为正方形（非正方形封面裁切为方形显示）
         val displayWidth = if (rotating) baseCoverWidth.coerceAtMost(baseCoverHeight) else baseCoverWidth
         val displayHeight = if (rotating) baseCoverWidth.coerceAtMost(baseCoverHeight) else baseCoverHeight
+
+        // 上报封面未收缩时的实际渲染宽度（不乘 coverSizeMultiplier）：
+        // 大屏双栏用它作为左栏信息/播控列的宽度锚点，暂停收缩只影响封面自身，不引起整列布局跳动
+        LaunchedEffect(displayWidth) {
+            onCoverWidthMeasured(displayWidth)
+        }
 
         val coverWidth by animateDpAsState(
             targetValue = displayWidth * coverSizeMultiplier,
@@ -1663,7 +1779,7 @@ private fun PlayerSongInfoSection(
     } else {
         Modifier
     }
-    Column(modifier = sharedModifier.then(modifier).fillMaxWidth()) {
+    Column(modifier = sharedModifier.fillMaxWidth().then(modifier)) {
         Text(
             text = currentSong?.title ?: "未在播放",
             style = MiuixTheme.textStyles.headline2.copy(fontWeight = FontWeight.Bold),
@@ -1727,7 +1843,7 @@ private fun PlayerProgressSection(
         if (isSeekDragging) formatDuration((seekDragProgress * duration.coerceAtLeast(1L)).toLong()) else ""
     }
 
-    Box(modifier = sharedModifier.then(modifier).fillMaxWidth()) {
+    Box(modifier = sharedModifier.fillMaxWidth().then(modifier)) {
         PlayerProgressSlider(
             position = position,
             duration = duration,
@@ -1788,8 +1904,9 @@ private fun PlayerControlsSection(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(modifier),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1845,12 +1962,14 @@ private fun PlayerBottomActionsSection(
     openQueue: () -> Unit,
     onShowMore: () -> Unit,
     onAddToPlaylistClick: () -> Unit,
-    isDarkTheme: Boolean
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier
 ) {
     // 上划打开播放队列（整排底栏图标上方居中）
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .then(modifier)
             .clickable(
                 interactionSource = null,
                 indication = null,
@@ -1923,7 +2042,8 @@ private fun PlayerLyricsPane(
     isDarkTheme: Boolean,
     acclLyricConfig: AcclLyricConfig,
     onLineClicked: (ISyncedLine) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    refreshEnabled: Boolean = true
 ) {
     val listState = rememberLazyListState()
     val fluidOnColor = if (isDarkTheme) Color.White else Color.Black
@@ -1936,7 +2056,8 @@ private fun PlayerLyricsPane(
             isDarkTheme = isDarkTheme,
             acclLyricConfig = acclLyricConfig,
             modifier = modifier.fillMaxSize(),
-            onLineClicked = onLineClicked
+            onLineClicked = onLineClicked,
+            refreshEnabled = refreshEnabled
         )
     } else {
         Box(

@@ -1,6 +1,8 @@
 package cn.lemondrop.fhreborn.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,33 +13,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.clickable
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Song
-import cn.lemondrop.fhreborn.ui.components.SongCoverImage
-import com.composables.icons.lucide.Album
-import com.composables.icons.lucide.EyeOff
-import com.composables.icons.lucide.ExternalLink
-import com.composables.icons.lucide.FolderOpen
-import com.composables.icons.lucide.Info
-import com.composables.icons.lucide.Lightbulb
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Mic
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Share2
-import com.composables.icons.lucide.SkipForward
-import com.composables.icons.lucide.Trash2
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
-import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 歌曲上下文菜单弹窗
+ * 歌曲上下文菜单弹窗（曲目菜单 / 歌单详情菜单共用）。
+ * 菜单项使用 [SongMenuItems] 共享定义，保证图标与文案全局一致。
+ *
+ * @param onRemoveFromPlaylist 非 null 时显示"从歌单移除"项（歌单详情上下文）
  */
 @Composable
 fun SongMenuSheet(
@@ -53,21 +43,25 @@ fun SongMenuSheet(
     onOpenWith: () -> Unit = {},
     onProperties: () -> Unit = {},
     onHide: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    onRemoveFromPlaylist: (() -> Unit)? = null
 ) {
-    val menuItems = listOf(
-        Triple("下一首播放", Lucide.SkipForward, onPlayNext),
-        Triple("加入歌单", Lucide.Plus, onAddToPlaylist),
-        Triple("想法", Lucide.Lightbulb, onThoughts),
-        Triple("查看专辑", Lucide.Album, onViewAlbum),
-        Triple("查看艺术家", Lucide.Mic, onViewArtist),
-        Triple("转至文件夹", Lucide.FolderOpen, onGoToFolder),
-        Triple("分享文件", Lucide.Share2, onShare),
-        Triple("用其他 app 打开", Lucide.ExternalLink, onOpenWith),
-        Triple("属性", Lucide.Info, onProperties),
-        Triple("隐藏音乐", Lucide.EyeOff, onHide),
-        Triple("删除文件", Lucide.Trash2, onDelete)
-    )
+    val menuItems = buildList {
+        add(SongMenuItems.PlayNext to onPlayNext)
+        add(SongMenuItems.AddToPlaylist to onAddToPlaylist)
+        add(SongMenuItems.Thoughts to onThoughts)
+        if (onRemoveFromPlaylist != null) {
+            add(SongMenuItems.RemoveFromPlaylist to onRemoveFromPlaylist)
+        }
+        add(SongMenuItems.ViewAlbum to onViewAlbum)
+        add(SongMenuItems.ViewArtist to onViewArtist)
+        add(SongMenuItems.GoToFolder to onGoToFolder)
+        add(SongMenuItems.Share to onShare)
+        add(SongMenuItems.OpenWith to onOpenWith)
+        add(SongMenuItems.Properties to onProperties)
+        add(SongMenuItems.Hide to onHide)
+        add(SongMenuItems.Delete to onDelete)
+    }
 
     FhBottomSheet(
         show = true,
@@ -104,7 +98,7 @@ fun SongMenuSheet(
         }
 
         // 分隔线
-        androidx.compose.foundation.layout.Box(
+        Box(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 4.dp)
                 .height(1.dp)
@@ -113,7 +107,7 @@ fun SongMenuSheet(
 
         // 菜单列表
         LazyColumn {
-            items(menuItems, key = { it.first }) { (label, icon, onClick) ->
+            items(menuItems, key = { it.first.label }) { (item, onClick) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -125,16 +119,16 @@ fun SongMenuSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = icon,
+                        imageVector = item.icon,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
-                        tint = if (label == "删除文件") MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        tint = if (item.destructive) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurfaceVariantSummary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = label,
+                        text = item.label,
                         style = MiuixTheme.textStyles.body1,
-                        color = if (label == "删除文件") MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurface
+                        color = if (item.destructive) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.onSurface
                     )
                 }
             }
