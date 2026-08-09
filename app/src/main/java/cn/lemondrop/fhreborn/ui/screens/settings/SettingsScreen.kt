@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -117,6 +119,8 @@ fun SettingsScreen(
     }
     var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
+    // 顶栏滚动感知：主页/分类页列表滚离顶部时显示背景/模糊，回顶隐藏
+    var topBarScrolled by remember { mutableStateOf(false) }
 
     val onNavigateItem: (SettingItem) -> Unit = { item ->
         when (item.key) {
@@ -192,6 +196,8 @@ fun SettingsScreen(
         Scaffold(
             topBar = {
                 BlurTopBar(
+                    // 主页/分类页滚动感知；子页面常显背景
+                    scrolled = if (currentPage is SettingsPage.Home || currentPage is SettingsPage.Category) topBarScrolled else true,
                     title = pageTitle(),
                     navigationIcon = {
                         if (isHome) {
@@ -248,7 +254,8 @@ fun SettingsScreen(
                         },
                         onSettingItemClick = onSettingItemClick,
                         bottomOverlayHeight = bottomOverlayHeight,
-                        topInset = padding.calculateTopPadding()
+                        topInset = padding.calculateTopPadding(),
+                        onScrolledChange = { topBarScrolled = it }
                     )
 
                     SettingsPage.Background -> BackgroundSettingsContent(viewModel)
@@ -291,10 +298,17 @@ private fun SettingsListContent(
     onCategoryClick: (String) -> Unit,
     onSettingItemClick: (SettingItem) -> Unit,
     bottomOverlayHeight: Dp,
-    topInset: Dp = 0.dp
+    topInset: Dp = 0.dp,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val selectedCategory = (currentPage as? SettingsPage.Category)?.key
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // 滚动感知：滚离顶部时通知父层（顶栏显示背景/模糊）
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }.collect(onScrolledChange)
+    }
     Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         state = listState,

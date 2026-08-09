@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -68,10 +69,19 @@ fun ArtistDetailScreen(
         drawContent()
     }
 
+    val artistListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
+    val topBarScrolled = remember {
+        derivedStateOf {
+            artistListState.firstVisibleItemIndex > 0 || artistListState.firstVisibleItemScrollOffset > 0
+        }
+    }.value
+
     Scaffold(
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,
+                scrolled = topBarScrolled,
                 title = artistName,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -106,7 +116,6 @@ fun ArtistDetailScreen(
                 onTabSelected = { selectedTab = it }
             )
 
-            val artistListState = androidx.compose.foundation.lazy.rememberLazyListState()
             Box(
                 modifier = Modifier
                     .fillMaxSize()

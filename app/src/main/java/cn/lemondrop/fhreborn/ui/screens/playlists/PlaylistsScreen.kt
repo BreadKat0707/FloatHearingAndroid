@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
@@ -119,6 +120,17 @@ fun PlaylistsScreen(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
+    // 顶栏滚动感知：列表/网格滚离顶部时显示背景/模糊，回顶隐藏
+    val topBarScrolled = remember {
+        derivedStateOf {
+            if (viewStyle == "list") {
+                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+            } else {
+                gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0
+            }
+        }
+    }.value
+
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
     var deletingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
@@ -201,6 +213,8 @@ fun PlaylistsScreen(
                 topBar = {
                     BlurTopBar(
                         backdrop = backdrop,
+                        // 列表/网格滚动后（或多选时）才显示顶栏背景/模糊；回顶隐藏
+                        scrolled = topBarScrolled || multiSelectMode,
                         title = if (multiSelectMode) "已选 ${selectedPlaylistIds.size} 个" else "歌单",
                         navigationIcon = {
                             IconButton(onClick = { drawerToggle() }) {

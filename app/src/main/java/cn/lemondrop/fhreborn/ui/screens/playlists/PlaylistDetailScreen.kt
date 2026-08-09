@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -143,6 +144,12 @@ fun PlaylistDetailScreen(
     // 自定义排序：长按拖拽重排
     val isCustomSort = playlist?.sortType == PlaylistSortType.CUSTOM
     val listState = rememberLazyListState()
+    // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
+    val topBarScrolled = remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }.value
     val dragSpacingPx = with(LocalDensity.current) { 4.dp.toPx() }
     var displaySongs by remember(songs) { mutableStateOf(songs) }
     var draggingSongId by remember { mutableStateOf<Long?>(null) }
@@ -197,6 +204,8 @@ fun PlaylistDetailScreen(
             topBar = {
                 BlurTopBar(
                     backdrop = backdrop,
+                    // 列表滚动后（或多选时）才显示顶栏背景/模糊；回顶隐藏
+                    scrolled = topBarScrolled || multiSelectMode,
                     title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else playlist?.name ?: "歌单",
                     navigationIcon = {
                         IconButton(onClick = onBack) {

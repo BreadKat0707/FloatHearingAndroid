@@ -48,10 +48,11 @@ private fun rememberBackdropEffectColors(): BlurColors {
 }
 
 /**
- * 使用 Miuix 磨砂玻璃色值的 SmallTopAppBar 包装。
+ * 使用 Miuix 磨砂玻璃色值的 SmallTopAppBar 包装（滚动感知）。
  *
- * @param backdrop 非空且平台支持时，顶栏透明并对页面内容（layerBackdrop 捕获的层）
- *                 做真实模糊 + 表面色叠加（磨砂玻璃）；否则回退 surfaceContainer 色值。
+ * @param backdrop 非空且平台支持时，滚动后顶栏透明并对页面内容做真实模糊 + 表面色叠加；
+ * @param scrolled 列表是否已滚动（内容滚到顶栏下）——false 时顶栏完全透明（无背景），
+ *                 true 时显示模糊（或回退色值）
  */
 @Composable
 fun BlurTopBar(
@@ -59,10 +60,11 @@ fun BlurTopBar(
     modifier: Modifier = Modifier,
     subtitle: String = "",
     backdrop: LayerBackdrop? = null,
+    scrolled: Boolean = true,
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    val useBlur = backdrop != null && isRuntimeShaderSupported
+    val useBlur = backdrop != null && isRuntimeShaderSupported && scrolled
     if (useBlur) {
         val effectColors = rememberBackdropEffectColors()
         Box(
@@ -88,7 +90,8 @@ fun BlurTopBar(
     } else {
         SmallTopAppBar(
             title = title,
-            color = MiuixTheme.colorScheme.surfaceContainer,
+            // 未滚动：完全透明（顶栏下无重要内容）；已滚动但平台不支持模糊：回退磨砂色值
+            color = if (scrolled) MiuixTheme.colorScheme.surfaceContainer else Color.Transparent,
             subtitle = subtitle,
             navigationIcon = navigationIcon,
             actions = actions,

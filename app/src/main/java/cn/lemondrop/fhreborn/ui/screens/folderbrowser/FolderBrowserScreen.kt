@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,12 @@ fun FolderBrowserScreen(
     val playingSongId by playerViewModel.currentSong.collectAsState()
 
     val listState = rememberLazyListState()
+    // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
+    val topBarScrolled = remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }.value
 
     val currentNode = remember(rootNode, currentPath) {
         var node = rootNode
@@ -128,6 +135,7 @@ fun FolderBrowserScreen(
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,
+                scrolled = topBarScrolled,
                 title = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
                 navigationIcon = {
                     IconButton(onClick = { drawerToggle() }) {

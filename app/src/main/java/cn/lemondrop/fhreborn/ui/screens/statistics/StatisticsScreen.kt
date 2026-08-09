@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +55,8 @@ fun StatisticsScreen(
     )
 
     var selectedTab by remember { mutableIntStateOf(0) }
+    // 顶栏滚动感知：当前 Tab 列表滚离顶部时显示背景/模糊，回顶隐藏
+    var topBarScrolled by remember { mutableStateOf(false) }
 
     val drawerVisible = LocalDrawerVisible.current
     val drawerToggle = LocalDrawerToggle.current
@@ -89,6 +92,7 @@ fun StatisticsScreen(
                 topBar = {
                     BlurTopBar(
                         backdrop = backdrop,
+                        scrolled = topBarScrolled,
                         title = "统计和数据分析",
                     navigationIcon = {
                         IconButton(onClick = { drawerToggle() }) {
@@ -121,10 +125,10 @@ fun StatisticsScreen(
                 val topInset = padding.calculateTopPadding()
                 val bottomInset = padding.calculateBottomPadding()
                 when (selectedTab) {
-                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
-                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
-                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
-                    3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
+                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
+                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
+                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
+                    3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
                 }
             }
         }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -92,10 +93,19 @@ fun AlbumDetailScreen(
         drawContent()
     }
 
+    val albumListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
+    val topBarScrolled = remember {
+        derivedStateOf {
+            albumListState.firstVisibleItemIndex > 0 || albumListState.firstVisibleItemScrollOffset > 0
+        }
+    }.value
+
     Scaffold(
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,
+                scrolled = topBarScrolled,
                 title = "专辑",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -110,7 +120,6 @@ fun AlbumDetailScreen(
         }
     ) { padding ->
         val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
-        val albumListState = androidx.compose.foundation.lazy.rememberLazyListState()
         Box(
             modifier = Modifier
                 .fillMaxSize()

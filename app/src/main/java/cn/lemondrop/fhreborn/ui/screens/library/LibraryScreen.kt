@@ -206,6 +206,12 @@ fun LibraryScreen(
     }
 
     val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
+    // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
+    val topBarScrolled = remember {
+        androidx.compose.runtime.derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }.value
 
     // 定位当前播放：切到"歌曲"标签后滚动到对应项
     LaunchedEffect(pendingLocateSongId, displaySongs) {
@@ -417,6 +423,8 @@ fun LibraryScreen(
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,
+                // 列表滚动后（或多选时）才显示顶栏背景/模糊；回顶隐藏
+                scrolled = topBarScrolled || multiSelectMode,
                 title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else when (selectedNavIndex) {
                     0 -> "媒体库"
                     1 -> "专辑"

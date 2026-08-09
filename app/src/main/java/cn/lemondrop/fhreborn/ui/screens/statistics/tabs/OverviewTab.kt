@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,10 +34,17 @@ fun OverviewTab(
     viewModel: StatisticsViewModel,
     modifier: Modifier = Modifier,
     topInset: Dp = 0.dp,
-    bottomInset: Dp = 0.dp
+    bottomInset: Dp = 0.dp,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val state by viewModel.overviewUiState.collectAsState()
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // 滚动感知：滚离顶部时通知父层（顶栏显示背景/模糊）
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }.collect(onScrolledChange)
+    }
 
     Box(modifier = modifier) {
     LazyColumn(
