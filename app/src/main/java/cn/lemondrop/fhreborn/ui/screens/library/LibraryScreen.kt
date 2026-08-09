@@ -481,6 +481,7 @@ fun LibraryScreen(
             if (multiSelectMode) {
                 MultiSelectToolbar(
                     selectedCount = selectedSongIds.size,
+                    backdrop = backdrop,
                     onAddToPlaylist = {
                         if (selectedSongIds.isNotEmpty()) showBatchAddSheet = true
                     },

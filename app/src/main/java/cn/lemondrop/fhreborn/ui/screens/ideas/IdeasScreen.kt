@@ -71,8 +71,7 @@ fun IdeasScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .layerBackdrop(backdrop)
-                .padding(padding),
+                .layerBackdrop(backdrop),
             contentAlignment = Alignment.Center
         ) {
             Text(

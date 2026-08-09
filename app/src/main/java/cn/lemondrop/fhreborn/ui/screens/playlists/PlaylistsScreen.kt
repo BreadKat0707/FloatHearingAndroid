@@ -201,7 +201,7 @@ fun PlaylistsScreen(
                 topBar = {
                     BlurTopBar(
                         backdrop = backdrop,
-                        title = "歌单",
+                        title = if (multiSelectMode) "已选 ${selectedPlaylistIds.size} 个" else "歌单",
                         navigationIcon = {
                             IconButton(onClick = { drawerToggle() }) {
                                 Icon(
@@ -289,13 +289,13 @@ fun PlaylistsScreen(
                 }
 
                 when (viewStyle) {
-                    "grid" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
+                    "grid" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(2),
                             modifier = Modifier
                                 .fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -318,13 +318,13 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    "card" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
+                    "card" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(2),
                             modifier = Modifier
                                 .fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -347,13 +347,13 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    "square" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
+                    "square" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(3),
                             modifier = Modifier
                                 .fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -376,12 +376,12 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    else -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
+                    else -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
                                 .fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             if (playlists.isEmpty()) {
@@ -411,12 +411,12 @@ fun PlaylistsScreen(
                 if (multiSelectMode) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
+                            .fillMaxSize(),
                         contentAlignment = Alignment.BottomCenter
                     ) {
                         MultiSelectToolbar(
                             selectedCount = selectedPlaylistIds.size,
+                            backdrop = backdrop,
                             onAddToPlaylist = {},
                             onAddToQueue = {},
                             onShare = {},

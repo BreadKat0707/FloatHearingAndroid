@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.ui.screens.statistics.components.ChartPoint
 import cn.lemondrop.fhreborn.ui.screens.statistics.components.PlayDurationLineChart
@@ -27,7 +28,9 @@ import cn.lemondrop.fhreborn.ui.viewmodel.StatisticsViewModel
 @Composable
 fun MonthTab(
     viewModel: StatisticsViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    topInset: Dp = 0.dp,
+    bottomInset: Dp = 0.dp
 ) {
     val state by viewModel.monthUiState.collectAsState()
 
@@ -41,8 +44,8 @@ fun MonthTab(
         contentPadding = PaddingValues(
             start = 24.dp,
             end = 24.dp,
-            top = 16.dp,
-            bottom = 88.dp
+            top = topInset + 16.dp,
+            bottom = bottomInset + 88.dp
         ),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {

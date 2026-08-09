@@ -148,14 +148,13 @@ fun FolderBrowserScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
-                .padding(padding)
         ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    top = 8.dp,
-                    bottom = bottomOverlayHeight + addressBarHeight + 16.dp
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + bottomOverlayHeight + addressBarHeight + 16.dp
                 )
             ) {
                 if (foldersInCurrent.isEmpty() && songsInCurrent.isEmpty()) {
@@ -202,6 +201,7 @@ fun FolderBrowserScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+                    .padding(bottom = padding.calculateBottomPadding())
             ) {
                 HorizontalDivider()
                 Row(

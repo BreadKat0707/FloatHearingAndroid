@@ -197,7 +197,7 @@ fun PlaylistDetailScreen(
             topBar = {
                 BlurTopBar(
                     backdrop = backdrop,
-                    title = playlist?.name ?: "歌单",
+                    title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else playlist?.name ?: "歌单",
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
@@ -257,12 +257,12 @@ fun PlaylistDetailScreen(
             }
         ) { padding ->
             val playBarHeight = LocalGlobalPlayBarHeight.current
-            Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
+            Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 item {
@@ -457,12 +457,12 @@ fun PlaylistDetailScreen(
             if (multiSelectMode) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                        .fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     MultiSelectToolbar(
                         selectedCount = selectedSongIds.size,
+                        backdrop = backdrop,
                         onAddToPlaylist = {
                             if (selectedSongIds.isNotEmpty()) showBatchAddSheet = true
                         },

@@ -117,14 +117,14 @@ fun StatisticsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .layerBackdrop(backdrop)
-                    .padding(padding)
-                    .padding(top = 8.dp)
             ) {
+                val topInset = padding.calculateTopPadding()
+                val bottomInset = padding.calculateBottomPadding()
                 when (selectedTab) {
-                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
-                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
-                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
-                    3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
+                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
+                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
+                    3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset)
                 }
             }
         }

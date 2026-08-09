@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.ui.screens.statistics.components.StatHeaderCard
 import cn.lemondrop.fhreborn.ui.screens.statistics.formatStatDuration
@@ -29,7 +30,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun OverviewTab(
     viewModel: StatisticsViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    topInset: Dp = 0.dp,
+    bottomInset: Dp = 0.dp
 ) {
     val state by viewModel.overviewUiState.collectAsState()
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -41,8 +44,8 @@ fun OverviewTab(
         contentPadding = PaddingValues(
             start = 24.dp,
             end = 24.dp,
-            top = 16.dp,
-            bottom = 88.dp
+            top = topInset + 16.dp,
+            bottom = bottomInset + 88.dp
         ),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {

@@ -236,7 +236,6 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .layerBackdrop(backdrop)
-                    .padding(padding)
             ) {
                 when (currentPage) {
                     SettingsPage.Home,
@@ -248,7 +247,8 @@ fun SettingsScreen(
                             viewModel.selectCategory(key)
                         },
                         onSettingItemClick = onSettingItemClick,
-                        bottomOverlayHeight = bottomOverlayHeight
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        topInset = padding.calculateTopPadding()
                     )
 
                     SettingsPage.Background -> BackgroundSettingsContent(viewModel)
@@ -290,7 +290,8 @@ private fun SettingsListContent(
     currentPage: SettingsPage,
     onCategoryClick: (String) -> Unit,
     onSettingItemClick: (SettingItem) -> Unit,
-    bottomOverlayHeight: Dp
+    bottomOverlayHeight: Dp,
+    topInset: Dp = 0.dp
 ) {
     val selectedCategory = (currentPage as? SettingsPage.Category)?.key
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -298,7 +299,7 @@ private fun SettingsListContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 4.dp),
+        contentPadding = PaddingValues(top = topInset + 4.dp, bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         if (selectedCategory == null) {

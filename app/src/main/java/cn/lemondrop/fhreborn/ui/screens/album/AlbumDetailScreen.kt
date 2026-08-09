@@ -115,12 +115,14 @@ fun AlbumDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
-                .padding(padding)
         ) {
         LazyColumn(
             state = albumListState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues()
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding() + bottomOverlayHeight
+            )
         ) {
             // 头部：封面 + 专辑信息 + 播放按钮
             item {
