@@ -100,7 +100,10 @@ fun AlbumDetailScreen(
         }
     ) { padding ->
         val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
+        val albumListState = androidx.compose.foundation.lazy.rememberLazyListState()
+        Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = albumListState,
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues()
         ) {
@@ -156,6 +159,12 @@ fun AlbumDetailScreen(
 
             // 底部留白，避免内容被底栏/迷你播放条遮挡
             item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
+        }
+        // 滚动条：自动淡入淡出，可拖动定位
+        cn.lemondrop.fhreborn.ui.components.LazyListScrollBar(
+            listState = albumListState,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
         }
     }
 }

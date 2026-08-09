@@ -56,6 +56,7 @@ import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.FhListItem
+import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
@@ -246,6 +247,7 @@ fun PlaylistDetailScreen(
             }
         ) { padding ->
             val playBarHeight = LocalGlobalPlayBarHeight.current
+            Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -434,6 +436,12 @@ fun PlaylistDetailScreen(
                         }
                     )
                 }
+            }
+            // 滚动条：自动淡入淡出，可拖动定位
+            LazyListScrollBar(
+                listState = listState,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
             }
 
             // 多选底部工具栏（悬浮）

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -52,6 +57,8 @@ import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.LazyGridScrollBar
+import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
@@ -59,6 +66,10 @@ import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.Grid2x2
+import com.composables.icons.lucide.LayoutGrid
+import com.composables.icons.lucide.LayoutList
+import com.composables.icons.lucide.LayoutPanelTop
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -70,6 +81,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -94,6 +107,15 @@ fun PlaylistsScreen(
     val playlists by viewModel.getAllPlaylists().collectAsState(initial = emptyList())
     val drawerVisible = LocalDrawerVisible.current
     val drawerToggle = LocalDrawerToggle.current
+
+    // 歌单视图样式（list / grid / card / square）
+    val appSettingsRepository = remember { cn.lemondrop.fhreborn.data.repository.AppSettingsRepository(context) }
+    val viewStyle by appSettingsRepository.playlistViewStyle.collectAsState(initial = "list")
+    val settingsScope = rememberCoroutineScope()
+
+    // 列表/网格滚动状态（滚动条用）
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
     var showCreateSheet by remember { mutableStateOf(false) }
     var editingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
@@ -180,6 +202,42 @@ fun PlaylistsScreen(
                             }
                         },
                         actions = {
+                            // 视图样式切换
+                            top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
+                                entries = listOf(
+                                    DropdownEntry(
+                                        items = listOf(
+                                            DropdownItem(
+                                                "列表",
+                                                icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
+                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("list") } }
+                                            ),
+                                            DropdownItem(
+                                                "双栏列表",
+                                                icon = { mod -> Icon(Lucide.LayoutGrid, null, modifier = mod) },
+                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("grid") } }
+                                            ),
+                                            DropdownItem(
+                                                "卡片",
+                                                icon = { mod -> Icon(Lucide.LayoutPanelTop, null, modifier = mod) },
+                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("card") } }
+                                            ),
+                                            DropdownItem(
+                                                "方形",
+                                                icon = { mod -> Icon(Lucide.Grid2x2, null, modifier = mod) },
+                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("square") } }
+                                            )
+                                        )
+                                    )
+                                ),
+                                minHeight = 40.dp,
+                                minWidth = 40.dp,
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.LayoutGrid,
+                                    contentDescription = "视图样式"
+                                )
+                            }
                             IconButton(onClick = { showCreateSheet = true }) {
                                 Icon(
                                     imageVector = Lucide.Plus,
@@ -197,57 +255,149 @@ fun PlaylistsScreen(
                 }
             ) { padding ->
                 val playBarHeight = LocalGlobalPlayBarHeight.current
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (playlists.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(top = 80.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "还没有歌单\n点击右上角 + 创建",
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                    style = MiuixTheme.textStyles.body2
+                // 多选点击/长按统一处理（所有视图共用）
+                fun onPlaylistClick(playlist: PlaylistWithCount) {
+                    if (multiSelectMode) {
+                        if (playlist.id in selectedPlaylistIds) {
+                            selectedPlaylistIds.remove(playlist.id)
+                        } else {
+                            selectedPlaylistIds.add(playlist.id)
+                        }
+                    } else {
+                        onOpenPlaylist(playlist.id)
+                    }
+                }
+                fun onPlaylistLongClick(playlist: PlaylistWithCount) {
+                    if (multiSelectMode) {
+                        // 多选中长按：退出多选
+                        multiSelectMode = false
+                        selectedPlaylistIds.clear()
+                    } else {
+                        // 长按进入多选并选中当前项
+                        multiSelectMode = true
+                        selectedPlaylistIds.add(playlist.id)
+                    }
+                }
+
+                when (viewStyle) {
+                    "grid" -> Box(modifier = Modifier.fillMaxSize()) {
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (playlists.isEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) { PlaylistEmptyHint() }
+                            }
+                            gridItems(playlists, key = { it.id }) { playlist ->
+                                PlaylistGridItem(
+                                    playlist = playlist,
+                                    viewModel = viewModel,
+                                    onClick = { onPlaylistClick(playlist) },
+                                    onLongClick = { onPlaylistLongClick(playlist) },
+                                    selectionMode = multiSelectMode,
+                                    selected = playlist.id in selectedPlaylistIds
                                 )
                             }
                         }
+                        LazyGridScrollBar(
+                            gridState = gridState,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
                     }
-                    items(playlists, key = { it.id }) { playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            viewModel = viewModel,
-                            onClick = {
-                                if (multiSelectMode) {
-                                    if (playlist.id in selectedPlaylistIds) {
-                                        selectedPlaylistIds.remove(playlist.id)
-                                    } else {
-                                        selectedPlaylistIds.add(playlist.id)
-                                    }
-                                } else {
-                                    onOpenPlaylist(playlist.id)
-                                }
-                            },
-                            onPlayClick = { viewModel.playPlaylist(playlist.id, playerViewModel) },
-                            onLongClick = {
-                                if (multiSelectMode) {
-                                    // 多选中长按：退出多选
-                                    multiSelectMode = false
-                                    selectedPlaylistIds.clear()
-                                } else {
-                                    // 长按进入多选并选中当前项
-                                    multiSelectMode = true
-                                    selectedPlaylistIds.add(playlist.id)
-                                }
-                            },
-                            onMenuClick = { editingPlaylist = playlist },
-                            selectionMode = multiSelectMode,
-                            selected = playlist.id in selectedPlaylistIds
+                    "card" -> Box(modifier = Modifier.fillMaxSize()) {
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (playlists.isEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) { PlaylistEmptyHint() }
+                            }
+                            gridItems(playlists, key = { it.id }) { playlist ->
+                                PlaylistCardItem(
+                                    playlist = playlist,
+                                    viewModel = viewModel,
+                                    onClick = { onPlaylistClick(playlist) },
+                                    onLongClick = { onPlaylistLongClick(playlist) },
+                                    selectionMode = multiSelectMode,
+                                    selected = playlist.id in selectedPlaylistIds
+                                )
+                            }
+                        }
+                        LazyGridScrollBar(
+                            gridState = gridState,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
+                    }
+                    "square" -> Box(modifier = Modifier.fillMaxSize()) {
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(3),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (playlists.isEmpty()) {
+                                item(span = { GridItemSpan(maxLineSpan) }) { PlaylistEmptyHint() }
+                            }
+                            gridItems(playlists, key = { it.id }) { playlist ->
+                                PlaylistSquareItem(
+                                    playlist = playlist,
+                                    viewModel = viewModel,
+                                    onClick = { onPlaylistClick(playlist) },
+                                    onLongClick = { onPlaylistLongClick(playlist) },
+                                    selectionMode = multiSelectMode,
+                                    selected = playlist.id in selectedPlaylistIds
+                                )
+                            }
+                        }
+                        LazyGridScrollBar(
+                            gridState = gridState,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
+                    }
+                    else -> Box(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            if (playlists.isEmpty()) {
+                                item { PlaylistEmptyHint() }
+                            }
+                            items(playlists, key = { it.id }) { playlist ->
+                                PlaylistCard(
+                                    playlist = playlist,
+                                    viewModel = viewModel,
+                                    onClick = { onPlaylistClick(playlist) },
+                                    onPlayClick = { viewModel.playPlaylist(playlist.id, playerViewModel) },
+                                    onLongClick = { onPlaylistLongClick(playlist) },
+                                    onMenuClick = { editingPlaylist = playlist },
+                                    selectionMode = multiSelectMode,
+                                    selected = playlist.id in selectedPlaylistIds
+                                )
+                            }
+                        }
+                        LazyListScrollBar(
+                            listState = listState,
+                            modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
                 }
@@ -391,6 +541,196 @@ fun PlaylistsScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistEmptyHint() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 80.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "还没有歌单\n点击右上角 + 创建",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.body2
+        )
+    }
+}
+
+/** 双栏列表视图：横向紧凑卡片（封面 + 名称/数量） */
+@Composable
+private fun PlaylistGridItem(
+    playlist: PlaylistWithCount,
+    viewModel: PlaylistViewModel,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
+) {
+    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    LaunchedEffect(playlist.id, playlist.songCount) {
+        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PlaylistCover(
+                songIds = coverSongIds,
+                coverPath = playlist.coverPath,
+                coverSource = playlist.coverSource,
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = playlist.name,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${playlist.songCount} 首歌曲",
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
+        }
+        if (selectionMode) {
+            SelectionBadge(selected = selected, modifier = Modifier.align(Alignment.TopEnd))
+        }
+    }
+}
+
+/** 卡片视图：大封面卡片（PressFeedback Tilt） */
+@Composable
+private fun PlaylistCardItem(
+    playlist: PlaylistWithCount,
+    viewModel: PlaylistViewModel,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
+) {
+    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    LaunchedEffect(playlist.id, playlist.songCount) {
+        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+    }
+    top.yukonga.miuix.kmp.basic.Card(
+        modifier = Modifier.fillMaxWidth(),
+        pressFeedbackType = top.yukonga.miuix.kmp.utils.PressFeedbackType.Tilt,
+        onClick = onClick,
+        onLongPress = onLongClick,
+    ) {
+        Box {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                PlaylistCover(
+                    songIds = coverSongIds,
+                    coverPath = playlist.coverPath,
+                    coverSource = playlist.coverSource,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                )
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Text(
+                        text = playlist.name,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${playlist.songCount} 首歌曲",
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+            }
+            if (selectionMode) {
+                SelectionBadge(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
+            }
+        }
+    }
+}
+
+/** 方形视图：方形封面 + 名称 */
+@Composable
+private fun PlaylistSquareItem(
+    playlist: PlaylistWithCount,
+    viewModel: PlaylistViewModel,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
+) {
+    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    LaunchedEffect(playlist.id, playlist.songCount) {
+        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
+        Column {
+            Box {
+                PlaylistCover(
+                    songIds = coverSongIds,
+                    coverPath = playlist.coverPath,
+                    coverSource = playlist.coverSource,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                )
+                if (selectionMode) {
+                    SelectionBadge(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = playlist.name,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** 多选勾选指示（圆形，选中 primary 填充） */
+@Composable
+private fun SelectionBadge(selected: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(
+                if (selected) MiuixTheme.colorScheme.primary
+                else MiuixTheme.colorScheme.outline.copy(alpha = 0.4f)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Lucide.Check,
+                contentDescription = "已选择",
+                modifier = Modifier.size(14.dp),
+                tint = MiuixTheme.colorScheme.onPrimary
+            )
         }
     }
 }

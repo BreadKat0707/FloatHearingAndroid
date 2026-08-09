@@ -1,6 +1,7 @@
 package cn.lemondrop.fhreborn.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,6 +31,7 @@ import com.composables.icons.lucide.Lucide
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Icon
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import top.yukonga.miuix.kmp.basic.RadioButton
 import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.Switch
@@ -65,14 +67,15 @@ fun AccompanistLyricSettingsContent(
     val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = 14)
     val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
     val linePositionPercent by repository.acclLyricLinePositionPercent.collectAsState(initial = 35)
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(top = paddingValues.calculateTopPadding()),
         contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
             bottom = bottomOverlayHeight + 16.dp
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -253,16 +256,18 @@ fun AccompanistLyricSettingsContent(
             )
         }
     }
+    // 滚动条：自动淡入淡出，可拖动定位
+    LazyListScrollBar(
+        listState = listState,
+        modifier = Modifier.align(Alignment.CenterEnd)
+    )
+    }
 }
 
 @Composable
 private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MiuixTheme.textStyles.title3,
-        color = MiuixTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
-    )
+    // 使用 miuix 默认 SmallTitle（不自定义颜色）
+    top.yukonga.miuix.kmp.basic.SmallTitle(text = title)
 }
 
 @Composable

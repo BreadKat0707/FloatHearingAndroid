@@ -22,8 +22,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -31,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,6 +47,8 @@ import cn.lemondrop.fhreborn.data.model.SettingCategory
 import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
+import cn.lemondrop.fhreborn.ui.components.FhColorPalette
+import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.components.FhListItem
@@ -69,9 +74,14 @@ import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.OkHsvHueSlider
+import top.yukonga.miuix.kmp.basic.OkHsvSaturationSlider
+import top.yukonga.miuix.kmp.basic.OkHsvValueSlider
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.color.core.Transforms
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
@@ -270,7 +280,10 @@ private fun SettingsListContent(
     bottomOverlayHeight: Dp
 ) {
     val selectedCategory = (currentPage as? SettingsPage.Category)?.key
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -295,7 +308,7 @@ private fun SettingsListContent(
                 // 个性化页：主题与颜色区追加主题色选择器
                 if (category.key == "personalize") {
                     item {
-                        AccentColorPaletteItem(viewModel = viewModel)
+                        AccentColorPickerItem(viewModel = viewModel)
                     }
                 }
             }
@@ -306,15 +319,47 @@ private fun SettingsListContent(
             Spacer(modifier = Modifier.height(bottomOverlayHeight + 16.dp))
         }
     }
+    // 滚动条：自动淡入淡出，可拖动定位
+    LazyListScrollBar(
+        listState = listState,
+        modifier = Modifier.align(Alignment.CenterEnd)
+    )
+    }
 }
 
 @Composable
-private fun AccentColorPaletteItem(viewModel: SettingsViewModel) {
+private fun AccentColorPickerItem(viewModel: SettingsViewModel) {
     val accentColorSetting by viewModel.getStringValue("accent_color", "default")
         .collectAsState(initial = "default")
     val currentColor = remember(accentColorSetting) {
         cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
     }
+
+    // OKHSV 滑杆状态（无 alpha 通道）
+    val initialOkhsv = remember(currentColor) { Transforms.colorToOkhsv(currentColor) }
+    var currentH by remember { mutableFloatStateOf(initialOkhsv[0]) }
+    var currentS by remember { mutableFloatStateOf(initialOkhsv[1]) }
+    var currentV by remember { mutableFloatStateOf(initialOkhsv[2]) }
+    var hexInput by remember { mutableStateOf(formatHex(currentColor)) }
+
+    // 外部颜色变化（HEX 输入生效/重置）时同步滑杆
+    SideEffect {
+        val external = currentColor.toArgb()
+        val internal = Transforms.okhsvToColor(currentH, currentS, currentV).toArgb()
+        if (external != internal) {
+            val okhsv = Transforms.colorToOkhsv(currentColor)
+            currentH = okhsv[0]
+            currentS = okhsv[1]
+            currentV = okhsv[2]
+            hexInput = formatHex(currentColor)
+        }
+    }
+
+    fun applyColor(color: Color) {
+        viewModel.setStringSetting("accent_color", formatHex(color))
+        hexInput = formatHex(color)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -326,15 +371,76 @@ private fun AccentColorPaletteItem(viewModel: SettingsViewModel) {
             color = MiuixTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
-        top.yukonga.miuix.kmp.basic.ColorPalette(
+        // 无 alpha 通道的 HSV 网格调色板（预览条移至 HEX 输入框左侧）
+        FhColorPalette(
             color = currentColor,
             onColorChanged = { color ->
-                val hex = String.format("#%06X", color.toArgb() and 0xFFFFFF)
-                viewModel.setStringSetting("accent_color", hex)
+                applyColor(color)
+            },
+            showPreview = false
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        OkHsvHueSlider(
+            currentH = currentH,
+            onHueChanged = {
+                currentH = it
+                applyColor(Transforms.okhsvToColor(currentH, currentS, currentV))
             }
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        OkHsvSaturationSlider(
+            currentH = currentH,
+            currentS = currentS,
+            onSaturationChanged = {
+                currentS = it
+                applyColor(Transforms.okhsvToColor(currentH, currentS, currentV))
+            }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OkHsvValueSlider(
+            currentH = currentH,
+            currentS = currentS,
+            currentV = currentV,
+            onValueChanged = {
+                currentV = it
+                applyColor(Transforms.okhsvToColor(currentH, currentS, currentV))
+            }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        // HEX 输入（RRGGBB，可带 # 前缀），左侧为当前色预览块
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                    .background(currentColor)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            TextField(
+                value = hexInput,
+                onValueChange = { input ->
+                    hexInput = input
+                    val cleaned = input.trim().removePrefix("#")
+                    val isValidHex = cleaned.length == 6 &&
+                        cleaned.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }
+                    if (isValidHex) {
+                        val parsed = cn.lemondrop.fhreborn.ui.theme.parseAccentColor("#$cleaned")
+                        if (parsed.toArgb() != currentColor.toArgb()) {
+                            viewModel.setStringSetting("accent_color", formatHex(parsed))
+                        }
+                    }
+                },
+                label = "HEX (RRGGBB)",
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
+
+private fun formatHex(color: Color): String = String.format("#%06X", color.toArgb() and 0xFFFFFF)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -511,10 +617,15 @@ private fun SettingItemRow(
             )
         }
         else -> {
-            FhListItem(
-                title = item.title,
-                summary = item.defaultValue?.toString(),
-            )
+            if (item.type is SettingType.Info && item.key.isEmpty()) {
+                // 分组标题：使用 miuix 默认 SmallTitle（不自定义颜色）
+                SmallTitle(text = item.title)
+            } else {
+                FhListItem(
+                    title = item.title,
+                    summary = item.defaultValue?.toString(),
+                )
+            }
         }
     }
 }

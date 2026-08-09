@@ -111,6 +111,7 @@ import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 
 @Composable
@@ -232,6 +233,7 @@ fun LibraryScreen(
     }
 
     val libraryBody: @Composable (PaddingValues, Dp) -> Unit = { contentPadding, bottomSpacer ->
+        Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -331,6 +333,12 @@ fun LibraryScreen(
             item {
                 Spacer(modifier = Modifier.height(bottomSpacer))
             }
+        }
+        // 滚动条：自动淡入淡出，可拖动定位
+        LazyListScrollBar(
+            listState = listState,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
         }
     }
 

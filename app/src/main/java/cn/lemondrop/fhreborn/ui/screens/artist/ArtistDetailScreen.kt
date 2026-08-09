@@ -1,5 +1,6 @@
 package cn.lemondrop.fhreborn.ui.screens.artist
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -95,7 +96,10 @@ fun ArtistDetailScreen(
                 onTabSelected = { selectedTab = it }
             )
 
+            val artistListState = androidx.compose.foundation.lazy.rememberLazyListState()
+            Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
+                state = artistListState,
                 modifier = Modifier.fillMaxSize()
             ) {
                 when (selectedTab) {
@@ -133,6 +137,12 @@ fun ArtistDetailScreen(
                 }
 
                 item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
+            }
+            // 滚动条：自动淡入淡出，可拖动定位
+            cn.lemondrop.fhreborn.ui.components.LazyListScrollBar(
+                listState = artistListState,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
             }
         }
     }

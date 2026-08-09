@@ -32,6 +32,10 @@ class AppSettingsRepository(private val context: Context) {
     val drawerExpanded: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("drawer_expanded")] ?: true }
     suspend fun setDrawerExpanded(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("drawer_expanded")] = value }
 
+    /** 歌单页视图样式：list / grid / card / square */
+    val playlistViewStyle: Flow<String> = dataStore.data.map { it[stringPreferencesKey("playlist_view_style")] ?: "list" }
+    suspend fun setPlaylistViewStyle(value: String) = dataStore.edit { it[stringPreferencesKey("playlist_view_style")] = value }
+
     val accentColor: Flow<String> = dataStore.data.map { it[stringPreferencesKey("accent_color")] ?: "default" }
     suspend fun setAccentColor(value: String) = dataStore.edit { it[stringPreferencesKey("accent_color")] = value }
 
