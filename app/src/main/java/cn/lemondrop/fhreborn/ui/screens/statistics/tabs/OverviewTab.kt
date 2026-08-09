@@ -1,7 +1,9 @@
 package cn.lemondrop.fhreborn.ui.screens.statistics.tabs
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,9 +32,12 @@ fun OverviewTab(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.overviewUiState.collectAsState()
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
+    Box(modifier = modifier) {
     LazyColumn(
-        modifier = modifier,
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = 24.dp,
             end = 24.dp,
@@ -111,5 +116,12 @@ fun OverviewTab(
                 )
             }
         }
+    }
+    // 滚动条（跳过顶部/底部内容 padding 区域）
+    cn.lemondrop.fhreborn.ui.components.LazyListScrollBar(
+        listState = listState,
+        modifier = Modifier.align(Alignment.CenterEnd),
+        trackPadding = PaddingValues(top = 16.dp, bottom = 88.dp)
+    )
     }
 }

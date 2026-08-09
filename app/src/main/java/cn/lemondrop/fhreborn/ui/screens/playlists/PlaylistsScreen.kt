@@ -91,6 +91,8 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -186,12 +188,19 @@ fun PlaylistsScreen(
         },
         onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     ) {
+        // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val backdrop = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             AppBackgroundLayer()
             Scaffold(
                 containerColor = Color.Transparent,
                 topBar = {
                     BlurTopBar(
+                        backdrop = backdrop,
                         title = "歌单",
                         navigationIcon = {
                             IconButton(onClick = { drawerToggle() }) {
@@ -280,13 +289,12 @@ fun PlaylistsScreen(
                 }
 
                 when (viewStyle) {
-                    "grid" -> Box(modifier = Modifier.fillMaxSize()) {
+                    "grid" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(2),
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(padding),
+                                .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -310,13 +318,12 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    "card" -> Box(modifier = Modifier.fillMaxSize()) {
+                    "card" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(2),
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(padding),
+                                .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -340,13 +347,12 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    "square" -> Box(modifier = Modifier.fillMaxSize()) {
+                    "square" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(3),
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(padding),
+                                .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -370,12 +376,11 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    else -> Box(modifier = Modifier.fillMaxSize()) {
+                    else -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(padding),
+                                .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {

@@ -23,6 +23,8 @@ import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 fun IdeasScreen(
@@ -41,12 +43,19 @@ fun IdeasScreen(
         },
         onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     ) {
+        // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val backdrop = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             AppBackgroundLayer()
             Scaffold(
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
             topBar = {
                 BlurTopBar(
+                    backdrop = backdrop,
                     title = "想法",
                 navigationIcon = {
                     IconButton(onClick = { drawerToggle() }) {
@@ -62,6 +71,7 @@ fun IdeasScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .layerBackdrop(backdrop)
                 .padding(padding),
             contentAlignment = Alignment.Center
         ) {

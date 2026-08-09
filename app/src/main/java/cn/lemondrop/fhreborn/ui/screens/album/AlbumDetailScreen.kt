@@ -43,6 +43,8 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 专辑详情页。
@@ -83,9 +85,17 @@ fun AlbumDetailScreen(
         releaseYear?.let { append(" · $it") }
     }
 
+    // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    val backdrop = rememberLayerBackdrop {
+        drawRect(surfaceColor)
+        drawContent()
+    }
+
     Scaffold(
         topBar = {
             BlurTopBar(
+                backdrop = backdrop,
                 title = "专辑",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -101,10 +111,15 @@ fun AlbumDetailScreen(
     ) { padding ->
         val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
         val albumListState = androidx.compose.foundation.lazy.rememberLazyListState()
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(backdrop)
+                .padding(padding)
+        ) {
         LazyColumn(
             state = albumListState,
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues()
         ) {
             // 头部：封面 + 专辑信息 + 播放按钮

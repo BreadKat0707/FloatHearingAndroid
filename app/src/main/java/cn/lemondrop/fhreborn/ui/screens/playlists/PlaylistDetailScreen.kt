@@ -87,6 +87,8 @@ import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -182,11 +184,19 @@ fun PlaylistDetailScreen(
 
     BackHandler { onBack() }
 
+    // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    val backdrop = rememberLayerBackdrop {
+        drawRect(surfaceColor)
+        drawContent()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
                 BlurTopBar(
+                    backdrop = backdrop,
                     title = playlist?.name ?: "歌单",
                     navigationIcon = {
                         IconButton(onClick = onBack) {
@@ -247,12 +257,11 @@ fun PlaylistDetailScreen(
             }
         ) { padding ->
             val playBarHeight = LocalGlobalPlayBarHeight.current
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop).padding(padding)) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                    .fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = playBarHeight + 16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {

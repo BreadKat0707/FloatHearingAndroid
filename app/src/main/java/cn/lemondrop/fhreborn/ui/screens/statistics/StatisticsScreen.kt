@@ -38,6 +38,9 @@ import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun StatisticsScreen(
@@ -73,12 +76,19 @@ fun StatisticsScreen(
         },
         onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     ) {
+        // 层背景：顶栏/底栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val backdrop = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             AppBackgroundLayer()
         Scaffold(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
                 topBar = {
                     BlurTopBar(
+                        backdrop = backdrop,
                         title = "统计和数据分析",
                     navigationIcon = {
                         IconButton(onClick = { drawerToggle() }) {
@@ -91,7 +101,7 @@ fun StatisticsScreen(
                 )
             },
             bottomBar = {
-                BlurNavigationBar() {
+                BlurNavigationBar(backdrop = backdrop) {
                     tabItems.forEachIndexed { index, (label, icon) ->
                         NavigationBarItem(
                             selected = selectedTab == index,
@@ -106,6 +116,7 @@ fun StatisticsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .layerBackdrop(backdrop)
                     .padding(padding)
                     .padding(top = 8.dp)
             ) {

@@ -51,6 +51,8 @@ import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 浏览路径页面。
@@ -116,9 +118,16 @@ fun FolderBrowserScreen(
         onNavigate = onNavigate,
         onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     ) {
+        // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val backdrop = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
         Scaffold(
         topBar = {
             BlurTopBar(
+                backdrop = backdrop,
                 title = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
                 navigationIcon = {
                     IconButton(onClick = { drawerToggle() }) {
@@ -138,6 +147,7 @@ fun FolderBrowserScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .layerBackdrop(backdrop)
                 .padding(padding)
         ) {
             LazyColumn(
@@ -177,6 +187,15 @@ fun FolderBrowserScreen(
                     }
                 }
             }
+            // 滚动条（跳过底部地址栏区域）
+            cn.lemondrop.fhreborn.ui.components.LazyListScrollBar(
+                listState = listState,
+                modifier = Modifier.align(Alignment.CenterEnd),
+                trackPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = bottomOverlayHeight + addressBarHeight + 16.dp
+                )
+            )
 
             // 地址栏：固定在底部标题栏上方，左侧返回上级，中间路径面包屑
             Column(

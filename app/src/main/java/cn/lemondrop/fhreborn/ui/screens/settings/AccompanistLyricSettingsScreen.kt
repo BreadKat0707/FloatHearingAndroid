@@ -256,10 +256,11 @@ fun AccompanistLyricSettingsContent(
             )
         }
     }
-    // 滚动条：自动淡入淡出，可拖动定位
+    // 滚动条：自动淡入淡出，可拖动定位（跳过顶部标题栏区域）
     LazyListScrollBar(
         listState = listState,
-        modifier = Modifier.align(Alignment.CenterEnd)
+        modifier = Modifier.align(Alignment.CenterEnd),
+        trackPadding = PaddingValues(top = paddingValues.calculateTopPadding())
     )
     }
 }

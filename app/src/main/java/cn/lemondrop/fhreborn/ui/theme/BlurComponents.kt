@@ -1,44 +1,139 @@
 package cn.lemondrop.fhreborn.ui.theme
 
+import android.os.Build
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurColors
+import top.yukonga.miuix.kmp.blur.BlurDefaults
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.blendColors
+import top.yukonga.miuix.kmp.blur.blur
+import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+/** 模糊半径（像素）。顶栏/底栏对 backdrop 层的实时模糊强度。 */
+private const val BackdropBlurRadius = 40f
+
+/** 叠加在模糊上的表面色不透明度（磨砂玻璃观感，越高越不透） */
+private const val BackdropSurfaceAlpha = 0.8f
+
+/** 当前平台是否支持 RuntimeShader（Android 13+）——支持时才走真实模糊 */
+internal val isRuntimeShaderSupported: Boolean
+    get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+/**
+ * 顶栏/底栏的磨砂背景：模糊 + 表面色叠加。
+ * 在 composable 上下文构造（BlurDefaults.blurColors 是 @Composable remember）。
+ */
+@Composable
+private fun rememberBackdropEffectColors(): BlurColors {
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    return remember(surfaceColor) {
+        BlurColors(
+            blendColors = listOf(
+                BlendColorEntry(color = surfaceColor.copy(alpha = BackdropSurfaceAlpha))
+            )
+        )
+    }
+}
 
 /**
  * 使用 Miuix 磨砂玻璃色值的 SmallTopAppBar 包装。
+ *
+ * @param backdrop 非空且平台支持时，顶栏透明并对页面内容（layerBackdrop 捕获的层）
+ *                 做真实模糊 + 表面色叠加（磨砂玻璃）；否则回退 surfaceContainer 色值。
  */
 @Composable
 fun BlurTopBar(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String = "",
+    backdrop: LayerBackdrop? = null,
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    SmallTopAppBar(
-        title = title,
-        color = MiuixTheme.colorScheme.surfaceContainer,
-        subtitle = subtitle,
-        navigationIcon = navigationIcon,
-        actions = actions,
-    )
+    val useBlur = backdrop != null && isRuntimeShaderSupported
+    if (useBlur) {
+        val effectColors = rememberBackdropEffectColors()
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .drawBackdrop(
+                    backdrop = backdrop!!,
+                    shape = { RoundedCornerShape(0.dp) },
+                    effects = {
+                        blur(radiusX = BackdropBlurRadius)
+                        blendColors(effectColors)
+                    }
+                )
+        ) {
+            SmallTopAppBar(
+                title = title,
+                color = Color.Transparent,
+                subtitle = subtitle,
+                navigationIcon = navigationIcon,
+                actions = actions,
+            )
+        }
+    } else {
+        SmallTopAppBar(
+            title = title,
+            color = MiuixTheme.colorScheme.surfaceContainer,
+            subtitle = subtitle,
+            navigationIcon = navigationIcon,
+            actions = actions,
+        )
+    }
 }
 
 /**
- * 使用 Miuix 磨砂玻璃色值的 NavigationBar 包装。
+ * 使用 Miuix 磨砂玻璃色值的 NavigationBar 包装（带顶部描边线）。
+ *
+ * @param backdrop 非空且平台支持时，底栏透明并对页面内容做真实模糊 + 表面色叠加；
+ *                 否则回退色值。
  */
 @Composable
 fun BlurNavigationBar(
     modifier: Modifier = Modifier,
+    backdrop: LayerBackdrop? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    NavigationBar(
-        color = MiuixTheme.colorScheme.surfaceContainer,
-        showDivider = false,
-        content = content,
-    )
+    val useBlur = backdrop != null && isRuntimeShaderSupported
+    if (useBlur) {
+        val effectColors = rememberBackdropEffectColors()
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .drawBackdrop(
+                    backdrop = backdrop!!,
+                    shape = { RoundedCornerShape(0.dp) },
+                    effects = {
+                        blur(radiusX = BackdropBlurRadius)
+                        blendColors(effectColors)
+                    }
+                )
+        ) {
+            NavigationBar(
+                color = Color.Transparent,
+                showDivider = true,
+                content = content,
+            )
+        }
+    } else {
+        NavigationBar(
+            color = MiuixTheme.colorScheme.surfaceContainer,
+            showDivider = true,
+            content = content,
+        )
+    }
 }

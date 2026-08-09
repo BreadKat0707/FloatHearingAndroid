@@ -88,6 +88,8 @@ import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 fun SettingsScreen(
@@ -181,6 +183,12 @@ fun SettingsScreen(
         },
         onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     ) {
+        // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val backdrop = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
         Scaffold(
             topBar = {
                 BlurTopBar(
@@ -224,7 +232,12 @@ fun SettingsScreen(
                 )
             }
 
-            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(backdrop)
+                    .padding(padding)
+            ) {
                 when (currentPage) {
                     SettingsPage.Home,
                     is SettingsPage.Category -> SettingsListContent(
@@ -298,17 +311,19 @@ private fun SettingsListContent(
         } else {
             val category = buildCategories().find { it.key == selectedCategory }
             if (category != null) {
-                items(category.items) { item ->
-                    SettingItemRow(
-                        item = item,
-                        viewModel = viewModel,
-                        onClick = onSettingItemClick
-                    )
-                }
-                // 个性化页：主题与颜色区追加主题色选择器
-                if (category.key == "personalize") {
+                category.items.forEach { item ->
                     item {
-                        AccentColorPickerItem(viewModel = viewModel)
+                        SettingItemRow(
+                            item = item,
+                            viewModel = viewModel,
+                            onClick = onSettingItemClick
+                        )
+                    }
+                    // 个性化页：主题色选择器紧跟"主题与颜色"分组标题
+                    if (category.key == "personalize" && item.key.isEmpty() && item.title == "主题与颜色") {
+                        item {
+                            AccentColorPickerItem(viewModel = viewModel)
+                        }
                     }
                 }
             }

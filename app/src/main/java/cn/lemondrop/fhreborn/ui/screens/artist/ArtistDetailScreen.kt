@@ -34,6 +34,8 @@ import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 艺术家详情页。
@@ -59,9 +61,17 @@ fun ArtistDetailScreen(
     )
     var selectedTab by remember { mutableIntStateOf(0) }
 
+    // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    val backdrop = rememberLayerBackdrop {
+        drawRect(surfaceColor)
+        drawContent()
+    }
+
     Scaffold(
         topBar = {
             BlurTopBar(
+                backdrop = backdrop,
                 title = artistName,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -97,7 +107,11 @@ fun ArtistDetailScreen(
             )
 
             val artistListState = androidx.compose.foundation.lazy.rememberLazyListState()
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(backdrop)
+            ) {
             LazyColumn(
                 state = artistListState,
                 modifier = Modifier.fillMaxSize()
@@ -138,10 +152,11 @@ fun ArtistDetailScreen(
 
                 item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
             }
-            // 滚动条：自动淡入淡出，可拖动定位
+            // 滚动条：自动淡入淡出，可拖动定位（跳过底部播放条占位）
             cn.lemondrop.fhreborn.ui.components.LazyListScrollBar(
                 listState = artistListState,
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier.align(Alignment.CenterEnd),
+                trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = bottomOverlayHeight)
             )
             }
         }

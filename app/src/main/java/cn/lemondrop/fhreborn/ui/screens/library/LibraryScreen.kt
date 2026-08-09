@@ -55,6 +55,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import top.yukonga.miuix.kmp.blur.layerBackdrop
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.Screen
 import cn.lemondrop.fhreborn.data.db.entity.Song
@@ -334,10 +336,11 @@ fun LibraryScreen(
                 Spacer(modifier = Modifier.height(bottomSpacer))
             }
         }
-        // 滚动条：自动淡入淡出，可拖动定位
+        // 滚动条：自动淡入淡出，可拖动定位（跳过标题栏/底部栏区域）
         LazyListScrollBar(
             listState = listState,
-            modifier = Modifier.align(Alignment.CenterEnd)
+            modifier = Modifier.align(Alignment.CenterEnd),
+            trackPadding = contentPadding
         )
         }
     }
@@ -355,12 +358,19 @@ fun LibraryScreen(
         },
         onScheduledPauseClick = { playerViewModel.showScheduledPause() }
     ) {
+        // 层背景：顶栏/底栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val surfaceColor = MiuixTheme.colorScheme.surface
+        val backdrop = rememberLayerBackdrop {
+            drawRect(surfaceColor)
+            drawContent()
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             AppBackgroundLayer()
         Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             BlurTopBar(
+                backdrop = backdrop,
                 title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else when (selectedNavIndex) {
                     0 -> "媒体库"
                     1 -> "专辑"
@@ -499,7 +509,9 @@ fun LibraryScreen(
                     }
                 )
             } else {
-                BlurNavigationBar() {
+                BlurNavigationBar(
+                    backdrop = backdrop,
+                ) {
                     navItems.forEachIndexed { index, (label, icon) ->
                         NavigationBarItem(
                             selected = selectedNavIndex == index,
@@ -635,7 +647,12 @@ fun LibraryScreen(
             )
         }
 
-        // 主内容
+        // 主内容（捕获进 backdrop 层，供顶栏/底栏模糊）
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(backdrop)
+        ) {
         libraryBody(
             padding,
             miniPlayBarHeight
@@ -653,6 +670,7 @@ fun LibraryScreen(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
             )
+        }
         }
 
         // 批量加入歌单弹窗
