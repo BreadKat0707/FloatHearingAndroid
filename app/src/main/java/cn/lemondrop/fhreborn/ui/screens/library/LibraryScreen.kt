@@ -94,6 +94,7 @@ import com.composables.icons.lucide.UserRound
 import com.composables.icons.lucide.X
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Repeat
+import com.composables.icons.lucide.Repeat1
 import com.composables.icons.lucide.RotateCcw
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Shuffle
@@ -106,6 +107,9 @@ import top.yukonga.miuix.kmp.basic.TextField
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.InputField
+import top.yukonga.miuix.kmp.basic.SearchBar
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -147,7 +151,10 @@ fun LibraryScreen(
         viewModel.autoScanIfNeeded(hasStoragePermission)
     }
 
-    var isSearching by remember { mutableStateOf(false) }
+    // 播放模式状态（歌曲页搜索栏旁的循环/随机按钮）
+    val repeatMode by playerViewModel.repeatMode.collectAsState()
+    val shuffleMode by playerViewModel.shuffleMode.collectAsState()
+
     var selectedNavIndex by remember { mutableIntStateOf(0) }
     var showFolderBrowser by remember { mutableStateOf(false) }
     var folderBrowserInitialPath by remember { mutableStateOf(listOf<String>()) }
@@ -205,7 +212,7 @@ fun LibraryScreen(
         val targetId = pendingLocateSongId ?: return@LaunchedEffect
         val index = displaySongs.indexOfFirst { it.id == targetId }
         if (index >= 0) {
-            val headerCount = (if (isSearching) 1 else 0) + 1
+            val headerCount = (if (selectedNavIndex == 0) 1 else 0) + 1
             listState.animateScrollToItem(headerCount + index)
             pendingLocateSongId = null
         }
@@ -243,17 +250,56 @@ fun LibraryScreen(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            // 搜索栏
-            if (isSearching) {
+            // 歌曲 tab：搜索框（miuix SearchBar）+ 播放模式按钮（已从标题栏移入页面）
+            if (selectedNavIndex == 0) {
                 item {
-                    TextField(
-                        value = searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
-                        label = "搜索",
+                    SearchBar(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    )
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        // 去掉内部边距，输入框与下方列表项左对齐（外层 16dp 一致）
+                        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp),
+                        inputField = {
+                            InputField(
+                                query = searchQuery,
+                                onQueryChange = { viewModel.setSearchQuery(it) },
+                                onSearch = {},
+                                expanded = false,
+                                onExpandedChange = {},
+                                label = "搜索"
+                            )
+                        },
+                        onExpandedChange = {},
+                        expanded = false
+                    ) { }
+                }
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // 顺序循环：立即按列表循环播放全部歌曲（命令按钮，等宽均分与搜索框对齐）
+                        FhPlayModeButton(
+                            icon = Lucide.Repeat,
+                            label = "顺序循环",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                playerViewModel.playSongs(displaySongs, 0)
+                            }
+                        )
+                        // 随机循环：立即随机播放全部歌曲
+                        FhPlayModeButton(
+                            icon = Lucide.Shuffle,
+                            label = "随机循环",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                playerViewModel.setShuffle(true)
+                                playerViewModel.playSongs(displaySongs, 0)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -426,24 +472,6 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                    IconButton(onClick = { /* TODO: 搜索 */ }) {
-                        Icon(
-                            imageVector = Lucide.Search,
-                            contentDescription = "搜索"
-                        )
-                    }
-                    IconButton(onClick = { /* TODO: 全部顺序循环 */ }) {
-                        Icon(
-                            imageVector = Lucide.Repeat,
-                            contentDescription = "全部顺序循环"
-                        )
-                    }
-                    IconButton(onClick = { /* TODO: 全部随机 */ }) {
-                        Icon(
-                            imageVector = Lucide.Shuffle,
-                            contentDescription = "全部随机"
-                        )
-                    }
                     OverlayIconDropdownMenu(
                         entries = listOf(
                             DropdownEntry(
@@ -1476,4 +1504,27 @@ internal fun FileBrowserItemRow(
             }
         } else null
     )
+}
+/** 播放模式按钮（顺序循环 / 随机循环）：激活时 primary 强调色 */
+@Composable
+private fun FhPlayModeButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    // 命令按钮：统一强调色（点击立即按该模式播放，非状态开关）
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColorsPrimary()
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = label, style = MiuixTheme.textStyles.body2)
+    }
 }

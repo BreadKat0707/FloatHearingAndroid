@@ -298,6 +298,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val mediaItems = songs.map { it.toMediaItem() }
         controller.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
         controller.prepare()
+        // 默认启用列表循环（点击列表/默认播放场景）；歌单播放等由调用方后续覆盖
+        controller.repeatMode = Player.REPEAT_MODE_ALL
         controller.play()
         hasRestoredState = true
         loadLyrics()
@@ -321,6 +323,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
      * @param playMode 歌单的 defaultPlayMode（0=顺序 1=列表循环 2=单曲循环 3=随机）
      */
     fun playPlaylistSongs(songs: List<Song>, startIndex: Int = 0, playMode: Int = 0) {
+        // playSongs 内部会先设为列表循环，这里按歌单默认模式覆盖
+        playSongs(songs, startIndex)
         val controller = mediaController ?: return
         controller.shuffleModeEnabled = playMode == 3
         controller.repeatMode = when (playMode) {
@@ -328,7 +332,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             1 -> Player.REPEAT_MODE_ALL
             else -> Player.REPEAT_MODE_OFF
         }
-        playSongs(songs, startIndex)
+    }
+
+    fun setRepeatMode(mode: Int) {
+        mediaController?.repeatMode = mode
+    }
+
+    fun setShuffle(enabled: Boolean) {
+        mediaController?.shuffleModeEnabled = enabled
     }
 
     private fun loadLyrics() {
