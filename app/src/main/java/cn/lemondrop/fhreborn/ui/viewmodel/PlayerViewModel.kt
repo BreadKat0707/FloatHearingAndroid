@@ -440,6 +440,17 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         saveState()
     }
 
+    /**
+     * 清空整个播放队列（停止当前播放）。
+     */
+    fun clearQueue() {
+        val controller = mediaController
+        controller?.clearMediaItems()
+        _queue.value = emptyList()
+        _currentSong.value = null
+        saveState()
+    }
+
     fun setTimer(minutes: Int) {
         timerJob?.cancel()
         _endOfSongTimer.value = false

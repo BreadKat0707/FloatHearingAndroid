@@ -812,6 +812,8 @@ fun PlayerScreen(
             PlayerQueueScreen(
                 queue = queue,
                 currentIndex = currentIndex,
+                playerViewModel = playerViewModel,
+                playlistViewModel = playlistViewModel,
                 onBack = { closeQueue() },
                 onItemClick = { index ->
                     viewModel.seekTo(index)
