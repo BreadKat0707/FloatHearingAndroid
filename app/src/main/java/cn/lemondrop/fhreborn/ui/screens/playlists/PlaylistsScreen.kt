@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -63,6 +64,7 @@ import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
+import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
@@ -334,10 +336,11 @@ fun PlaylistsScreen(
                 }
 
                 when (viewStyle) {
-                    "grid" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                    "grid" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 180, minColumns = 2)
                         LazyVerticalGrid(
                             state = gridState,
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Fixed(columns),
                             modifier = Modifier
                                 .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
@@ -363,10 +366,11 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    "card" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                    "card" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 170, minColumns = 2)
                         LazyVerticalGrid(
                             state = gridState,
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Fixed(columns),
                             modifier = Modifier
                                 .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
@@ -392,10 +396,11 @@ fun PlaylistsScreen(
                             modifier = Modifier.align(Alignment.CenterEnd)
                         )
                     }
-                    "square" -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                    "square" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 110, minColumns = 3)
                         LazyVerticalGrid(
                             state = gridState,
-                            columns = GridCells.Fixed(3),
+                            columns = GridCells.Fixed(columns),
                             modifier = Modifier
                                 .fillMaxSize(),
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),

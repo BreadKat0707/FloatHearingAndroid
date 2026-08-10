@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -118,6 +119,7 @@ import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
+import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 
 @Composable
@@ -248,7 +250,9 @@ fun LibraryScreen(
     }
 
     val libraryBody: @Composable (PaddingValues, Dp) -> Unit = { contentPadding, bottomSpacer ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // 专辑网格响应式列数：按内容区实际宽度计算（侧边栏收折/窗口拉伸自适应），手机保持 2 列
+        val albumColumns = responsiveColumnCount(maxWidth, minItemWidthDp = 170, minColumns = 2)
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -355,6 +359,7 @@ fun LibraryScreen(
                 )
                 1 -> AlbumsContent(
                     albums = albums,
+                    columns = albumColumns,
                     selectionMode = multiSelectMode,
                     selectedSongIds = selectedSongIds,
                     onAlbumClick = { album ->
@@ -813,6 +818,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.SongsContent(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
     albums: List<LibraryViewModel.Album>,
+    columns: Int,
     selectionMode: Boolean = false,
     selectedSongIds: SnapshotStateSet<Long>? = null,
     onAlbumClick: (LibraryViewModel.Album) -> Unit
@@ -826,7 +832,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
         )
     }
 
-    val rows = albums.chunked(2)
+    val rows = albums.chunked(columns)
     items(rows.size, key = { rows[it].first().name + "#" + rows[it].first().artist }) { index ->
         val rowAlbums = rows[index]
         Row(
