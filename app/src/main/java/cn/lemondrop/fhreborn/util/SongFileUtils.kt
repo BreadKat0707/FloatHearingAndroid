@@ -3,16 +3,22 @@ package cn.lemondrop.fhreborn.util
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.core.content.FileProvider
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
-import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import cn.lemondrop.fhreborn.data.db.entity.Song
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.InfoRow
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.io.File
 
 object SongFileUtils {
@@ -85,31 +91,70 @@ object SongFileUtils {
         song ?: return
         val file = File(song.path)
         val durationText = formatDuration(song.duration)
-        val message = buildString {
-            appendLine("标题：${song.title}")
-            appendLine("艺术家：${song.artist}")
-            appendLine("专辑：${song.album}")
-            appendLine("时长：$durationText")
-            appendLine("格式：${song.format}")
-            appendLine("路径：${song.path}")
-            appendLine("大小：${formatFileSize(song.fileSize)}")
-            appendLine("修改时间：${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(song.modifiedAt))}")
-            if (song.bitrate != null) appendLine("比特率：${song.bitrate} kbps")
-            if (song.sampleRate != null) appendLine("采样率：${song.sampleRate} Hz")
-            if (song.channels != null) appendLine("声道：${song.channels}")
-            if (song.year != null) appendLine("年份：${song.year}")
-            if (song.discNumber != null) appendLine("碟号：${song.discNumber}")
-            if (song.trackNumber != null) appendLine("音轨号：${song.trackNumber}")
-            if (!file.exists()) appendLine("状态：文件不存在")
-        }
         FhBottomSheet(
             show = true,
             title = "歌曲属性",
             onDismissRequest = onDismiss,
             backgroundColor = MiuixTheme.colorScheme.surfaceContainer,
             content = {
-                Text(text = message)
-                TextButton(text = "确定", onClick = onDismiss)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    InfoRow(label = "标题", value = song.title)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(label = "艺术家", value = song.artist)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(label = "专辑", value = song.album)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(label = "时长", value = durationText)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(label = "格式", value = song.format)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(label = "路径", value = song.path)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(
+                        label = "大小",
+                        value = formatFileSize(song.fileSize)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    InfoRow(
+                        label = "修改时间",
+                        value = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            java.util.Locale.getDefault()
+                        ).format(java.util.Date(song.modifiedAt))
+                    )
+                    song.bitrate?.let {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "比特率", value = "$it kbps")
+                    }
+                    song.sampleRate?.let {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "采样率", value = "$it Hz")
+                    }
+                    song.channels?.let {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "声道", value = "$it")
+                    }
+                    song.year?.let {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "年份", value = "$it")
+                    }
+                    song.discNumber?.let {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "碟号", value = "$it")
+                    }
+                    song.trackNumber?.let {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "音轨号", value = "$it")
+                    }
+                    if (!file.exists()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        InfoRow(label = "状态", value = "文件不存在")
+                    }
+                }
             }
         )
     }

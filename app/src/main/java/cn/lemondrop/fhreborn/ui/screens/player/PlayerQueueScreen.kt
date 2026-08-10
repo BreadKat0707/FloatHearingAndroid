@@ -217,9 +217,8 @@ fun PlayerQueueScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .nestedScroll(nestedScrollConnection)
-                    .edgeFadeOut(top = 48.dp, bottom = 24.dp)
-                    .padding(start = 16.dp + cutoutLeft, end = 16.dp + cutoutRight),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                    .edgeFadeOut(top = 48.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(0.dp)
             ) {
                 itemsIndexed(queue, key = { index, song -> "${song.id}_$index" }) { index, song ->
                     QueueItem(
@@ -389,7 +388,7 @@ private fun QueueItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         SongCoverImage(

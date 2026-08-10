@@ -303,11 +303,11 @@ fun PlaylistDetailScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 item {
-                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)) {
                         // 封面 + 右侧：名称 / 介绍 / 创建时间
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             PlaylistCover(
@@ -776,6 +776,7 @@ private fun PlaylistSortSheet(
         backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         options.forEach { (type, label) ->
+            val isSelected = type == currentSortType
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -785,19 +786,26 @@ private fun PlaylistSortSheet(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (type == currentSortType) {
-                    Icon(
-                        imageVector = Lucide.Check,
-                        contentDescription = "已选择",
-                        modifier = Modifier.size(20.dp),
-                        tint = MiuixTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
+                // 固定前导宽度：选中显示对号，未选中留空占位，文字始终对齐
+                Box(
+                    modifier = Modifier.size(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Lucide.Check,
+                            contentDescription = "已选择",
+                            modifier = Modifier.size(18.dp),
+                            tint = MiuixTheme.colorScheme.primary
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = label,
                     style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSurface
+                    color = if (isSelected) MiuixTheme.colorScheme.primary
+                    else MiuixTheme.colorScheme.onSurface
                 )
             }
         }

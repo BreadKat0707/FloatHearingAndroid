@@ -69,12 +69,14 @@ fun TopSongsList(
         if (songs.isEmpty()) {
             EmptyHint(emptyText)
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 songs.forEachIndexed { index, song ->
                     FhListItem(
                         title = song.title,
                         summary = "${song.artist} · ${song.album}",
                         onClick = { },
+                        // 统计页列表自带 16dp 内容边距，行内不再重复
+                        horizontalPadding = 0.dp,
                         leading = {
                             RankBadge(rank = index + 1)
                         },

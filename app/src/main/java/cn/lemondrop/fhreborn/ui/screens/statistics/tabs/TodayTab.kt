@@ -53,8 +53,8 @@ fun TodayTab(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = 24.dp,
-            end = 24.dp,
+            start = 16.dp,
+            end = 16.dp,
             top = topInset + 16.dp,
             bottom = bottomInset + 88.dp
         ),

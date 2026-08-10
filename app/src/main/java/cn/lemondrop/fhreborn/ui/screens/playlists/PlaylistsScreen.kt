@@ -64,6 +64,7 @@ import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
+import cn.lemondrop.fhreborn.ui.components.SelectionIndicator
 import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
@@ -343,9 +344,9 @@ fun PlaylistsScreen(
                             columns = GridCells.Fixed(columns),
                             modifier = Modifier
                                 .fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
                         ) {
                             if (playlists.isEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) { PlaylistEmptyHint() }
@@ -397,7 +398,7 @@ fun PlaylistsScreen(
                         )
                     }
                     "square" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
-                        val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 110, minColumns = 3)
+                        val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 170, minColumns = 2)
                         LazyVerticalGrid(
                             state = gridState,
                             columns = GridCells.Fixed(columns),
@@ -431,8 +432,8 @@ fun PlaylistsScreen(
                             state = listState,
                             modifier = Modifier
                                 .fillMaxSize(),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            contentPadding = PaddingValues(top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
                         ) {
                             if (playlists.isEmpty()) {
                                 item { PlaylistEmptyHint() }
@@ -637,9 +638,8 @@ private fun PlaylistGridItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlaylistCover(
@@ -666,7 +666,7 @@ private fun PlaylistGridItem(
             }
         }
         if (selectionMode) {
-            SelectionBadge(selected = selected, modifier = Modifier.align(Alignment.TopEnd))
+            SelectionIndicator(selected = selected, modifier = Modifier.align(Alignment.CenterEnd))
         }
     }
 }
@@ -723,13 +723,14 @@ private fun PlaylistCardItem(
                 }
             }
             if (selectionMode) {
-                SelectionBadge(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
+                // 卡片视图：多选标志保留封面左上角
+                SelectionIndicator(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
             }
         }
     }
 }
 
-/** 方形视图：方形封面 + 名称 */
+/** 方形视图：专辑式布局（方形封面 + 名称 + 数量），仿媒体库专辑网格 */
 @Composable
 private fun PlaylistSquareItem(
     playlist: PlaylistWithCount,
@@ -743,59 +744,42 @@ private fun PlaylistSquareItem(
     LaunchedEffect(playlist.id, playlist.songCount) {
         viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
     }
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column {
-            Box {
-                PlaylistCover(
-                    songIds = coverSongIds,
-                    coverPath = playlist.coverPath,
-                    coverSource = playlist.coverSource,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                )
-                if (selectionMode) {
-                    SelectionBadge(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
-                }
+        Box {
+            PlaylistCover(
+                songIds = coverSongIds,
+                coverPath = playlist.coverPath,
+                coverSource = playlist.coverSource,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            )
+            if (selectionMode) {
+                SelectionIndicator(selected = selected, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = playlist.name,
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
-    }
-}
-
-/** 多选勾选指示（圆形，选中 primary 填充） */
-@Composable
-private fun SelectionBadge(selected: Boolean, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(24.dp)
-            .clip(CircleShape)
-            .background(
-                if (selected) MiuixTheme.colorScheme.primary
-                else MiuixTheme.colorScheme.outline.copy(alpha = 0.4f)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Icon(
-                imageVector = Lucide.Check,
-                contentDescription = "已选择",
-                modifier = Modifier.size(14.dp),
-                tint = MiuixTheme.colorScheme.onPrimary
-            )
-        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = playlist.name,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${playlist.songCount} 首歌曲",
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -818,46 +802,22 @@ private fun PlaylistCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectionMode) {
-            // 多选勾选指示
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (selected) MiuixTheme.colorScheme.primary
-                        else MiuixTheme.colorScheme.outline.copy(alpha = 0.4f)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (selected) {
-                    Icon(
-                        imageVector = Lucide.Check,
-                        contentDescription = "已选择",
-                        modifier = Modifier.size(14.dp),
-                        tint = MiuixTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-        }
         PlaylistCover(
             songIds = coverSongIds,
             coverPath = playlist.coverPath,
             coverSource = playlist.coverSource,
             modifier = Modifier
-                .size(56.dp)
+                .size(48.dp)
                 .clickable(onClick = onClick)
         )
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = playlist.name,
@@ -873,7 +833,10 @@ private fun PlaylistCard(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
             )
         }
-        if (!selectionMode) {
+        if (selectionMode) {
+            // 多选标志统一右侧垂直居中
+            SelectionIndicator(selected = selected)
+        } else {
             IconButton(onClick = onPlayClick) {
                 Icon(
                     imageVector = Lucide.Play,

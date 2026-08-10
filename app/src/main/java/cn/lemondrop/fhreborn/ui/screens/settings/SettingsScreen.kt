@@ -314,10 +314,9 @@ private fun SettingsListContent(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = topInset + 4.dp, bottom = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        if (selectedCategory == null) {
-            items(buildCategories(), key = { it.key }) { category ->
+        if (selectedCategory == null) {            items(buildCategories(), key = { it.key }) { category ->
                 CategoryItem(
                     category = category,
                     onClick = { onCategoryClick(category.key) }

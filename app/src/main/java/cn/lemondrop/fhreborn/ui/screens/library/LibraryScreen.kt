@@ -119,6 +119,7 @@ import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
+import cn.lemondrop.fhreborn.ui.components.SelectionIndicator
 import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 
@@ -258,7 +259,7 @@ fun LibraryScreen(
             modifier = Modifier
                 .fillMaxSize(),
             contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             // 歌曲 tab：搜索框（miuix SearchBar）+ 播放模式按钮（已从标题栏移入页面）
             if (selectedNavIndex == 0) {
@@ -973,14 +974,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (selectionMode && selectedSongIds != null) {
-                    val allSelected = folderSongs.isNotEmpty() && folderSongs.all { it.id in selectedSongIds }
-                    SelectionIndicator(
-                        selected = allSelected,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
                 Icon(
                     imageVector = Lucide.FolderOpen,
                     contentDescription = null,
@@ -1015,6 +1008,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                         contentDescription = "更多",
                         modifier = Modifier.size(20.dp),
                         tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+                if (selectionMode && selectedSongIds != null) {
+                    val allSelected = folderSongs.isNotEmpty() && folderSongs.all { it.id in selectedSongIds }
+                    SelectionIndicator(
+                        selected = allSelected,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -1117,14 +1117,15 @@ internal fun SongItem(
             summary = "${song.artist} - ${song.album}",
             onClick = { onToggleSelect?.invoke() },
             leading = {
-                SelectionIndicator(
-                    selected = selected,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
                 SongCoverImage(
                     songId = song.id,
                     modifier = Modifier.size(48.dp)
+                )
+            },
+            trailing = {
+                SelectionIndicator(
+                    selected = selected,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         )
@@ -1152,32 +1153,6 @@ internal fun SongItem(
     }
 }
 
-/** 多选勾选指示器：圆形，选中时 primary 填充 */
-@Composable
-internal fun SelectionIndicator(
-    selected: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(
-                if (selected) MiuixTheme.colorScheme.primary
-                else MiuixTheme.colorScheme.surfaceVariant
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (selected) {
-            Icon(
-                imageVector = Lucide.Check,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MiuixTheme.colorScheme.onPrimary
-            )
-        }
-    }
-}
-
 @Composable
 internal fun AlbumItem(
     album: LibraryViewModel.Album,
@@ -1202,7 +1177,7 @@ internal fun AlbumItem(
                 SelectionIndicator(
                     selected = selected,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
+                        .align(Alignment.CenterEnd)
                         .padding(6.dp)
                         .size(22.dp)
                 )
@@ -1242,13 +1217,6 @@ private fun ArtistItem(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (selectionMode) {
-            SelectionIndicator(
-                selected = selected,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-        }
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -1279,6 +1247,12 @@ private fun ArtistItem(
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (selectionMode) {
+            SelectionIndicator(
+                selected = selected,
+                modifier = Modifier.size(20.dp)
             )
         }
     }

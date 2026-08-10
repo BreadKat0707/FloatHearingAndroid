@@ -51,8 +51,8 @@ fun OverviewTab(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = 24.dp,
-            end = 24.dp,
+            start = 16.dp,
+            end = 16.dp,
             top = topInset + 16.dp,
             bottom = bottomInset + 88.dp
         ),
@@ -92,40 +92,33 @@ fun OverviewTab(
             )
         }
 
-        items(state.songs.size) { index ->
-            val song = state.songs[index]
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = (index + 1).toString(),
-                    style = MiuixTheme.textStyles.body1,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    modifier = Modifier.padding(end = 12.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = song.title,
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "${song.artist} · ${song.album}",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+        // 排行行作为单个区块项，行间无间距（区块间距由 LazyColumn spacedBy 提供）
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                state.songs.forEachIndexed { index, song ->
+                    cn.lemondrop.fhreborn.ui.components.FhListItem(
+                        title = song.title,
+                        summary = "${song.artist} · ${song.album}",
+                        onClick = { },
+                        // 统计页列表自带 16dp 内容边距，行内不再重复
+                        horizontalPadding = 0.dp,
+                        leading = {
+                            Text(
+                                text = (index + 1).toString(),
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        },
+                        trailing = {
+                            Text(
+                                text = "${song.count} 次",
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                        }
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "${song.count} 次",
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                )
             }
         }
     }
