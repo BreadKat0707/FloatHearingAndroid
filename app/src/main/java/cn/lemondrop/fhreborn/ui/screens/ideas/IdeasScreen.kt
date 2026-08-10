@@ -12,7 +12,6 @@ import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -34,15 +33,7 @@ fun IdeasScreen(
 ) {
     val drawerVisible = LocalDrawerVisible.current
     val drawerToggle = LocalDrawerToggle.current
-    AppShell(
-        drawerVisible = drawerVisible.value,
-        onDismissDrawer = { drawerVisible.value = false },
-        currentRoute = currentRoute,
-        onNavigate = { route ->
-            onNavigate(route)
-        },
-        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {

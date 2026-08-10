@@ -20,7 +20,6 @@ import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.MonthTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.OverviewTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.TodayTab
@@ -70,15 +69,7 @@ fun StatisticsScreen(
         )
     }
 
-    AppShell(
-        drawerVisible = drawerVisible.value,
-        onDismissDrawer = { drawerVisible.value = false },
-        currentRoute = currentRoute,
-        onNavigate = { route ->
-            onNavigate(route)
-        },
-        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏/底栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {

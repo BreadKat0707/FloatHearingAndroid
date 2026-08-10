@@ -64,7 +64,6 @@ import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
@@ -403,19 +402,7 @@ fun LibraryScreen(
         }
     }
 
-    AppShell(
-        drawerVisible = drawerVisible.value,
-        onDismissDrawer = { drawerVisible.value = false },
-        currentRoute = currentRoute,
-        onNavigate = { route ->
-            if (route == Screen.FolderBrowser.route) {
-                showFolderBrowser = true
-            } else {
-                onNavigate(route)
-            }
-        },
-        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏/底栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {

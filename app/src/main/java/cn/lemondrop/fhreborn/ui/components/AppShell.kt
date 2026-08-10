@@ -1,6 +1,5 @@
 package cn.lemondrop.fhreborn.ui.components
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -117,6 +116,8 @@ fun AppShell(
 /**
  * 大屏布局：侧边栏 + 内容区。侧边栏展开时占用左侧区域，把内容挤到右边；
  * 收起时侧边栏滑出，内容占满全宽。
+ *
+ * 侧边栏常驻（由 menu 按钮 toggle），系统返回不触发收折。
  */
 @Composable
 private fun LargeScreenShell(
@@ -128,10 +129,6 @@ private fun LargeScreenShell(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    BackHandler(enabled = drawerVisible) {
-        onDismissDrawer()
-    }
-
     Row(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = drawerVisible,

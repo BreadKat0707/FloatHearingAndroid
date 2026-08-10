@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Text
@@ -32,13 +33,14 @@ fun FhListItem(
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    horizontalPadding: Dp = 16.dp,
 ) {
     BasicComponent(
         modifier = modifier,
         startAction = leading,
         endActions = trailing,
         onClick = onClick,
-        insideMargin = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        insideMargin = PaddingValues(horizontal = horizontalPadding, vertical = 8.dp),
     ) {
         Text(
             text = title,

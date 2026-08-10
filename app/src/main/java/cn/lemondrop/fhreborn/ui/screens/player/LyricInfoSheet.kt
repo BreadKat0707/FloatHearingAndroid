@@ -12,8 +12,9 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.lyrics.LyricFormatType
 import cn.lemondrop.fhreborn.data.lyrics.LyricSource
 import cn.lemondrop.fhreborn.data.lyrics.LyricSourceType
-import top.yukonga.miuix.kmp.basic.Text
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.InfoRow
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun LyricInfoSheet(
@@ -67,23 +68,6 @@ fun LyricInfoSheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MiuixTheme.textStyles.footnote1,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-        )
-        Text(
-            text = value,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 2.dp)
-        )
     }
 }
 

@@ -290,6 +290,27 @@ fun FHRebornApp() {
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
             ) { padding ->
             Box(modifier = Modifier.fillMaxSize()) {
+            // Drawer 切换主页面时清理堆栈：回退直接回到媒体库，不会一层层返回
+            val topLevelNavigate: (String) -> Unit = { route ->
+                if (route != navController.currentBackStackEntry?.destination?.route) {
+                    navController.navigate(route) {
+                        popUpTo(Screen.Library.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            }
+
+            // 侧边栏/抽屉提升到 NavHost 外层：切换导航时只有内容区参与页面过渡动画，
+            // 侧边栏保持不动；二级页面同样只占内容区，不会覆盖侧边栏
+            val backStackEntry by navController.currentBackStackEntryAsState()
+            cn.lemondrop.fhreborn.ui.components.AppShell(
+                drawerVisible = drawerVisibleState.value,
+                onDismissDrawer = { drawerVisibleState.value = false },
+                currentRoute = backStackEntry?.destination?.route ?: Screen.Library.route,
+                onNavigate = topLevelNavigate,
+                onScheduledPauseClick = { playerViewModel.showScheduledPause() }
+            ) {
             // 二级页面（详情类）用左右滑动推入推出；根页面之间只做内容区上浮淡入
             val secondaryRoutes = remember {
                 setOf(
@@ -320,7 +341,8 @@ fun FHRebornApp() {
                 if (targetState.destination.route in secondaryRoutes) {
                     slideInHorizontally(initialOffsetX = { -it / 4 }) + fadeIn()
                 } else {
-                    slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(250)) + fadeIn(tween(200))
+                    // 返回一级页面：不做竖向位移，仅淡入（横向动画由二级页面的 popExit 提供）
+                    fadeIn(tween(200))
                 }
             },
             popExitTransition = {
@@ -342,16 +364,6 @@ fun FHRebornApp() {
             }
 
             // Drawer 切换主页面时清理堆栈：回退直接回到媒体库，不会一层层返回
-            val topLevelNavigate: (String) -> Unit = { route ->
-                if (route != navController.currentBackStackEntry?.destination?.route) {
-                    navController.navigate(route) {
-                        popUpTo(Screen.Library.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
-            }
-
             composable(Screen.Library.route) { backStackEntry ->
                 LibraryScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Library.route,
@@ -475,6 +487,7 @@ fun FHRebornApp() {
                 )
             }
         }
+            } // AppShell content 闭合
 
         // 全局迷你播放条（悬浮在主页面/详情页底部）
         if (shouldShowPlayBar) {

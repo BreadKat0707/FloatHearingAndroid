@@ -34,7 +34,6 @@ import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.screens.library.FileBrowserItemRow
@@ -118,13 +117,7 @@ fun FolderBrowserScreen(
         }
     }
 
-    AppShell(
-        drawerVisible = drawerVisible.value,
-        onDismissDrawer = { drawerVisible.value = false },
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {

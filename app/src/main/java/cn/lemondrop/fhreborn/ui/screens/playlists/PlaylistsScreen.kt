@@ -57,7 +57,6 @@ import cn.lemondrop.fhreborn.data.db.dao.PlaylistWithCount
 import cn.lemondrop.fhreborn.data.db.entity.Playlist
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
-import cn.lemondrop.fhreborn.ui.components.AppShell
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyGridScrollBar
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
@@ -197,15 +196,7 @@ fun PlaylistsScreen(
         }
     }
 
-    AppShell(
-        drawerVisible = drawerVisible.value,
-        onDismissDrawer = { drawerVisible.value = false },
-        currentRoute = currentRoute,
-        onNavigate = { route ->
-            onNavigate(route)
-        },
-        onScheduledPauseClick = { playerViewModel.showScheduledPause() }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {
