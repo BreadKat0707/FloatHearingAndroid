@@ -204,7 +204,7 @@ fun PlayerQueueScreen(
                         },
                         style = MiuixTheme.textStyles.title3,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                        color = MiuixTheme.colorScheme.onSurface
+                        color = fluidOnColor
                     )
                 }
             }
@@ -226,7 +226,8 @@ fun PlayerQueueScreen(
                         song = song,
                         isCurrent = index == currentIndex,
                         onClick = { onItemClick(index) },
-                        onRemove = { onRemove(index) }
+                        onRemove = { onRemove(index) },
+                        onColor = fluidOnColor
                     )
                 }
             }
@@ -242,6 +243,7 @@ fun PlayerQueueScreen(
                     }
                 },
                 onSaveAsPlaylist = { showSaveSheet = true },
+                onColor = fluidOnColor,
                 modifier = Modifier.padding(start = 16.dp + cutoutLeft, end = 16.dp + cutoutRight)
             )
         }
@@ -284,6 +286,7 @@ private fun QueuePlayBar(
     onBack: () -> Unit,
     onClearQueue: () -> Unit,
     onSaveAsPlaylist: () -> Unit,
+    onColor: Color,
     modifier: Modifier = Modifier
 ) {
     val currentSong by playerViewModel.currentSong.collectAsState()
@@ -308,10 +311,10 @@ private fun QueuePlayBar(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(MiuixTheme.colorScheme.surfaceVariant),
+                .background(onColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Text("♪", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+            Text("♪", color = onColor.copy(alpha = 0.6f))
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -320,14 +323,14 @@ private fun QueuePlayBar(
             Text(
                 text = currentSong?.title ?: "未在播放",
                 style = MiuixTheme.textStyles.body1,
-                color = MiuixTheme.colorScheme.onSurface,
+                color = onColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = currentSong?.artist ?: "",
                 style = MiuixTheme.textStyles.footnote1,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                color = onColor.copy(alpha = 0.6f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -339,7 +342,7 @@ private fun QueuePlayBar(
                 imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
                 contentDescription = if (isPlaying) "暂停" else "播放",
                 modifier = Modifier.size(22.dp),
-                tint = MiuixTheme.colorScheme.onSurface
+                tint = onColor
             )
         }
 
@@ -367,7 +370,8 @@ private fun QueuePlayBar(
             Icon(
                 imageVector = Lucide.EllipsisVertical,
                 contentDescription = "更多",
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(22.dp),
+                tint = onColor.copy(alpha = 0.8f)
             )
         }
     }
@@ -378,7 +382,8 @@ private fun QueueItem(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onColor: Color
 ) {
     Row(
         modifier = Modifier
@@ -398,15 +403,15 @@ private fun QueueItem(
             Text(
                 text = song.title,
                 style = MiuixTheme.textStyles.body1,
-                color = if (isCurrent) MiuixTheme.colorScheme.primary
-                else MiuixTheme.colorScheme.onSurface,
+                // 当前项全亮，普通项弱化，突出正在播放
+                color = if (isCurrent) onColor else onColor.copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "${song.artist} - ${song.album}",
                 style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                color = onColor.copy(alpha = 0.5f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -417,7 +422,7 @@ private fun QueueItem(
                 imageVector = Lucide.X,
                 contentDescription = "移除",
                 modifier = Modifier.size(18.dp),
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                tint = onColor.copy(alpha = 0.5f)
             )
         }
     }
