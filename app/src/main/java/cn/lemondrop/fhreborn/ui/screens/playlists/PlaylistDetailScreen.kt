@@ -61,6 +61,7 @@ import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
+import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
@@ -81,6 +82,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -189,7 +192,15 @@ fun PlaylistDetailScreen(
         }
     }
 
-    BackHandler { onBack() }
+    BackHandler {
+        if (multiSelectMode) {
+            // 多选时返回键先退出多选
+            multiSelectMode = false
+            selectedSongIds.clear()
+        } else {
+            onBack()
+        }
+    }
 
     // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
     val surfaceColor = MiuixTheme.colorScheme.surface
@@ -208,16 +219,7 @@ fun PlaylistDetailScreen(
                     scrolled = topBarScrolled || multiSelectMode,
                     title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else playlist?.name ?: "歌单",
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Lucide.ArrowLeft,
-                                contentDescription = "返回"
-                            )
-                        }
-                    },
-                    actions = {
                         if (multiSelectMode) {
-                            // 多选中：仅保留退出按钮
                             IconButton(onClick = {
                                 multiSelectMode = false
                                 selectedSongIds.clear()
@@ -228,36 +230,66 @@ fun PlaylistDetailScreen(
                                 )
                             }
                         } else {
-                            // 多选入口
-                            IconButton(onClick = { multiSelectMode = true }) {
+                            IconButton(onClick = onBack) {
                                 Icon(
-                                    imageVector = Lucide.ListChecks,
-                                    contentDescription = "多选"
+                                    imageVector = Lucide.ArrowLeft,
+                                    contentDescription = "返回"
                                 )
                             }
-                            // 排序
-                            IconButton(onClick = { showSortSheet = true }) {
+                        }
+                    },
+                    actions = {
+                        if (multiSelectMode) {
+                            // 选择状态：全选 / 选中多个 / 全未选（退出在标题栏左侧）
+                            val allSongIds = displaySongs.map { it.id }
+                            SelectionStateButton(
+                                selectedCount = selectedSongIds.size,
+                                totalCount = allSongIds.size,
+                                onSelectAll = {
+                                    selectedSongIds.clear()
+                                    selectedSongIds.addAll(allSongIds)
+                                },
+                                onDeselectAll = { selectedSongIds.clear() }
+                            )
+                        } else {
+                            // 多选 / 排序 / 导出 / 编辑 收纳进三点菜单
+                            top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
+                                entries = listOf(
+                                    DropdownEntry(
+                                        items = listOf(
+                                            DropdownItem(
+                                                "多选",
+                                                icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) },
+                                                onClick = { multiSelectMode = true }
+                                            ),
+                                            DropdownItem(
+                                                "排序",
+                                                icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) },
+                                                onClick = { showSortSheet = true }
+                                            ),
+                                            DropdownItem(
+                                                "导出",
+                                                icon = { mod -> Icon(Lucide.Download, null, modifier = mod) },
+                                                onClick = {
+                                                    pendingExportIsJson = false
+                                                    pendingExportContent = null
+                                                    showExportSheet = true
+                                                }
+                                            ),
+                                            DropdownItem(
+                                                "编辑",
+                                                icon = { mod -> Icon(Lucide.Pencil, null, modifier = mod) },
+                                                onClick = { showEditSheet = true }
+                                            )
+                                        )
+                                    )
+                                ),
+                                minHeight = 40.dp,
+                                minWidth = 40.dp,
+                            ) {
                                 Icon(
-                                    imageVector = Lucide.ArrowUpDown,
-                                    contentDescription = "排序"
-                                )
-                            }
-                            // 导出
-                            IconButton(onClick = {
-                                pendingExportIsJson = false
-                                pendingExportContent = null
-                                showExportSheet = true
-                            }) {
-                                Icon(
-                                    imageVector = Lucide.Download,
-                                    contentDescription = "导出歌单"
-                                )
-                            }
-                            // 编辑
-                            IconButton(onClick = { showEditSheet = true }) {
-                                Icon(
-                                    imageVector = Lucide.Pencil,
-                                    contentDescription = "编辑歌单"
+                                    imageVector = Lucide.EllipsisVertical,
+                                    contentDescription = "更多"
                                 )
                             }
                         }
@@ -493,10 +525,6 @@ fun PlaylistDetailScreen(
                         },
                         onDelete = {
                             if (selectedSongIds.isNotEmpty()) showBatchDeleteConfirm = true
-                        },
-                        onExit = {
-                            multiSelectMode = false
-                            selectedSongIds.clear()
                         }
                     )
                 }

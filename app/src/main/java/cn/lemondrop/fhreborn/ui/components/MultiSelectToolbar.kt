@@ -50,7 +50,7 @@ private const val ToolbarSurfaceAlpha = 0.8f
  * - 不再显示"已选 N"（标题栏已显示）
  * - [backdrop] 非空且平台支持时，工具栏透明并对页面内容做真实模糊（磨砂玻璃）；
  *   否则回退 surfaceContainer 色值
- * - [showSongActions] 为 false 时仅显示删除与退出（歌单列表多选用）
+ * - [showSongActions] 为 false 时仅显示删除（退出多选在标题栏，工具栏不重复提供）
  */
 @Composable
 fun MultiSelectToolbar(
@@ -59,7 +59,6 @@ fun MultiSelectToolbar(
     onAddToQueue: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
-    onExit: () -> Unit,
     modifier: Modifier = Modifier,
     backdrop: LayerBackdrop? = null,
     showSongActions: Boolean = true
@@ -127,12 +126,6 @@ fun MultiSelectToolbar(
                 enabled = enabled,
                 destructive = true,
                 onClick = onDelete
-            )
-            MultiSelectToolItem(
-                icon = Lucide.X,
-                label = "退出",
-                enabled = true,
-                onClick = onExit
             )
         }
         // 底部系统导航栏避让（手势条/三键）

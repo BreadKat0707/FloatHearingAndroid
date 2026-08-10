@@ -1,5 +1,7 @@
 package cn.lemondrop.fhreborn.ui.screens.album
 
+import android.app.Application
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,32 +19,55 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.AppDatabase
+import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
+import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
+import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
+import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
+import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Disc
+import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Play
+import com.composables.icons.lucide.X
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
-import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -86,6 +111,31 @@ fun AlbumDetailScreen(
         releaseYear?.let { append(" · $it") }
     }
 
+    // 多选模式（批量操作）
+    var multiSelectMode by remember { mutableStateOf(false) }
+    val selectedSongIds = remember { mutableStateSetOf<Long>() }
+    var showBatchAddSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // 多选时隐藏全局播放条（底部由多选工具栏接管）；离开页面时复位
+    val playBarOverride = LocalPlayBarOverride.current
+    LaunchedEffect(multiSelectMode) {
+        playBarOverride.value = multiSelectMode
+    }
+    DisposableEffect(Unit) {
+        onDispose { playBarOverride.value = false }
+    }
+
+    // 批量操作依赖（加入歌单 / 删除文件）
+    val playlistViewModel: PlaylistViewModel = viewModel(
+        factory = PlaylistViewModel.Factory(context.applicationContext as Application)
+    )
+    val libraryViewModel: LibraryViewModel = viewModel(
+        factory = LibraryViewModel.Factory(context.applicationContext as Application)
+    )
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+
     // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
     val surfaceColor = MiuixTheme.colorScheme.surface
     val backdrop = rememberLayerBackdrop {
@@ -105,18 +155,98 @@ fun AlbumDetailScreen(
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,
-                scrolled = topBarScrolled,
-                title = "专辑",
+                scrolled = topBarScrolled || multiSelectMode,
+                title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else "专辑",
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Lucide.ArrowLeft,
-                            contentDescription = "返回",
-                            tint = MiuixTheme.colorScheme.onSurface
+                    if (multiSelectMode) {
+                        IconButton(onClick = {
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }) {
+                            Icon(
+                                imageVector = Lucide.X,
+                                contentDescription = "退出多选"
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Lucide.ArrowLeft,
+                                contentDescription = "返回",
+                                tint = MiuixTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (multiSelectMode) {
+                        // 选择状态：全选 / 选中多个 / 全未选（退出在标题栏左侧）
+                        val allSongIds = songs.map { it.id }
+                        SelectionStateButton(
+                            selectedCount = selectedSongIds.size,
+                            totalCount = allSongIds.size,
+                            onSelectAll = {
+                                selectedSongIds.clear()
+                                selectedSongIds.addAll(allSongIds)
+                            },
+                            onDeselectAll = { selectedSongIds.clear() }
                         )
+                    } else {
+                        // 多选入口收纳进三点菜单
+                        top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
+                            entries = listOf(
+                                DropdownEntry(
+                                    items = listOf(
+                                        DropdownItem(
+                                            "多选",
+                                            icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) },
+                                            onClick = { multiSelectMode = true }
+                                        )
+                                    )
+                                )
+                            ),
+                            minHeight = 40.dp,
+                            minWidth = 40.dp,
+                        ) {
+                            Icon(
+                                imageVector = Lucide.EllipsisVertical,
+                                contentDescription = "更多"
+                            )
+                        }
                     }
                 }
             )
+        },
+        bottomBar = {
+            // 多选底部工具栏（退出在标题栏，工具栏不重复提供）
+            if (multiSelectMode) {
+                MultiSelectToolbar(
+                    selectedCount = selectedSongIds.size,
+                    backdrop = backdrop,
+                    onAddToPlaylist = {
+                        if (selectedSongIds.isNotEmpty()) showBatchAddSheet = true
+                    },
+                    onAddToQueue = {
+                        val list = songs.filter { it.id in selectedSongIds }
+                        if (list.isNotEmpty()) {
+                            playerViewModel.addToQueue(list)
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }
+                    },
+                    onShare = {
+                        val list = songs.filter { it.id in selectedSongIds }
+                        if (list.isNotEmpty()) {
+                            cn.lemondrop.fhreborn.util.SongFileUtils.shareSongs(context, list)
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }
+                    },
+                    onDelete = {
+                        if (selectedSongIds.isNotEmpty()) showDeleteConfirm = true
+                    }
+                )
+            }
         }
     ) { padding ->
         val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
@@ -130,7 +260,7 @@ fun AlbumDetailScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding() + bottomOverlayHeight
+                bottom = padding.calculateBottomPadding() + (if (multiSelectMode) 0.dp else bottomOverlayHeight)
             )
         ) {
             // 头部：封面 + 专辑信息 + 播放按钮
@@ -157,7 +287,16 @@ fun AlbumDetailScreen(
                     SongItem(
                         song = song,
                         onClick = { playerViewModel.playSongs(songs, index) },
-                        onMoreClick = { }
+                        onMoreClick = { },
+                        selectionMode = multiSelectMode,
+                        selected = song.id in selectedSongIds,
+                        onToggleSelect = {
+                            if (song.id in selectedSongIds) {
+                                selectedSongIds.remove(song.id)
+                            } else {
+                                selectedSongIds.add(song.id)
+                            }
+                        }
                     )
                 }
             }
@@ -192,6 +331,83 @@ fun AlbumDetailScreen(
             modifier = Modifier.align(Alignment.CenterEnd)
         )
         }
+    }
+
+    // 多选时返回键退出多选（弹窗的 BackHandler 更晚组合，优先处理）
+    if (multiSelectMode) {
+        BackHandler {
+            multiSelectMode = false
+            selectedSongIds.clear()
+        }
+    }
+
+    // 批量加入歌单弹窗
+    if (showBatchAddSheet) {
+        BackHandler { showBatchAddSheet = false }
+        AddToPlaylistSheet(
+            songIds = selectedSongIds.toList(),
+            viewModel = playlistViewModel,
+            onDismiss = {
+                showBatchAddSheet = false
+                multiSelectMode = false
+                selectedSongIds.clear()
+            }
+        )
+    }
+
+    // 删除确认弹窗
+    if (showDeleteConfirm) {
+        BackHandler { showDeleteConfirm = false }
+        FhBottomSheet(
+            show = true,
+            onDismissRequest = { showDeleteConfirm = false },
+            title = "删除歌曲",
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "确定删除选中的 ${selectedSongIds.size} 首歌曲吗？文件将从设备中移除，此操作不可恢复。",
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(text = "取消", onClick = { showDeleteConfirm = false })
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(
+                        text = "删除",
+                        onClick = {
+                            val targetSongs = songs.filter { it.id in selectedSongIds }
+                            showDeleteConfirm = false
+                            libraryViewModel.deleteSongs(context, targetSongs) { deleted ->
+                                snackbarScope.launch {
+                                    snackbarHostState.showSnackbar("已删除 $deleted 首歌曲")
+                                }
+                            }
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // 删除反馈 Snackbar（悬浮于内容区底部）
+    Box(modifier = Modifier.fillMaxSize()) {
+        SnackbarHost(
+            state = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
+        )
     }
 }
 

@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Playlist
 import com.composables.icons.lucide.ListMusic
@@ -42,13 +43,16 @@ import java.io.File
  * - coverSource=0（自动）：前 3 首歌曲封面拼图（随歌单内容变化）
  * - coverSource=1（选歌曲）：指定歌曲（coverPath 存 songId）的封面
  * - coverSource=2（自选图片）：coverPath 指向应用目录图片
+ *
+ * @param cornerRadius 封面自身圆角；在卡片视图等由外层容器裁切的场景传 0.dp
  */
 @Composable
 fun PlaylistCover(
     songIds: List<Long>,
     coverPath: String?,
     coverSource: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 8.dp
 ) {
     val context = LocalContext.current
     var bitmaps by remember { mutableStateOf<List<ImageBitmap>?>(null) }
@@ -70,7 +74,7 @@ fun PlaylistCover(
     val size = modifier.let { /* 由外部控制尺寸 */ }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(cornerRadius))
             .background(MiuixTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {

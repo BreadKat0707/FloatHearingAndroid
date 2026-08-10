@@ -81,7 +81,6 @@ import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Check
-import com.composables.icons.lucide.CheckCheck
 import com.composables.icons.lucide.LayoutList
 import com.composables.icons.lucide.EllipsisVertical
 import com.composables.icons.lucide.EyeOff
@@ -119,6 +118,7 @@ import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
+import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 
 @Composable
 fun LibraryScreen(
@@ -454,31 +454,27 @@ fun LibraryScreen(
                 },
                 actions = {
                     if (multiSelectMode) {
-                        IconButton(onClick = {
-                            // 全选当前标签可见歌曲
-                            val all = when (selectedNavIndex) {
-                                0 -> displaySongs.map { it.id }
-                                1 -> albums.flatMap { it.songs }.map { it.id }
-                                2 -> artists.flatMap { artist ->
-                                    viewModel.songs.value.filter { it.artist == artist.name }.map { it.id }
-                                }
-                                3 -> displaySongs.filterNot { song ->
-                                    hiddenFolders.any { h -> song.path.startsWith(h) }
-                                }.map { it.id }
-                                else -> emptyList()
+                        // 选择状态：全选 / 选中多个 / 全未选（点击切换全选）
+                        val all = when (selectedNavIndex) {
+                            0 -> displaySongs.map { it.id }
+                            1 -> albums.flatMap { it.songs }.map { it.id }
+                            2 -> artists.flatMap { artist ->
+                                viewModel.songs.value.filter { it.artist == artist.name }.map { it.id }
                             }
-                            if (selectedSongIds.size == all.distinct().size) {
-                                selectedSongIds.clear()
-                            } else {
+                            3 -> displaySongs.filterNot { song ->
+                                hiddenFolders.any { h -> song.path.startsWith(h) }
+                            }.map { it.id }
+                            else -> emptyList()
+                        }
+                        SelectionStateButton(
+                            selectedCount = selectedSongIds.size,
+                            totalCount = all.distinct().size,
+                            onSelectAll = {
                                 selectedSongIds.clear()
                                 selectedSongIds.addAll(all)
-                            }
-                        }) {
-                            Icon(
-                                imageVector = Lucide.CheckCheck,
-                                contentDescription = "全选"
-                            )
-                        }
+                            },
+                            onDeselectAll = { selectedSongIds.clear() }
+                        )
                     } else {
                     OverlayIconDropdownMenu(
                         entries = listOf(
@@ -539,10 +535,6 @@ fun LibraryScreen(
                     },
                     onDelete = {
                         if (selectedSongIds.isNotEmpty()) showDeleteConfirm = true
-                    },
-                    onExit = {
-                        multiSelectMode = false
-                        selectedSongIds.clear()
                     }
                 )
             } else {
@@ -708,6 +700,14 @@ fun LibraryScreen(
                     .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
             )
         }
+        }
+
+        // 多选时返回键退出多选（弹窗的 BackHandler 更晚组合，优先处理）
+        if (multiSelectMode) {
+            BackHandler {
+                multiSelectMode = false
+                selectedSongIds.clear()
+            }
         }
 
         // 批量加入歌单弹窗

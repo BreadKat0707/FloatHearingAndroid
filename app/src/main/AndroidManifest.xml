@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- 显式 uses-sdk 仅为承载 overrideLibrary：允许 minSdk 33 的 miuix-blur 依赖
+         （其模糊效果调用点均已被 isRuntimeShaderSupported 保护，低版本走纯色回退） -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
     <!-- 存储权限 -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission

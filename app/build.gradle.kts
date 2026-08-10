@@ -78,7 +78,7 @@ android {
 
     defaultConfig {
         applicationId = "cn.lemondrop.fhreborn"
-        minSdk = 33
+        minSdk = 31
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName

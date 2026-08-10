@@ -63,10 +63,12 @@ import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
+import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Check
+import com.composables.icons.lucide.EllipsisVertical
 import com.composables.icons.lucide.Grid2x2
 import com.composables.icons.lucide.LayoutGrid
 import com.composables.icons.lucide.LayoutList
@@ -78,6 +80,7 @@ import com.composables.icons.lucide.Play
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.Upload
+import com.composables.icons.lucide.X
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -217,61 +220,89 @@ fun PlaylistsScreen(
                         scrolled = topBarScrolled || multiSelectMode,
                         title = if (multiSelectMode) "已选 ${selectedPlaylistIds.size} 个" else "歌单",
                         navigationIcon = {
-                            IconButton(onClick = { drawerToggle() }) {
-                                Icon(
-                                    imageVector = Lucide.Menu,
-                                    contentDescription = "菜单"
-                                )
+                            if (multiSelectMode) {
+                                IconButton(onClick = {
+                                    multiSelectMode = false
+                                    selectedPlaylistIds.clear()
+                                }) {
+                                    Icon(
+                                        imageVector = Lucide.X,
+                                        contentDescription = "退出多选"
+                                    )
+                                }
+                            } else {
+                                IconButton(onClick = { drawerToggle() }) {
+                                    Icon(
+                                        imageVector = Lucide.Menu,
+                                        contentDescription = "菜单"
+                                    )
+                                }
                             }
                         },
                         actions = {
-                            // 视图样式切换
-                            top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
-                                entries = listOf(
-                                    DropdownEntry(
-                                        items = listOf(
-                                            DropdownItem(
-                                                "列表",
-                                                icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
-                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("list") } }
-                                            ),
-                                            DropdownItem(
-                                                "双栏列表",
-                                                icon = { mod -> Icon(Lucide.LayoutGrid, null, modifier = mod) },
-                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("grid") } }
-                                            ),
-                                            DropdownItem(
-                                                "卡片",
-                                                icon = { mod -> Icon(Lucide.LayoutPanelTop, null, modifier = mod) },
-                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("card") } }
-                                            ),
-                                            DropdownItem(
-                                                "方形",
-                                                icon = { mod -> Icon(Lucide.Grid2x2, null, modifier = mod) },
-                                                onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("square") } }
+                            // 多选时：选择状态（全选/选中多个/全未选）；退出在标题栏左侧
+                            if (multiSelectMode) {
+                                val allPlaylistIds = playlists.map { it.id }
+                                SelectionStateButton(
+                                    selectedCount = selectedPlaylistIds.size,
+                                    totalCount = allPlaylistIds.size,
+                                    onSelectAll = {
+                                        selectedPlaylistIds.clear()
+                                        selectedPlaylistIds.addAll(allPlaylistIds)
+                                    },
+                                    onDeselectAll = { selectedPlaylistIds.clear() }
+                                )
+                            } else {
+                                // 视图样式与歌单管理操作统一收纳进三点菜单
+                                top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
+                                    entries = listOf(
+                                        DropdownEntry(
+                                            items = listOf(
+                                                DropdownItem(
+                                                    "列表",
+                                                    icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
+                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("list") } }
+                                                ),
+                                                DropdownItem(
+                                                    "双栏列表",
+                                                    icon = { mod -> Icon(Lucide.LayoutGrid, null, modifier = mod) },
+                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("grid") } }
+                                                ),
+                                                DropdownItem(
+                                                    "卡片",
+                                                    icon = { mod -> Icon(Lucide.LayoutPanelTop, null, modifier = mod) },
+                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("card") } }
+                                                ),
+                                                DropdownItem(
+                                                    "方形",
+                                                    icon = { mod -> Icon(Lucide.Grid2x2, null, modifier = mod) },
+                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("square") } }
+                                                )
+                                            )
+                                        ),
+                                        DropdownEntry(
+                                            items = listOf(
+                                                DropdownItem(
+                                                    "新建歌单",
+                                                    icon = { mod -> Icon(Lucide.Plus, null, modifier = mod) },
+                                                    onClick = { showCreateSheet = true }
+                                                ),
+                                                DropdownItem(
+                                                    "导入歌单",
+                                                    icon = { mod -> Icon(Lucide.Upload, null, modifier = mod) },
+                                                    onClick = { importLauncher.launch(arrayOf("application/json", "audio/x-mpegurl", "*/*")) }
+                                                )
                                             )
                                         )
+                                    ),
+                                    minHeight = 40.dp,
+                                    minWidth = 40.dp,
+                                ) {
+                                    Icon(
+                                        imageVector = Lucide.EllipsisVertical,
+                                        contentDescription = "更多"
                                     )
-                                ),
-                                minHeight = 40.dp,
-                                minWidth = 40.dp,
-                            ) {
-                                Icon(
-                                    imageVector = Lucide.LayoutGrid,
-                                    contentDescription = "视图样式"
-                                )
-                            }
-                            IconButton(onClick = { showCreateSheet = true }) {
-                                Icon(
-                                    imageVector = Lucide.Plus,
-                                    contentDescription = "新建歌单"
-                                )
-                            }
-                            IconButton(onClick = { importLauncher.launch(arrayOf("application/json", "audio/x-mpegurl", "*/*")) }) {
-                                Icon(
-                                    imageVector = Lucide.Upload,
-                                    contentDescription = "导入歌单"
-                                )
+                                }
                             }
                         }
                     )
@@ -437,10 +468,6 @@ fun PlaylistsScreen(
                             onDelete = {
                                 if (selectedPlaylistIds.isNotEmpty()) showBatchDeleteConfirm = true
                             },
-                            onExit = {
-                                multiSelectMode = false
-                                selectedPlaylistIds.clear()
-                            },
                             showSongActions = false
                         )
                     }
@@ -452,6 +479,14 @@ fun PlaylistsScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
         )
+        }
+    }
+
+    // 多选时返回键退出多选（弹窗的 BackHandler 更晚组合，优先处理）
+    if (multiSelectMode) {
+        BackHandler {
+            multiSelectMode = false
+            selectedPlaylistIds.clear()
         }
     }
 
@@ -631,7 +666,7 @@ private fun PlaylistGridItem(
     }
 }
 
-/** 卡片视图：大封面卡片（PressFeedback Tilt） */
+/** 卡片视图：大封面卡片（PressFeedback Sink） */
 @Composable
 private fun PlaylistCardItem(
     playlist: PlaylistWithCount,
@@ -645,9 +680,12 @@ private fun PlaylistCardItem(
     LaunchedEffect(playlist.id, playlist.songCount) {
         viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
     }
+    // Card 背景圆角不裁切内容，需 clip 整卡让封面顶部贴合圆角（封面本身不加圆角）
     top.yukonga.miuix.kmp.basic.Card(
-        modifier = Modifier.fillMaxWidth(),
-        pressFeedbackType = top.yukonga.miuix.kmp.utils.PressFeedbackType.Tilt,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp)),
+        pressFeedbackType = top.yukonga.miuix.kmp.utils.PressFeedbackType.Sink,
         onClick = onClick,
         onLongPress = onLongClick,
     ) {
@@ -659,7 +697,9 @@ private fun PlaylistCardItem(
                     coverSource = playlist.coverSource,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .aspectRatio(1f),
+                    // 卡片视图：封面自身不带圆角，由 Card 裁切上方圆角
+                    cornerRadius = 0.dp
                 )
                 Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                     Text(
