@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -41,6 +42,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
@@ -102,12 +105,11 @@ import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.InputField
-import top.yukonga.miuix.kmp.basic.SearchBar
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -128,6 +130,10 @@ fun LibraryScreen(
     playerViewModel: PlayerViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    // 背景类型：图片背景时搜索框等控件改用半透明色
+    val bgRepo = remember { cn.lemondrop.fhreborn.data.repository.AppSettingsRepository(context) }
+    val bgType by bgRepo.bgType.collectAsState(initial = "color")
+    val isImageBackground = bgType == "image"
     val viewModel: LibraryViewModel = viewModel(
         factory = LibraryViewModel.Factory(context.applicationContext as Application)
     )
@@ -156,7 +162,8 @@ fun LibraryScreen(
     val repeatMode by playerViewModel.repeatMode.collectAsState()
     val shuffleMode by playerViewModel.shuffleMode.collectAsState()
 
-    var selectedNavIndex by remember { mutableIntStateOf(0) }
+    // 当前 tab 保存：从专辑/艺术家等 tab 进入二级页返回后仍停留原 tab
+    var selectedNavIndex by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
     var showFolderBrowser by remember { mutableStateOf(false) }
     var folderBrowserInitialPath by remember { mutableStateOf(listOf<String>()) }
     var showSongMenu by remember { mutableStateOf(false) }
@@ -206,7 +213,34 @@ fun LibraryScreen(
         }
     }
 
-    val listState = remember(selectedNavIndex) { androidx.compose.foundation.lazy.LazyListState() }
+    // 滚动位置按 tab 保存：切 tab / 离开页面返回后恢复
+    val listState = rememberSaveable(
+        selectedNavIndex,
+        saver = androidx.compose.foundation.lazy.LazyListState.Saver
+    ) { androidx.compose.foundation.lazy.LazyListState() }
+
+    // 手动滚动位置兜底：LazyListState.Saver 的恢复值在数据异步加载期间会被
+    // 空列表 clamp 丢失，故按 tab 数值保存，数据就绪后再恢复
+    var savedScrollIndex by rememberSaveable(selectedNavIndex) { mutableIntStateOf(0) }
+    var savedScrollOffset by rememberSaveable(selectedNavIndex) { mutableIntStateOf(0) }
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.drop(1).collect { (index, offset) ->
+            savedScrollIndex = index
+            savedScrollOffset = offset
+        }
+    }
+    LaunchedEffect(selectedNavIndex, displaySongs, albums, artists) {
+        val dataReady = when (selectedNavIndex) {
+            1 -> albums.isNotEmpty()
+            2 -> artists.isNotEmpty()
+            else -> displaySongs.isNotEmpty()
+        }
+        if (dataReady && savedScrollIndex > 0) {
+            listState.scrollToItem(savedScrollIndex, savedScrollOffset)
+        }
+    }
     // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
     val topBarScrolled = remember {
         androidx.compose.runtime.derivedStateOf {
@@ -259,28 +293,18 @@ fun LibraryScreen(
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // 歌曲 tab：搜索框（miuix SearchBar）+ 播放模式按钮（已从标题栏移入页面）
+            // 歌曲 tab：搜索框（自绘，图片背景时可透明）+ 播放模式按钮（已从标题栏移入页面）
             if (selectedNavIndex == 0) {
                 item {
-                    SearchBar(
+                    LibrarySearchField(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.setSearchQuery(it) },
+                        label = "搜索",
+                        transparent = isImageBackground,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        // 去掉内部边距，输入框与下方列表项左对齐（外层 16dp 一致）
-                        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp),
-                        inputField = {
-                            InputField(
-                                query = searchQuery,
-                                onQueryChange = { viewModel.setSearchQuery(it) },
-                                onSearch = {},
-                                expanded = false,
-                                onExpandedChange = {},
-                                label = "搜索"
-                            )
-                        },
-                        onExpandedChange = {},
-                        expanded = false
-                    ) { }
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
                 }
                 item {
                     Row(
@@ -765,6 +789,55 @@ fun LibraryScreen(
         }
     }
 
+}
+
+/** 搜索输入框：图片背景时半透明胶囊，否则实色（替代 miuix InputField，其背景写死不可调） */
+@Composable
+private fun LibrarySearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    label: String,
+    transparent: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(45.dp)
+            .clip(CircleShape)
+            .background(
+                if (transparent) MiuixTheme.colorScheme.surface.copy(alpha = 0.5f)
+                else MiuixTheme.colorScheme.surfaceContainerHigh
+            )
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Lucide.Search,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                androidx.compose.foundation.text.BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    textStyle = MiuixTheme.textStyles.body1.copy(color = MiuixTheme.colorScheme.onSurface),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MiuixTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (query.isEmpty()) {
+                    Text(
+                        text = label,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ===== 内容区域 =====

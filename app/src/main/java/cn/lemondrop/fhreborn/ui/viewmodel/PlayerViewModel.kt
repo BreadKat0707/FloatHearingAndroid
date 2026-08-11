@@ -342,9 +342,18 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         mediaController?.shuffleModeEnabled = enabled
     }
 
+    private var lyricLoadJob: kotlinx.coroutines.Job? = null
+
     private fun loadLyrics() {
         val song = _currentSong.value ?: return
-        viewModelScope.launch {
+        // 切歌时立即清空歌词：避免旧歌词残留并与新的播放位置错配
+        // （表现为歌词瞎匹配/反复乱弹跳）；空歌词时歌词视图重建成本也最低
+        _lyrics.value = null
+        _lyricSource.value = null
+        _currentLyricIndex.value = -1
+        // 取消上一次未完成的加载：快速连续切歌时避免旧协程后完成导致歌词错配
+        lyricLoadJob?.cancel()
+        lyricLoadJob = viewModelScope.launch {
             // 延迟加载，避开切歌高峰（封面/背景切换、播放器动画）
             delay(300)
 

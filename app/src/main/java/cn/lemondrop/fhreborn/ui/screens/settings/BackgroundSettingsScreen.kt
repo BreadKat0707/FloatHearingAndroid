@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -77,7 +78,10 @@ private val PRESET_COLORS = listOf(
  * 三选一：纯色 / 自选图片（亮度 + 模糊）/ 云母（系统壁纸实时透出 + 模糊 + tint/噪点）。
  */
 @Composable
-fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
+fun BackgroundSettingsContent(
+    viewModel: SettingsViewModel,
+    paddingValues: PaddingValues = PaddingValues()
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -103,8 +107,7 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .padding(top = paddingValues.calculateTopPadding(), bottom = paddingValues.calculateBottomPadding())
             .padding(horizontal = 16.dp)
     ) {
         SectionTitle("背景类型")

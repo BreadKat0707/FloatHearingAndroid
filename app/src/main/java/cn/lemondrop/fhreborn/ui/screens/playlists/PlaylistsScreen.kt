@@ -36,10 +36,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
@@ -123,6 +125,56 @@ fun PlaylistsScreen(
     // 列表/网格滚动状态（滚动条用）
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+
+    // 滚动位置保存：LazyListState.Saver 的恢复值在数据异步加载期间会被空列表
+    // clamp 丢失（恢复 index 在 0 个 item 上强制归 0），故手动数值保存，
+    // 数据就绪后再 scrollToItem 恢复
+    var savedListScrollIndex by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
+    var savedListScrollOffset by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
+    var savedGridScrollIndex by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
+    var savedGridScrollOffset by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
+
+    // 恢复完成标记：数据就绪并执行 scrollToItem 后，snapshotFlow 才允许覆盖保存值。
+    // （恢复期间 LazyListState 初始值=恢复值，随后会被空列表 clamp 归零，
+    //   若允许写入会把刚恢复的保存值覆盖成 0）
+    var restoreDone by remember { mutableStateOf(false) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (restoreDone) {
+                savedListScrollIndex = index
+                savedListScrollOffset = offset
+            }
+        }
+    }
+    LaunchedEffect(gridState) {
+        snapshotFlow {
+            gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (restoreDone) {
+                savedGridScrollIndex = index
+                savedGridScrollOffset = offset
+            }
+        }
+    }
+    // 诊断：恢复值与恢复时机（临时，定位后删除）
+    LaunchedEffect(Unit) {
+        android.util.Log.i("FhScroll", "restored list=$savedListScrollIndex/$savedListScrollOffset grid=$savedGridScrollIndex/$savedGridScrollOffset viewStyle=$viewStyle state=${listState.firstVisibleItemIndex}/${gridState.firstVisibleItemIndex}")
+    }
+    // 数据就绪后恢复滚动位置
+    LaunchedEffect(playlists) {
+        if (playlists.isNotEmpty()) {
+            if (savedListScrollIndex > 0) {
+                listState.scrollToItem(savedListScrollIndex, savedListScrollOffset)
+            }
+            if (savedGridScrollIndex > 0) {
+                gridState.scrollToItem(savedGridScrollIndex, savedGridScrollOffset)
+            }
+            restoreDone = true
+        }
+    }
 
     // 顶栏滚动感知：列表/网格滚离顶部时显示背景/模糊，回顶隐藏
     val topBarScrolled = remember {

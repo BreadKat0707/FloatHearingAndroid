@@ -75,13 +75,17 @@ fun SongCoverImage(
         Image(
             bitmap = bitmap!!,
             contentDescription = null,
-            modifier = modifier.clip(RoundedCornerShape(8.dp)),
+            // 默认 8dp 圆角；调用方显式传 clip 时以调用方为准（内部 clip 在其之前）
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .then(modifier),
             contentScale = ContentScale.Crop
         )
     } else {
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
+                .then(modifier)
                 .background(MiuixTheme.colorScheme.surface),
             contentAlignment = Alignment.Center
         ) {

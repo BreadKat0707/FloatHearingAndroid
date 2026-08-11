@@ -496,9 +496,11 @@ fun FHRebornApp() {
                     playerViewModel = playerViewModel,
                     onClick = { showPlayer = true },
                     modifier = Modifier
+                        // 占满内容区并左右对称留边距：手机不贴屏幕边缘，大屏在内容区
+                        // 内自然铺开（不锁固定宽度）
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(end = 16.dp, bottom = playBarBottomOffset)
+                        .padding(start = 16.dp, end = 16.dp, bottom = playBarBottomOffset)
                 )
             }
         }

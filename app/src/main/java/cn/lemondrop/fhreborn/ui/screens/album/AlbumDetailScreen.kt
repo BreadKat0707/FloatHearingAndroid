@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.AppDatabase
+import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
@@ -115,6 +116,11 @@ fun AlbumDetailScreen(
     val selectedSongIds = remember { mutableStateSetOf<Long>() }
     var showBatchAddSheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // 歌曲更多菜单（三点菜单）
+    var menuSong by remember { mutableStateOf<Song?>(null) }
+    var showSongProperties by remember { mutableStateOf(false) }
+    var propertiesSong by remember { mutableStateOf<Song?>(null) }
 
     // 多选时隐藏全局播放条（底部由多选工具栏接管）；离开页面时复位
     val playBarOverride = LocalPlayBarOverride.current
@@ -287,7 +293,7 @@ fun AlbumDetailScreen(
                     SongItem(
                         song = song,
                         onClick = { playerViewModel.playSongs(songs, index) },
-                        onMoreClick = { },
+                        onMoreClick = { menuSong = song },
                         selectionMode = multiSelectMode,
                         selected = song.id in selectedSongIds,
                         onToggleSelect = {
@@ -408,6 +414,32 @@ fun AlbumDetailScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = if (multiSelectMode) 0.dp else LocalGlobalPlayBarHeight.current + 8.dp)
         )
+    }
+
+    // 歌曲更多菜单（三点菜单：查看专辑/分享/打开方式/属性）
+    menuSong?.let { song ->
+        cn.lemondrop.fhreborn.ui.components.SongMenuSheet(
+            song = song,
+            onDismiss = { menuSong = null },
+            onShare = { cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, song) },
+            onOpenWith = { cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, song) },
+            onProperties = {
+                propertiesSong = song
+                menuSong = null
+                showSongProperties = true
+            }
+        )
+    }
+
+    // 歌曲属性弹窗（菜单"属性"）
+    if (showSongProperties) {
+        androidx.activity.compose.BackHandler { showSongProperties = false }
+        propertiesSong?.let { song ->
+            cn.lemondrop.fhreborn.util.SongFileUtils.SongPropertiesDialog(
+                song = song,
+                onDismiss = { showSongProperties = false }
+            )
+        }
     }
 }
 

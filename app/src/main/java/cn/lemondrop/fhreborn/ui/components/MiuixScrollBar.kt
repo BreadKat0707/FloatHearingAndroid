@@ -207,8 +207,8 @@ object ScrollBarDefaults {
     val FadeDurationMillis = 500
     val TouchTargetWidth: Dp = 48.dp
     val DragThumbWidth: Dp = 6.dp
-    val ThumbAlpha = 0.1f
-    val DragThumbAlpha = 0.3f
+    val ThumbAlpha = 0.28f
+    val DragThumbAlpha = 0.45f
     val DragAnimationDurationMillis = 150
 
     fun scrollBarColors(
@@ -270,7 +270,7 @@ private fun ScrollBar(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     // FH 修改：常显（基础淡色），悬停/拖动时加亮；不再淡出隐藏
-    var opacity by remember { mutableFloatStateOf(0.35f) }
+    var opacity by remember { mutableFloatStateOf(0.55f) }
     var isDragging by remember { mutableStateOf(false) }
     var hideJob by remember { mutableStateOf<Job?>(null) }
     val isHighlighted = isHovered || isDragging
@@ -296,7 +296,7 @@ private fun ScrollBar(
             opacity = 1f
         } else {
             hideJob?.cancel()
-            opacity = 0.35f
+            opacity = 0.55f
         }
     }
 
@@ -307,7 +307,7 @@ private fun ScrollBar(
                 opacity = 1f
                 if (!isHighlighted) {
                     hideJob?.cancel()
-                    opacity = 0.35f
+                    opacity = 0.55f
                 }
             }
     }

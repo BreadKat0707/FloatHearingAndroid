@@ -27,6 +27,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -108,13 +109,15 @@ fun SettingsScreen(
     val drawerVisible = LocalDrawerVisible.current
     val drawerToggle = LocalDrawerToggle.current
 
+    // 设置页导航：页面栈（Home 为栈底，Category/子页入栈），返回逐级弹出。
     // 外部可指定直达分类（如播放器"歌词设置"→ 设置-歌词）；
     // remember 的 key 变化会重新初始化，导航复用实例时也能生效
-    var currentPage by remember(initialCategoryKey) {
-        mutableStateOf(
+    val pageStack = remember(initialCategoryKey) {
+        mutableStateListOf(
             if (initialCategoryKey != null) SettingsPage.Category(initialCategoryKey) else SettingsPage.Home
         )
     }
+    fun currentPage(): SettingsPage = pageStack.last()
     var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
     // 顶栏滚动感知：主页/分类页列表滚离顶部时显示背景/模糊，回顶隐藏
@@ -122,12 +125,12 @@ fun SettingsScreen(
 
     val onNavigateItem: (SettingItem) -> Unit = { item ->
         when (item.key) {
-            "main_bg" -> currentPage = SettingsPage.Background
+            "main_bg" -> pageStack.add(SettingsPage.Background)
             "artist_separators" -> showArtistSeparatorSheet = true
-            "codec_capability" -> currentPage = SettingsPage.CodecCapabilities
-            "accompanist_lyric" -> currentPage = SettingsPage.AccompanistLyric
-            "open_source" -> currentPage = SettingsPage.OpenSourceLicenses
-            "player_bg" -> currentPage = SettingsPage.PlayerBackground
+            "codec_capability" -> pageStack.add(SettingsPage.CodecCapabilities)
+            "accompanist_lyric" -> pageStack.add(SettingsPage.AccompanistLyric)
+            "open_source" -> pageStack.add(SettingsPage.OpenSourceLicenses)
+            "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
         }
     }
 
@@ -143,19 +146,19 @@ fun SettingsScreen(
     // 播放器覆盖层打开时让位：返回键优先关闭播放器（由 App 层处理）
     val playerOpen = LocalPlayerOpen.current
 
-    // 系统返回键：子页返回设置主页，分隔符弹窗优先关闭
-    BackHandler(enabled = currentPage != SettingsPage.Home && !playerOpen) {
-        currentPage = SettingsPage.Home
+    // 系统返回键：逐级返回（子页 → 进入页 → 主页），分隔符弹窗优先关闭
+    BackHandler(enabled = currentPage() != SettingsPage.Home && !playerOpen) {
+        if (pageStack.size > 1) pageStack.removeAt(pageStack.lastIndex)
         viewModel.navigateBack()
     }
     BackHandler(enabled = showArtistSeparatorSheet) {
         showArtistSeparatorSheet = false
     }
 
-    val isHome = currentPage == SettingsPage.Home
+    val isHome = currentPage() == SettingsPage.Home
 
     val pageTitle = {
-        val page = currentPage
+        val page = currentPage()
         when (page) {
             SettingsPage.Home -> "设置"
             is SettingsPage.Category -> when (page.key) {
@@ -188,7 +191,7 @@ fun SettingsScreen(
             topBar = {
                 BlurTopBar(
                     // 主页/分类页滚动感知；子页面常显背景
-                    scrolled = if (currentPage is SettingsPage.Home || currentPage is SettingsPage.Category) topBarScrolled else true,
+                    scrolled = if (currentPage() is SettingsPage.Home || currentPage() is SettingsPage.Category) topBarScrolled else true,
                     title = pageTitle(),
                     navigationIcon = {
                         if (isHome) {
@@ -197,7 +200,7 @@ fun SettingsScreen(
                             }
                         } else {
                             IconButton(onClick = {
-                                currentPage = SettingsPage.Home
+                                if (pageStack.size > 1) pageStack.removeAt(pageStack.lastIndex)
                                 viewModel.navigateBack()
                             }) {
                                 Icon(Lucide.ArrowLeft, "返回", tint = MiuixTheme.colorScheme.onSurface)
@@ -234,13 +237,13 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .layerBackdrop(backdrop)
             ) {
-                when (currentPage) {
+                when (currentPage()) {
                     SettingsPage.Home,
                     is SettingsPage.Category -> SettingsListContent(
                         viewModel = viewModel,
-                        currentPage = currentPage,
+                        currentPage = currentPage(),
                         onCategoryClick = { key ->
-                            currentPage = SettingsPage.Category(key)
+                            pageStack.add(SettingsPage.Category(key))
                             viewModel.selectCategory(key)
                         },
                         onSettingItemClick = onSettingItemClick,
@@ -249,21 +252,24 @@ fun SettingsScreen(
                         onScrolledChange = { topBarScrolled = it }
                     )
 
-                    SettingsPage.Background -> BackgroundSettingsContent(viewModel)
+                    SettingsPage.Background -> BackgroundSettingsContent(
+                        viewModel = viewModel,
+                        paddingValues = padding
+                    )
                     SettingsPage.CodecCapabilities -> CodecCapabilitiesContent(
-                        paddingValues = PaddingValues(),
+                        paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
                     SettingsPage.AccompanistLyric -> AccompanistLyricSettingsContent(
-                        paddingValues = PaddingValues(),
+                        paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
                     SettingsPage.OpenSourceLicenses -> OpenSourceLicensesContent(
-                        paddingValues = PaddingValues(),
+                        paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
                     SettingsPage.PlayerBackground -> PlayerBackgroundPickerContent(
-                        paddingValues = PaddingValues(),
+                        paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
                 }

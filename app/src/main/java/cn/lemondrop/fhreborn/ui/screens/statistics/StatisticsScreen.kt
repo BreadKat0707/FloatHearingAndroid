@@ -52,7 +52,7 @@ fun StatisticsScreen(
         factory = StatisticsViewModel.Factory(context.applicationContext as Application)
     )
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
     // 顶栏滚动感知：当前 Tab 列表滚离顶部时显示背景/模糊，回顶隐藏
     var topBarScrolled by remember { mutableStateOf(false) }
 

@@ -259,11 +259,21 @@ fun PlayerScreen(
         androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp.toPx()
     }
 
+    // 队列开合动画 Job：新动画启动前取消旧的，避免快速手势/返回打断时
+    // queueProgress 停在中间值导致主内容半上滑、底部工具栏从缝隙露出
+    var queueAnimJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
     fun openQueue() {
-        scope.launch { queueProgress.animateTo(1f, tween(250, easing = FastOutSlowInEasing)) }
+        queueAnimJob?.cancel()
+        queueAnimJob = scope.launch {
+            queueProgress.animateTo(1f, tween(250, easing = FastOutSlowInEasing))
+        }
     }
     fun closeQueue() {
-        scope.launch { queueProgress.animateTo(0f, tween(250, easing = FastOutSlowInEasing)) }
+        queueAnimJob?.cancel()
+        queueAnimJob = scope.launch {
+            queueProgress.animateTo(0f, tween(250, easing = FastOutSlowInEasing))
+        }
     }
 
     val offsetY = remember { Animatable(screenHeightPx) }
@@ -698,7 +708,8 @@ fun PlayerScreen(
                     )
                 }
 
-                // 封面区域：按原图比例适配容器，非正方形也能显示完整封面；切歌时封面内容淡入淡出
+                // 封面区域：有封面时按原图宽高比适配（支持不规则封面），无封面时占位为方形；
+                // 圆形旋转封面裁切为方形显示
                 val coverSizeMultiplier by animateFloatAsState(
                     targetValue = if (isPlaying) 1f else 0.92f,
                     animationSpec = tween(200, easing = FastOutSlowInEasing),
@@ -894,7 +905,8 @@ fun PlayerScreen(
                 bitmap = currentCoverBitmap!!,
                 title = currentSong?.title ?: "cover",
                 onDismiss = { showCoverViewer = false },
-                rotating = coverRotating,
+                // 封面大图查看器不做旋转，完整显示原图
+                rotating = false,
                 isPlaying = isPlaying
             )
         }
@@ -1385,9 +1397,12 @@ private fun KaraokeLyricsViewWrapper(
         )
     }
 
-    // 播放进度（毫秒）。用 Compose State 驱动歌词高亮（KaraokeLyricsView 内部
-    // 的 derivedStateOf 依赖 State 变化重算），但更新频率限制为 100ms/次：
-    // 既保证歌词同步，又把重组频率从每帧（120Hz）降到 10 次/秒，避免 ANR。
+    // 逐字时间（毫秒）：必须是 Compose State——KaraokeLyricsView 内部用
+    // derivedStateOf { currentTimeProvider() } 计算当前行/逐字进度/伴唱可见性，
+    // derivedStateOf 只响应 State 变化，普通变量只算一次（歌词会完全不动）。
+    //
+    // 频率权衡：每次写入都触发库内部重算 + LazyColumn 重测（Lookahead 双重测量），
+    // 25ms（40fps）在流畅度与负载间取平衡；若仍卡顿再考虑降到 33/50ms。
     var localPositionMs by remember { mutableIntStateOf(currentPosition.toInt().coerceAtLeast(0)) }
 
     LaunchedEffect(currentPosition) {
@@ -1400,18 +1415,15 @@ private fun KaraokeLyricsViewWrapper(
     LaunchedEffect(isPlaying, refreshEnabled) {
         if (!isPlaying || !refreshEnabled) return@LaunchedEffect
         var lastFrameNs = System.nanoTime()
-        var lastPublishedMs = localPositionMs
+        var lastPublishedMs = localPositionMs.toLong()
         while (isActive) {
             withFrameNanos { frameNs ->
                 val deltaMs = ((frameNs - lastFrameNs) / 1_000_000).toInt().coerceAtLeast(0)
                 lastFrameNs = frameNs
                 lastPublishedMs += deltaMs
-                // 帧对齐 + 40fps 限频（25ms）。
-                // 时间 State 每帧更新会让 KaraokeLyricsView 的 LazyColumn 在每次绘制时
-                // 重新测量（Lookahead 双重测量），16ms（60fps）在模拟器上导致测量风暴 ANR。
-                // 25ms 在动画流畅度（逐字平滑推进）与重绘负载之间折中。
+                // 帧对齐 + 40fps 限频（25ms）
                 if (lastPublishedMs - localPositionMs >= 25) {
-                    localPositionMs = lastPublishedMs
+                    localPositionMs = lastPublishedMs.toInt()
                 }
             }
         }
@@ -1613,9 +1625,11 @@ private fun PlayerCoverSection(
             val maxHPx = size.height.toFloat()
             val fitW: Float
             if (bmp != null) {
+                // 不规则封面：按宽高比适配容器，完整显示原图
                 val aspect = bmp.width.toFloat() / bmp.height.toFloat()
                 fitW = if (maxWPx / maxHPx > aspect) maxHPx * aspect else maxWPx
             } else {
+                // 无封面占位：固定方形
                 fitW = minOf(maxWPx, maxHPx)
             }
             val displayW = if (rotating) minOf(fitW, maxHPx) else fitW
