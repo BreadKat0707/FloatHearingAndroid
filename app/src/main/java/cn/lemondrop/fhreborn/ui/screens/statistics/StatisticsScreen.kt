@@ -19,7 +19,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.MonthTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.OverviewTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.TodayTab
@@ -77,7 +76,6 @@ fun StatisticsScreen(
             drawContent()
         }
         Box(modifier = Modifier.fillMaxSize()) {
-            AppBackgroundLayer()
         Scaffold(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
                 topBar = {

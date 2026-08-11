@@ -94,7 +94,9 @@ fun AppShell(
             content = content
         )
     } else {
+        // 小屏：统一背景层铺满，内容透明叠加（侧边栏抽屉为弹层，不参与背景）
         Box(modifier = modifier.fillMaxSize()) {
+            AppBackgroundLayer()
             content()
             FhBottomSheet(
                 show = drawerVisible,
@@ -129,27 +131,32 @@ private fun LargeScreenShell(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    Row(modifier = modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = drawerVisible,
-            enter = slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn(tween(200)),
-            exit = slideOutHorizontally(animationSpec = tween(200)) { -it } + fadeOut(tween(150)),
-            modifier = Modifier.fillMaxHeight()
-        ) {
-            SidebarPanel(
-                currentRoute = currentRoute,
-                onNavigate = onNavigate,
-                onScheduledPauseClick = onScheduledPauseClick
-            )
-        }
+    // 大屏：统一背景层铺满整个窗口（侧边栏与内容区共用同一张图，无缝衔接），
+    // 侧边栏与内容区透明叠加其上
+    Box(modifier = modifier.fillMaxSize()) {
+        AppBackgroundLayer()
+        Row(modifier = Modifier.fillMaxSize()) {
+            AnimatedVisibility(
+                visible = drawerVisible,
+                enter = slideInHorizontally(animationSpec = tween(250)) { -it } + fadeIn(tween(200)),
+                exit = slideOutHorizontally(animationSpec = tween(200)) { -it } + fadeOut(tween(150)),
+                modifier = Modifier.fillMaxHeight()
+            ) {
+                SidebarPanel(
+                    currentRoute = currentRoute,
+                    onNavigate = onNavigate,
+                    onScheduledPauseClick = onScheduledPauseClick
+                )
+            }
 
-        // 内容区：被侧边栏挤到右侧，侧边栏收起时自动占满
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            content()
+            // 内容区：被侧边栏挤到右侧，侧边栏收起时自动占满
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                content()
+            }
         }
     }
 }
@@ -168,8 +175,8 @@ private fun SidebarPanel(
             .fillMaxHeight()
             .width(SidebarWidth)
     ) {
-        AppBackgroundLayer()
-        // 常驻侧边栏：无标题/关闭按钮（由 menu 按钮 toggle），点击导航不收起
+        // 常驻侧边栏：无标题/关闭按钮（由 menu 按钮 toggle），点击导航不收起；
+        // 背景由 AppShell 统一提供，这里保持透明
         DrawerContent(
             currentRoute = currentRoute,
             onNavigate = onNavigate,

@@ -40,7 +40,6 @@ import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
@@ -151,7 +150,6 @@ fun AlbumDetailScreen(
         }
     }.value
 
-    AppBackgroundLayer()
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {

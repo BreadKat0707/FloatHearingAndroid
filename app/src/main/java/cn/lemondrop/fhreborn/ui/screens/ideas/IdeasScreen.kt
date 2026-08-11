@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -41,7 +40,6 @@ fun IdeasScreen(
             drawContent()
         }
         Box(modifier = Modifier.fillMaxSize()) {
-            AppBackgroundLayer()
             Scaffold(
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
             topBar = {

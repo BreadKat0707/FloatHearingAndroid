@@ -51,7 +51,6 @@ import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.components.FhColorPalette
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
@@ -178,7 +177,6 @@ fun SettingsScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AppBackgroundLayer()
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {

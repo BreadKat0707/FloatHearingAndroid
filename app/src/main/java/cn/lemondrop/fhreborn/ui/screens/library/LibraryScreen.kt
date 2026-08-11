@@ -63,7 +63,6 @@ import cn.lemondrop.fhreborn.Screen
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
@@ -410,7 +409,6 @@ fun LibraryScreen(
             drawContent()
         }
         Box(modifier = Modifier.fillMaxSize()) {
-            AppBackgroundLayer()
         Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
@@ -1335,9 +1333,6 @@ internal fun FolderBrowserOverlay(
         modifier = Modifier
             .fillMaxSize()
     ) {
-        // 覆盖层底部铺统一背景，避免透出下方媒体库
-        AppBackgroundLayer(Modifier.fillMaxSize())
-
         Column(
             modifier = Modifier
                 .fillMaxSize()

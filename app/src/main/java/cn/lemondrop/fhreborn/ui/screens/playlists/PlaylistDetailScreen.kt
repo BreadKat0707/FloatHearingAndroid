@@ -55,7 +55,6 @@ import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
@@ -211,7 +210,6 @@ fun PlaylistDetailScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        AppBackgroundLayer()
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {

@@ -21,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
-import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.screens.library.AlbumItem
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
@@ -77,7 +76,6 @@ fun ArtistDetailScreen(
         }
     }.value
 
-    AppBackgroundLayer()
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
