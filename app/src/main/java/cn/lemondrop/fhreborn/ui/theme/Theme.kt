@@ -14,6 +14,7 @@ fun FloatHearingTheme(
     useDynamicColor: Boolean = false,
     themeMode: String = "system",
     accentColor: Color = AppColors.accent,
+    foregroundMode: String = "auto",
     content: @Composable () -> Unit
 ) {
     // 统一走 ThemeController 单分支（避免 if/else 两个 MiuixTheme 重载切换导致子树组合重建，
@@ -31,8 +32,8 @@ fun FloatHearingTheme(
             else -> ColorSchemeMode.System
         }
     }
-    val lightColors = remember(accentColor) { accentColorScheme(accentColor, isDark = false) }
-    val darkColors = remember(accentColor) { accentColorScheme(accentColor, isDark = true) }
+    val lightColors = remember(accentColor, foregroundMode) { accentColorScheme(accentColor, isDark = false, foregroundMode) }
+    val darkColors = remember(accentColor, foregroundMode) { accentColorScheme(accentColor, isDark = true, foregroundMode) }
     val controller = remember(colorSchemeMode, lightColors, darkColors) {
         ThemeController(
             colorSchemeMode = colorSchemeMode,

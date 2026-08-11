@@ -48,6 +48,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private const val KEY_BG_TYPE = "bg_type"
+private const val KEY_BG_FOREGROUND = "bg_foreground"
 private const val KEY_BG_COLOR = "bg_color"
 private const val KEY_BG_IMAGE_PATH = "bg_image_path"
 private const val KEY_BG_IMAGE_BRIGHTNESS = "bg_image_brightness"
@@ -81,6 +82,7 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
     val scope = rememberCoroutineScope()
 
     val bgType by viewModel.getStringValue(KEY_BG_TYPE, "color").collectAsState(initial = "color")
+    val bgForeground by viewModel.getStringValue(KEY_BG_FOREGROUND, "auto").collectAsState(initial = "auto")
     val bgColor by viewModel.getStringValue(KEY_BG_COLOR, "").collectAsState(initial = "")
     val bgImagePath by viewModel.getStringValue(KEY_BG_IMAGE_PATH, "").collectAsState(initial = "")
     val bgImageBrightness by viewModel.getIntValue(KEY_BG_IMAGE_BRIGHTNESS, 100).collectAsState(initial = 100)
@@ -112,6 +114,19 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
         }
         TypeOption("自选图片", selected = bgType == "image") {
             viewModel.setStringSetting(KEY_BG_TYPE, "image")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SectionTitle("前景色")
+        TypeOption("跟随颜色模式", selected = bgForeground == "auto") {
+            viewModel.setStringSetting(KEY_BG_FOREGROUND, "auto")
+        }
+        TypeOption("浅色（适合深色背景）", selected = bgForeground == "light") {
+            viewModel.setStringSetting(KEY_BG_FOREGROUND, "light")
+        }
+        TypeOption("深色（适合浅色背景）", selected = bgForeground == "dark") {
+            viewModel.setStringSetting(KEY_BG_FOREGROUND, "dark")
         }
 
         Spacer(modifier = Modifier.height(8.dp))

@@ -118,6 +118,7 @@ fun FolderBrowserScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        AppBackgroundLayer()
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {
@@ -125,6 +126,7 @@ fun FolderBrowserScreen(
             drawContent()
         }
         Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.Screen
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Headphones
@@ -166,8 +167,8 @@ private fun SidebarPanel(
         modifier = Modifier
             .fillMaxHeight()
             .width(SidebarWidth)
-            .background(MiuixTheme.colorScheme.surfaceContainer)
     ) {
+        AppBackgroundLayer()
         // 常驻侧边栏：无标题/关闭按钮（由 menu 按钮 toggle），点击导航不收起
         DrawerContent(
             currentRoute = currentRoute,

@@ -126,13 +126,16 @@ fun parseAccentColor(value: String): Color = when {
 /**
  * 基于主题色生成完整 ColorScheme（非 Monet 模式使用）。
  * primary 系颜色由 accent 派生，其余色板沿用 AppColors 静态值。
+ *
+ * @param foregroundMode 背景前景色："auto" 跟随颜色模式；"light" 固定浅色前景（适合深色图片背景）；
+ *                       "dark" 固定深色前景（适合浅色图片背景）
  */
-fun accentColorScheme(accent: Color, isDark: Boolean): Colors {
+fun accentColorScheme(accent: Color, isDark: Boolean, foregroundMode: String = "auto"): Colors {
     val base = if (isDark) AppDarkColorScheme else AppLightColorScheme
     val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
     val container = if (isDark) lerp(accent, Color.Black, 0.75f) else lerp(accent, Color.White, 0.82f)
     val onContainer = if (isDark) lerp(accent, Color.White, 0.85f) else lerp(accent, Color.Black, 0.8f)
-    return base.copy(
+    val scheme = base.copy(
         primary = accent,
         onPrimary = onAccent,
         primaryVariant = accent,
@@ -140,4 +143,21 @@ fun accentColorScheme(accent: Color, isDark: Boolean): Colors {
         primaryContainer = container,
         onPrimaryContainer = onContainer
     )
+    return when (foregroundMode) {
+        "light" -> scheme.copy(
+            onSurface = Color(0xFFFFFFFF),
+            onSurfaceVariantSummary = Color(0xCCFFFFFF),
+            onBackground = Color(0xFFFFFFFF),
+            onBackgroundVariant = Color(0xFFFFFFFF),
+            outline = Color(0x66FFFFFF)
+        )
+        "dark" -> scheme.copy(
+            onSurface = Color(0xFF000000),
+            onSurfaceVariantSummary = Color(0x99000000),
+            onBackground = Color(0xFF000000),
+            onBackgroundVariant = Color(0xFF000000),
+            outline = Color(0x33000000)
+        )
+        else -> scheme
+    }
 }

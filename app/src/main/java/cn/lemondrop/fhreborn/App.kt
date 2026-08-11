@@ -149,6 +149,8 @@ fun FHRebornApp() {
     val accentColor = remember(accentColorSetting) {
         cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
     }
+    // 背景前景色：auto=跟随颜色模式，light/dark=固定浅/深色前景
+    val bgForeground by appSettingsRepository.bgForeground.collectAsState(initial = "auto")
     val isSystemDark = isSystemInDarkTheme()
     val isDarkTheme = when (themeMode) {
         "light" -> false
@@ -280,7 +282,8 @@ fun FHRebornApp() {
             darkTheme = isDarkTheme,
             useDynamicColor = useDynamicColor,
             themeMode = themeMode,
-            accentColor = accentColor
+            accentColor = accentColor,
+            foregroundMode = bgForeground
         ) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),

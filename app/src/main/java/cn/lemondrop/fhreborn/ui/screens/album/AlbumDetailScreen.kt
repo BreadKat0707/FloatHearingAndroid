@@ -151,7 +151,9 @@ fun AlbumDetailScreen(
         }
     }.value
 
+    AppBackgroundLayer()
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             BlurTopBar(
                 backdrop = backdrop,

@@ -152,6 +152,10 @@ class AppSettingsRepository(private val context: Context) {
     val bgType: Flow<String> = dataStore.data.map { it[stringPreferencesKey("bg_type")] ?: "color" }
     suspend fun setBgType(value: String) = dataStore.edit { it[stringPreferencesKey("bg_type")] = value }
 
+    /** 背景前景色：auto=跟随颜色模式，light=浅色前景，dark=深色前景 */
+    val bgForeground: Flow<String> = dataStore.data.map { it[stringPreferencesKey("bg_foreground")] ?: "auto" }
+    suspend fun setBgForeground(value: String) = dataStore.edit { it[stringPreferencesKey("bg_foreground")] = value }
+
     val bgColor: Flow<String> = dataStore.data.map { it[stringPreferencesKey("bg_color")] ?: "" }
     suspend fun setBgColor(value: String) = dataStore.edit { it[stringPreferencesKey("bg_color")] = value }
 

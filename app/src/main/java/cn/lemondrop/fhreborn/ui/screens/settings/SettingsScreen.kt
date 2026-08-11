@@ -178,6 +178,7 @@ fun SettingsScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        AppBackgroundLayer()
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
         val surfaceColor = MiuixTheme.colorScheme.surface
         val backdrop = rememberLayerBackdrop {
@@ -185,6 +186,7 @@ fun SettingsScreen(
             drawContent()
         }
         Scaffold(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
             topBar = {
                 BlurTopBar(
                     // 主页/分类页滚动感知；子页面常显背景
