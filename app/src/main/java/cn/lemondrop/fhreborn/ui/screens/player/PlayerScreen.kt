@@ -1406,11 +1406,11 @@ private fun KaraokeLyricsViewWrapper(
                 val deltaMs = ((frameNs - lastFrameNs) / 1_000_000).toInt().coerceAtLeast(0)
                 lastFrameNs = frameNs
                 lastPublishedMs += deltaMs
-                // 帧对齐 + 30fps 限频（33ms）。
+                // 帧对齐 + 40fps 限频（25ms）。
                 // 时间 State 每帧更新会让 KaraokeLyricsView 的 LazyColumn 在每次绘制时
                 // 重新测量（Lookahead 双重测量），16ms（60fps）在模拟器上导致测量风暴 ANR。
-                // 33ms 在动画流畅度（逐字平滑推进）与重绘负载之间折中。
-                if (lastPublishedMs - localPositionMs >= 33) {
+                // 25ms 在动画流畅度（逐字平滑推进）与重绘负载之间折中。
+                if (lastPublishedMs - localPositionMs >= 25) {
                     localPositionMs = lastPublishedMs
                 }
             }

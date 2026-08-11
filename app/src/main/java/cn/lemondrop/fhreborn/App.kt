@@ -56,7 +56,6 @@ import cn.lemondrop.fhreborn.ui.components.ScheduledPauseDialog
 import cn.lemondrop.fhreborn.ui.screens.album.AlbumDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.artist.ArtistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
-import cn.lemondrop.fhreborn.ui.screens.demo.MicaDemoScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderBrowserScreen
 import cn.lemondrop.fhreborn.ui.screens.ideas.IdeasScreen
 import cn.lemondrop.fhreborn.ui.screens.library.LibraryScreen
@@ -80,7 +79,6 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object Statistics : Screen("statistics")
     data object Player : Screen("player")
-    data object MicaDemo : Screen("mica_demo")
     data object ArtistDetail : Screen("artist/{artistName}") {
         fun createRoute(artistName: String) = "artist/${Uri.encode(artistName)}"
     }
@@ -316,8 +314,7 @@ fun FHRebornApp() {
                 setOf(
                     Screen.AlbumDetail.route,
                     Screen.ArtistDetail.route,
-                    Screen.PlaylistDetail.route,
-                    Screen.MicaDemo.route
+                    Screen.PlaylistDetail.route
                 )
             }
             NavHost(
@@ -435,12 +432,6 @@ fun FHRebornApp() {
                     onNavigate = topLevelNavigate,
                     playerViewModel = playerViewModel,
                     initialCategoryKey = pendingSettingsCategory.value
-                )
-            }
-
-            composable(Screen.MicaDemo.route) {
-                MicaDemoScreen(
-                    onBack = { navController.navigateUp() }
                 )
             }
 

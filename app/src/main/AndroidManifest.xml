@@ -42,11 +42,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".WallpaperProbeActivity"
-            android:exported="false"
-            android:theme="@style/Theme.FloatHearing.WallpaperProbe" />
-
         <service
             android:name=".player.PlaybackService"
             android:exported="true"

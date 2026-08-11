@@ -52,8 +52,6 @@ private const val KEY_BG_COLOR = "bg_color"
 private const val KEY_BG_IMAGE_PATH = "bg_image_path"
 private const val KEY_BG_IMAGE_BRIGHTNESS = "bg_image_brightness"
 private const val KEY_BG_IMAGE_BLUR = "bg_image_blur"
-private const val KEY_BG_MICA_BLUR = "bg_mica_blur"
-private const val KEY_BG_MICA_ALT = "bg_mica_alt"
 
 // 纯色预设色板：label -> hex（空 hex = 跟随主题背景色）
 private val PRESET_COLORS = listOf(
@@ -87,8 +85,6 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
     val bgImagePath by viewModel.getStringValue(KEY_BG_IMAGE_PATH, "").collectAsState(initial = "")
     val bgImageBrightness by viewModel.getIntValue(KEY_BG_IMAGE_BRIGHTNESS, 100).collectAsState(initial = 100)
     val bgImageBlur by viewModel.getIntValue(KEY_BG_IMAGE_BLUR, 0).collectAsState(initial = 0)
-    val bgMicaBlur by viewModel.getIntValue(KEY_BG_MICA_BLUR, 80).collectAsState(initial = 80)
-    val bgMicaAlt by viewModel.repository.getBoolean(KEY_BG_MICA_ALT, false).collectAsState(initial = false)
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -116,9 +112,6 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
         }
         TypeOption("自选图片", selected = bgType == "image") {
             viewModel.setStringSetting(KEY_BG_TYPE, "image")
-        }
-        TypeOption("云母（系统壁纸 · 实验性）", selected = bgType == "mica") {
-            viewModel.setStringSetting(KEY_BG_TYPE, "mica")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -208,62 +201,6 @@ fun BackgroundSettingsContent(viewModel: SettingsViewModel) {
                     value = bgImageBlur,
                     valueRange = 0f..50f
                 ) { viewModel.setIntSetting(KEY_BG_IMAGE_BLUR, it) }
-            }
-
-            "mica" -> {
-                SectionTitle("云母")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MiuixTheme.colorScheme.errorContainer)
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = "⚠ 实验性功能：目前仅实现壁纸模糊，材质显示效果尚未调整，会有显示异常（拖影、内容叠叠），极度不建议开启。",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onErrorContainer
-                    )
-                }
-                SliderRow(
-                    title = "模糊半径",
-                    value = bgMicaBlur,
-                    valueRange = 0f..150f
-                ) { viewModel.setIntSetting(KEY_BG_MICA_BLUR, it) }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "替代材质",
-                            style = MiuixTheme.textStyles.body1,
-                            color = MiuixTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "切换云母的 tint/噪点风格",
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                    }
-                    Switch(
-                        checked = bgMicaAlt,
-                        onCheckedChange = { checked ->
-                            scope.launch { viewModel.repository.setBoolean(KEY_BG_MICA_ALT, checked) }
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "云母会实时透出系统壁纸并跨窗口模糊，需设备开启跨窗口模糊（受省电模式/开发者选项/GPU 影响）；动态壁纸会跟随变化。",
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                )
             }
         }
 

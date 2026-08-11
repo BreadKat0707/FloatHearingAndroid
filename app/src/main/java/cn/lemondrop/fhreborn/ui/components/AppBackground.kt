@@ -35,8 +35,6 @@ fun AppBackgroundLayer(modifier: Modifier = Modifier) {
     val bgImagePath by bgRepo.bgImagePath.collectAsState(initial = "")
     val bgImageBrightness by bgRepo.bgImageBrightness.collectAsState(initial = 100)
     val bgImageBlur by bgRepo.bgImageBlur.collectAsState(initial = 0)
-    val bgMicaBlur by bgRepo.bgMicaBlur.collectAsState(initial = 80)
-    val bgMicaAlt by bgRepo.bgMicaAlt.collectAsState(initial = false)
 
     when (bgType) {
         "image" -> {
@@ -61,53 +59,6 @@ fun AppBackgroundLayer(modifier: Modifier = Modifier) {
                     modifier = modifier
                         .fillMaxSize()
                         .background(MiuixTheme.colorScheme.background)
-                )
-            }
-        }
-        "mica" -> {
-            val wallpaperBitmap = remember {
-                try {
-                    val wm = context.getSystemService(android.app.WallpaperManager::class.java)
-                    wm?.drawable?.let { drawable ->
-                        val bmp = android.graphics.Bitmap.createBitmap(
-                            drawable.intrinsicWidth.coerceAtLeast(1),
-                            drawable.intrinsicHeight.coerceAtLeast(1),
-                            android.graphics.Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = android.graphics.Canvas(bmp)
-                        drawable.setBounds(0, 0, canvas.width, canvas.height)
-                        drawable.draw(canvas)
-                        bmp
-                    }
-                } catch (_: Exception) {
-                    null
-                }
-            }
-            if (wallpaperBitmap != null) {
-                Box(modifier = modifier.fillMaxSize()) {
-                    Image(
-                        bitmap = wallpaperBitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .blur(bgMicaBlur.dp)
-                    )
-                    // Mica 色调层
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                if (bgMicaAlt) MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                                else MiuixTheme.colorScheme.surface.copy(alpha = 0.6f)
-                            )
-                    )
-                }
-            } else {
-                Box(
-                    modifier = modifier
-                        .fillMaxSize()
-                        .background(MiuixTheme.colorScheme.surface)
                 )
             }
         }
