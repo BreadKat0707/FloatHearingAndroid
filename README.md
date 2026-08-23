@@ -1,35 +1,41 @@
 # FloatHearing（Android）
 
-FloatHearing 是一款面向 Android 的本地音乐播放器，目前处于非常早期的开发阶段。
+FloatHearing（FH Reborn）是一款基于 MediaStore 的本地音乐播放器，使用 Jetpack Compose 与 [Miuix](https://github.com/compose-miuix-ui/miuix) 构建，界面遵循 MIUI 风格设计语言。
+
+## 功能特性
+
+- **媒体库**：歌曲 / 专辑 / 艺术家 / 文件夹四个视图，支持搜索、排序、隐藏文件夹
+- **歌单**：创建、编辑（封面、标题、描述）、排序，支持自定义排序
+- **播放器**：播放队列、逐字歌词、定时停止、计划暂停、播放模式切换
+- **听歌统计**：记录播放历史，按日 / 周 / 月展示总时长、次数与常听专辑 / 艺术家
+- **批量操作**：多选后批量加入歌单、加入播放队列、分享、删除
+- **文件夹浏览**：媒体库文件夹 tab 直达二级页面，浏览路径支持路径面包屑导航
+- **个性化**：自定义壁纸（图片背景 + 前景色，跟随深浅色模式）、动态取色
+- **大屏适配**：宽屏下自动切换侧边栏导航与响应式卡片网格
 
 ## 系统要求
 
 - **Android 12（API 31）及以上**
 - 仅支持 Android 平台
 
+## 技术栈
+
+| 组件 | 说明 |
+| --- | --- |
+| Kotlin / Jetpack Compose | UI 与逻辑 |
+| [Miuix](https://github.com/compose-miuix-ui/miuix) 0.9.4-rc01 | MIUI 风格组件库 |
+| Room | 歌单、播放统计等本地数据 |
+| MediaStore | 音乐库扫描与封面读取 |
+
 ## 构建说明
 
-### 1. 克隆本项目
+### 环境要求
 
-```bash
-git clone <本项目仓库地址>
-cd FloatHearing
-```
+- JDK 21+
+- Android SDK（compileSdk 36）
+- Gradle 9.4.1（或直接使用项目自带的 Gradle Wrapper）
 
-### 2. 获取 UI 库
-
-本项目依赖 CloverUI 组件库，**该库尚未发布到 Maven 仓库**，因此需要手动克隆并发布到 Maven Local：
-
-```bash
-git clone --depth 1 https://github.com/BreadKat0707/CloverUIforAndroid.git ../CloverUI
-cd ../CloverUI
-chmod +x gradlew
-./gradlew :clover-ui:publishReleasePublicationToMavenLocal
-```
-
-完成后回到 FloatHearing 目录即可正常编译。
-
-### 3. 编译 Debug APK
+### 编译 Debug APK
 
 ```bash
 ./gradlew assembleDebug
@@ -39,18 +45,14 @@ chmod +x gradlew
 
 ## CI / GitHub Actions
 
-本仓库已配置 GitHub Actions Workflow：
+- 默认分支为 `miuix`，向该分支推送或提交 Pull Request 会自动触发 Debug 构建，并上传 APK 产物（Artifact）。
+- 打 `v*` 标签会触发 Release 构建（需配置签名相关 Secrets），完成后自动创建 GitHub Release 并附带 APK。
 
-- 触发条件：向 `main`、`master` 或 `develop` 分支推送代码，以及针对这些分支的 Pull Request。
-- CI 会自动克隆并发布 CloverUI 到 Maven Local。
-- 目前 **仅配置 Debug 包构建**，构建完成后会上传 Debug APK 作为 Artifact。
+## 相关链接
 
-## 项目状态与反馈
-
-> ⚠️ **本项目处于很早期的开发阶段，代码结构、功能实现和 UI 都可能发生较大变动。**
->
-> 在发布第一个正式 Release 之前，**暂不接收反馈和 Issue**。如果你有兴趣跟进，可以在正式版发布后再提交建议或问题。
+- Telegram 频道：https://t.me/breadkat_nest
+- GitHub 仓库：https://github.com/BreadKat0707/FloatHearingAndroid
 
 ## 许可证
 
-待定 / 稍后补充。
+暂未指定。

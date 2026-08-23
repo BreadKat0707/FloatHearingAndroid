@@ -23,23 +23,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache Gradle + Maven Local
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            ~/.m2/repository
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-
-      - name: Clone and publish CloverUI to Maven Local
-        run: |
-          git clone --depth 1 https://github.com/BreadKat0707/CloverUIforAndroid.git ../CloverUI
-          cd ../CloverUI
-          chmod +x gradlew
-          ./gradlew :clover-ui:publishReleasePublicationToMavenLocal
 
       - name: Decode signing key
         run: |
