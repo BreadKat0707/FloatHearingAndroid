@@ -40,15 +40,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 import cn.lemondrop.fhreborn.BuildConfig
@@ -850,6 +851,13 @@ private fun AboutContent(
 ) {
     val uriHandler = LocalUriHandler.current
     val listState = rememberLazyListState()
+    // 应用图标：adaptive icon 不是 VectorDrawable/位图，painterResource 不支持，
+    // 改从 PackageManager 取渲染后的位图
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val appIcon = remember {
+        val drawable = context.packageManager.getApplicationIcon(context.packageName)
+        drawable.toBitmap().asImageBitmap()
+    }
 
     // 滚动进度：Logo 区滚出顶栏区域时从 0 渐变到 1
     val scrollProgress by remember {
@@ -905,7 +913,7 @@ private fun AboutContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(cn.lemondrop.fhreborn.R.mipmap.ic_launcher),
+                            bitmap = appIcon,
                             contentDescription = null,
                             modifier = Modifier.size(74.dp)
                         )
