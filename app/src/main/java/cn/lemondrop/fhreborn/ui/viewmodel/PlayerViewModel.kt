@@ -21,6 +21,7 @@ import cn.lemondrop.fhreborn.data.lyrics.LyricReader
 import cn.lemondrop.fhreborn.data.lyrics.LyricSource
 import cn.lemondrop.fhreborn.data.lyrics.LyricSourceType
 import cn.lemondrop.fhreborn.data.lyrics.LyricFormatType
+import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
@@ -58,6 +59,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     // 播放统计计时
     private var playStartTime: Long = 0L
     private var currentPlaySongId: Long? = null
+
+    // 统计总开关（设置-数据管理）
+    private val settingsRepository = AppSettingsRepository(application)
+    private val _statsEnabled = MutableStateFlow(true)
+    init {
+        viewModelScope.launch {
+            settingsRepository.statsEnabled.collect { _statsEnabled.value = it }
+        }
+    }
 
     // 歌词缓存：避免每次打开播放器 / 切歌都重新读文件 + 解析标签（重 IO 操作）
     private val lyricSourceCache = object : LruCache<Long, LyricSource>(32) {}
@@ -522,10 +532,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun recordPlayTime() {
         val songId = currentPlaySongId ?: _currentSong.value?.id ?: return
-        if (playStartTime > 0) {
-            val duration = System.currentTimeMillis() - playStartTime
+        val start = playStartTime
+        if (start > 0) {
+            val end = System.currentTimeMillis()
+            val songDuration = _currentSong.value?.duration
             viewModelScope.launch {
-                statisticsRepository.recordPlay(songId, duration)
+                // 设置-数据管理：统计关闭时不记录
+                if (_statsEnabled.value) {
+                    statisticsRepository.recordPlayRange(songId, start, end, songDuration)
+                }
             }
         }
         playStartTime = 0

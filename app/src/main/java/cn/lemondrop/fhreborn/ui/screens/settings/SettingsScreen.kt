@@ -58,6 +58,7 @@ import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
+import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Heart
@@ -81,6 +82,7 @@ import top.yukonga.miuix.kmp.basic.OkHsvValueSlider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.color.core.Transforms
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
@@ -123,6 +125,7 @@ fun SettingsScreen(
     fun currentPage(): SettingsPage = pageStack.last()
     var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
+    var showResetStatsConfirm by remember { mutableStateOf(false) }
     // 顶栏滚动感知：主页/分类页列表滚离顶部时显示背景/模糊，回顶隐藏
     var topBarScrolled by remember { mutableStateOf(false) }
 
@@ -134,6 +137,7 @@ fun SettingsScreen(
             "accompanist_lyric" -> pageStack.add(SettingsPage.AccompanistLyric)
             "open_source" -> pageStack.add(SettingsPage.OpenSourceLicenses)
             "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
+            "reset_stats" -> showResetStatsConfirm = true
         }
     }
 
@@ -225,6 +229,44 @@ fun SettingsScreen(
                         }
                     }
                 )
+            }
+
+            // 重置听歌统计确认
+            if (showResetStatsConfirm) {
+                BackHandler { showResetStatsConfirm = false }
+                cn.lemondrop.fhreborn.ui.components.FhBottomSheet(
+                    show = true,
+                    onDismissRequest = { showResetStatsConfirm = false },
+                    title = "重置听歌统计",
+                    backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = "将清空所有播放记录（次数、时长、排行），此操作不可恢复。",
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(text = "取消", onClick = { showResetStatsConfirm = false })
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(
+                                text = "重置",
+                                onClick = {
+                                    viewModel.resetPlayStats()
+                                    showResetStatsConfirm = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
             currentSelectionItem?.let { item ->
@@ -759,6 +801,15 @@ private fun buildCategories(): List<SettingCategory> {
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
                 SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true),
                 SettingItem("artist_separators", "艺术家分隔符", "配置多艺术家拆分规则", null, SettingType.Navigation)
+            )
+        ),
+        SettingCategory(
+            key = "data",
+            title = "数据管理",
+            icon = Lucide.Database,
+            items = listOf(
+                SettingItem("stats_enabled", "统计和数据分析", "关闭后不再记录听歌统计", null, SettingType.Toggle, true),
+                SettingItem("reset_stats", "重置听歌统计", "清空所有播放记录，不可恢复", null, SettingType.Navigation)
             )
         ),
         SettingCategory(

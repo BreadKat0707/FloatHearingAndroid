@@ -76,6 +76,7 @@ import com.composables.icons.lucide.Grid2x2
 import com.composables.icons.lucide.LayoutGrid
 import com.composables.icons.lucide.LayoutList
 import com.composables.icons.lucide.LayoutPanelTop
+import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -327,6 +328,14 @@ fun PlaylistsScreen(
                                         DropdownEntry(
                                             items = listOf(
                                                 DropdownItem(
+                                                    "多选",
+                                                    icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) },
+                                                    onClick = {
+                                                        multiSelectMode = true
+                                                        selectedPlaylistIds.clear()
+                                                    }
+                                                ),
+                                                DropdownItem(
                                                     "新建歌单",
                                                     icon = { mod -> Icon(Lucide.Plus, null, modifier = mod) },
                                                     onClick = { showCreateSheet = true }
@@ -365,16 +374,9 @@ fun PlaylistsScreen(
                         onOpenPlaylist(playlist.id)
                     }
                 }
+                // 长按 = 编辑歌单信息（含封面编辑）；多选入口在标题栏三点菜单
                 fun onPlaylistLongClick(playlist: PlaylistWithCount) {
-                    if (multiSelectMode) {
-                        // 多选中长按：退出多选
-                        multiSelectMode = false
-                        selectedPlaylistIds.clear()
-                    } else {
-                        // 长按进入多选并选中当前项
-                        multiSelectMode = true
-                        selectedPlaylistIds.add(playlist.id)
-                    }
+                    editingPlaylist = playlist
                 }
 
                 when (viewStyle) {
@@ -882,6 +884,14 @@ private fun PlaylistCard(
                 Icon(
                     imageVector = Lucide.Play,
                     contentDescription = "播放歌单",
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
+            // 更多（编辑歌单/封面等）
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Lucide.EllipsisVertical,
+                    contentDescription = "更多",
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
             }

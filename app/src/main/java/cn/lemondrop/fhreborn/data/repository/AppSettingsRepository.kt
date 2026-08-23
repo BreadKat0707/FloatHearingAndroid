@@ -172,6 +172,11 @@ class AppSettingsRepository(private val context: Context) {
     val bgImageBlur: Flow<Int> = dataStore.data.map { it[intPreferencesKey("bg_image_blur")] ?: 0 }
     suspend fun setBgImageBlur(value: Int) = dataStore.edit { it[intPreferencesKey("bg_image_blur")] = value }
 
+    // ========== 数据管理 ==========
+    /** 听歌统计与数据分析总开关：关闭后不再记录播放统计 */
+    val statsEnabled: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("stats_enabled")] ?: true }
+    suspend fun setStatsEnabled(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("stats_enabled")] = value }
+
     // ========== 无障碍 ==========
     val largeText: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("large_text")] ?: false }
     suspend fun setLargeText(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("large_text")] = value }

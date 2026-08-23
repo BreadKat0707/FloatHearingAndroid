@@ -33,7 +33,9 @@ fun WeekTab(
     modifier: Modifier = Modifier,
     topInset: Dp = 0.dp,
     bottomInset: Dp = 0.dp,
-    onScrolledChange: (Boolean) -> Unit = {}
+    onScrolledChange: (Boolean) -> Unit = {},
+    onNavigateToAlbum: (String, String?) -> Unit = { _, _ -> },
+    onNavigateToArtist: (String) -> Unit = {}
 ) {
     val state by viewModel.weekUiState.collectAsState()
 
@@ -97,11 +99,19 @@ fun WeekTab(
         }
 
         item {
-            TopArtistsRow(artists = state.topArtists, modifier = Modifier.fillMaxWidth())
+            TopArtistsRow(
+                artists = state.topArtists,
+                modifier = Modifier.fillMaxWidth(),
+                onArtistClick = { onNavigateToArtist(it.artist) }
+            )
         }
 
         item {
-            TopAlbumsRow(albums = state.topAlbums, modifier = Modifier.fillMaxWidth())
+            TopAlbumsRow(
+                albums = state.topAlbums,
+                modifier = Modifier.fillMaxWidth(),
+                onAlbumClick = { onNavigateToAlbum(it.album, it.albumArtist) }
+            )
         }
     }
     // 滚动条（跳过顶部/底部内容 padding 区域）

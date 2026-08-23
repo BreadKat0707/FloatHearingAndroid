@@ -47,18 +47,19 @@ fun PlayDurationLineChart(
     val textStyle = MiuixTheme.textStyles.footnote2.copy(color = labelColor)
     val titleStyle = MiuixTheme.textStyles.footnote1.copy(color = labelColor)
 
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(220.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(surfaceColor)
-            .padding(16.dp)
+    top.yukonga.miuix.kmp.basic.Card(
+        modifier = modifier.fillMaxWidth()
     ) {
-        if (data.isEmpty()) {
-            drawNoData(textMeasurer, labelColor, size.width / 2, size.height / 2)
-            return@Canvas
-        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .padding(16.dp)
+        ) {
+            if (data.isEmpty()) {
+                drawNoData(textMeasurer, labelColor, size.width / 2, size.height / 2)
+                return@Canvas
+            }
 
         val leftPad = 40.dp.toPx()
         val bottomPad = 28.dp.toPx()
@@ -161,6 +162,7 @@ fun PlayDurationLineChart(
                 topLeft = Offset(leftPad, 4.dp.toPx()),
                 style = titleStyle
             )
+        }
         }
     }
 }

@@ -46,6 +46,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun getToggleValue(key: String, default: Boolean = false) = repository.getBoolean(key, default)
 
+    /** 重置听歌统计：清空全部播放记录 */
+    fun resetPlayStats() {
+        viewModelScope.launch {
+            statisticsRepository.resetAll()
+        }
+    }
+
     fun getStringValue(key: String, default: String = "") = repository.getString(key, default)
 
     fun getIntValue(key: String, default: Int = 0) = repository.getInt(key, default)

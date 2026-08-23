@@ -1,12 +1,14 @@
 package cn.lemondrop.fhreborn.ui.screens.statistics.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,26 +36,27 @@ fun StatHeaderCard(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    top.yukonga.miuix.kmp.basic.Card(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.Start
     ) {
-        Text(
-            text = title,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            style = MiuixTheme.textStyles.title2,
-            color = MiuixTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(
+                text = title,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MiuixTheme.textStyles.title2,
+                color = MiuixTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -98,7 +101,8 @@ fun TopSongsList(
 fun TopArtistsRow(
     artists: List<TopArtistStat>,
     modifier: Modifier = Modifier,
-    emptyText: String = "暂无数据"
+    emptyText: String = "暂无数据",
+    onArtistClick: (TopArtistStat) -> Unit = {}
 ) {
     Column(modifier = modifier) {
         SectionTitle("常听艺术家")
@@ -111,9 +115,9 @@ fun TopArtistsRow(
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(artists) { artist ->
-                    StatChip(
-                        title = artist.artist,
-                        subtitle = "${artist.count} 次 · ${statFormatDurationShort(artist.totalDuration)}"
+                    ArtistChip(
+                        artist = artist,
+                        onClick = { onArtistClick(artist) }
                     )
                 }
             }
@@ -125,7 +129,8 @@ fun TopArtistsRow(
 fun TopAlbumsRow(
     albums: List<TopAlbumStat>,
     modifier: Modifier = Modifier,
-    emptyText: String = "暂无数据"
+    emptyText: String = "暂无数据",
+    onAlbumClick: (TopAlbumStat) -> Unit = {}
 ) {
     Column(modifier = modifier) {
         SectionTitle("常听专辑")
@@ -138,13 +143,96 @@ fun TopAlbumsRow(
                 contentPadding = PaddingValues(horizontal = 0.dp)
             ) {
                 items(albums) { album ->
-                    StatChip(
-                        title = album.album,
-                        subtitle = "${album.albumArtist} · ${album.count} 次"
+                    AlbumChip(
+                        album = album,
+                        onClick = { onAlbumClick(album) }
                     )
                 }
             }
         }
+    }
+}
+
+/** 常听艺术家项：首字母圆形头像 + 名称 + 统计（点击查看艺术家详情） */
+@Composable
+private fun ArtistChip(
+    artist: TopArtistStat,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(120.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(36.dp))
+                .background(MiuixTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = artist.artist.take(1).uppercase(),
+                style = MiuixTheme.textStyles.title3,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = artist.artist,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${artist.count} 次 · ${statFormatDurationShort(artist.totalDuration)}",
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/** 常听专辑项：封面 + 专辑名 + 统计（点击查看专辑详情） */
+@Composable
+private fun AlbumChip(
+    album: TopAlbumStat,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(120.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        cn.lemondrop.fhreborn.ui.components.SongCoverImage(
+            songId = album.coverSongId ?: 0L,
+            modifier = Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(8.dp))
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = album.album,
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "${album.albumArtist} · ${album.count} 次",
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -198,37 +286,6 @@ private fun RankBadge(rank: Int) {
     }
 }
 
-@Composable
-private fun StatChip(
-    title: String,
-    subtitle: String
-) {
-    Column(
-        modifier = Modifier
-            .width(140.dp)
-            .height(80.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = title,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = subtitle,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
 
 // 本地短时间格式化辅助（不依赖外部文件）
 private fun statFormatDurationShort(ms: Long): String {

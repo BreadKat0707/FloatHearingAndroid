@@ -128,7 +128,7 @@ object SongFileUtils {
                     )
                     song.bitrate?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "比特率", value = "$it kbps")
+                        InfoRow(label = "比特率", value = formatBitrate(it))
                     }
                     song.sampleRate?.let {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -164,6 +164,14 @@ object SongFileUtils {
         val minutes = seconds / 60
         val secs = seconds % 60
         return "%d:%02d".format(minutes, secs)
+    }
+
+    /**
+     * 比特率格式化：MediaStore 的 bitrate 单位是 bps（如 897446 bps ≈ 897 kbps）。
+     */
+    private fun formatBitrate(bps: Int): String = when {
+        bps >= 1_000_000 -> String.format("%.1f Mbps", bps / 1_000_000f)
+        else -> "${bps / 1000} kbps"
     }
 
     @Composable

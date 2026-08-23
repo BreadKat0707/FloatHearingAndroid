@@ -45,7 +45,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun StatisticsScreen(
     currentRoute: String,
     onNavigate: (String) -> Unit,
-    playerViewModel: PlayerViewModel
+    playerViewModel: PlayerViewModel,
+    onNavigateToAlbum: (String, String?) -> Unit = { _, _ -> },
+    onNavigateToArtist: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val viewModel: StatisticsViewModel = viewModel(
@@ -114,9 +116,9 @@ fun StatisticsScreen(
                 val topInset = padding.calculateTopPadding()
                 val bottomInset = padding.calculateBottomPadding()
                 when (selectedTab) {
-                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
-                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
-                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
+                    0 -> TodayTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it }, onNavigateToAlbum = onNavigateToAlbum, onNavigateToArtist = onNavigateToArtist)
+                    1 -> WeekTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it }, onNavigateToAlbum = onNavigateToAlbum, onNavigateToArtist = onNavigateToArtist)
+                    2 -> MonthTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it }, onNavigateToAlbum = onNavigateToAlbum, onNavigateToArtist = onNavigateToArtist)
                     3 -> OverviewTab(viewModel = viewModel, modifier = Modifier.fillMaxSize(), topInset = topInset, bottomInset = bottomInset, onScrolledChange = { topBarScrolled = it })
                 }
             }

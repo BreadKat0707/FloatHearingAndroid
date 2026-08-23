@@ -150,6 +150,8 @@ object PlaylistCoverSource {
 
 private fun loadSongCover(context: Context, songId: Long?): ImageBitmap? {
     if (songId == null) return null
+    // 缓存命中直接复用（歌单封面与列表缩略图共用同一缓存）
+    CoverImageCache.get(songId)?.let { return it }
     return try {
         val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
         context.contentResolver.openInputStream(uri)?.use { stream ->
@@ -158,7 +160,9 @@ private fun loadSongCover(context: Context, songId: Long?): ImageBitmap? {
                 val scale = (maxOf(bmp.width, bmp.height) / 200f).coerceAtLeast(1f)
                 val w = (bmp.width / scale).toInt().coerceAtLeast(1)
                 val h = (bmp.height / scale).toInt().coerceAtLeast(1)
-                Bitmap.createScaledBitmap(bmp, w, h, true).asImageBitmap()
+                val scaled = Bitmap.createScaledBitmap(bmp, w, h, true).asImageBitmap()
+                CoverImageCache.put(songId, scaled)
+                scaled
             }
         }
     } catch (_: Exception) {

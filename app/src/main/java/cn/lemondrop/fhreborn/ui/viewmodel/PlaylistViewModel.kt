@@ -48,9 +48,14 @@ class PlaylistViewModel(application: Application) : AndroidViewModel(application
     }
 
     /** 歌单前 N 首歌曲 id（自动封面拼图用，回调形式） */
+    private val firstSongIdsCache = HashMap<Long, List<Long>>()
     fun getFirstSongIds(playlistId: Long, limit: Int = 3, onResult: (List<Long>) -> Unit) {
+        // 内存缓存：列表滚动重建 item 时避免重复查询 DB（歌单封面加载不掉帧）
+        firstSongIdsCache[playlistId]?.let { onResult(it); return }
         viewModelScope.launch {
-            onResult(repository.getFirstSongIds(playlistId, limit))
+            val ids = repository.getFirstSongIds(playlistId, limit)
+            firstSongIdsCache[playlistId] = ids
+            onResult(ids)
         }
     }
 

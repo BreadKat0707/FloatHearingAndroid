@@ -39,6 +39,9 @@ interface PlayRecordDao {
     @Query("DELETE FROM play_records WHERE timestamp < :beforeTime")
     suspend fun deleteOldRecords(beforeTime: Long)
 
+    @Query("DELETE FROM play_records")
+    suspend fun deleteAll()
+
     @Query("SELECT SUM(playDuration) FROM play_records WHERE timestamp >= :startTime")
     fun getPlayDurationSince(startTime: Long): Flow<Long?>
 
@@ -107,7 +110,11 @@ interface PlayRecordDao {
      * 指定时间范围内最常听的专辑
      */
     @Query("""
-        SELECT s.album, s.artist AS albumArtist, COUNT(*) AS count, SUM(p.playDuration) AS totalDuration
+        SELECT s.album, s.artist AS albumArtist, COUNT(*) AS count, SUM(p.playDuration) AS totalDuration,
+               (SELECT s2.id FROM songs s2
+                WHERE s2.album = s.album AND s2.artist = s.artist
+                ORDER BY s2.trackNumber IS NULL, s2.trackNumber, s2.id
+                LIMIT 1) AS coverSongId
         FROM play_records p
         INNER JOIN songs s ON p.songId = s.id
         WHERE p.timestamp >= :startTime AND p.timestamp < :endTime
@@ -168,5 +175,6 @@ data class TopAlbumStat(
     val album: String,
     val albumArtist: String,
     val count: Int,
-    val totalDuration: Long
+    val totalDuration: Long,
+    val coverSongId: Long? = null
 )

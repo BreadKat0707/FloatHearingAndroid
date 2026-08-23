@@ -425,7 +425,13 @@ fun FHRebornApp() {
                 StatisticsScreen(
                     currentRoute = backStackEntry.destination.route ?: Screen.Statistics.route,
                     onNavigate = topLevelNavigate,
-                    playerViewModel = playerViewModel
+                    playerViewModel = playerViewModel,
+                    onNavigateToAlbum = { album, artist ->
+                        navController.navigate(Screen.AlbumDetail.createRoute(album, artist))
+                    },
+                    onNavigateToArtist = { artist ->
+                        navController.navigate(Screen.ArtistDetail.createRoute(artist))
+                    }
                 )
             }
 

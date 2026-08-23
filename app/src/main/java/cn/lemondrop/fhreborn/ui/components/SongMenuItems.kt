@@ -1,7 +1,7 @@
 package cn.lemondrop.fhreborn.ui.components
 
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.composables.icons.lucide.Album
+import com.composables.icons.lucide.DiscAlbum
 import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.ExternalLink
 import com.composables.icons.lucide.FolderOpen
@@ -9,7 +9,7 @@ import com.composables.icons.lucide.Info
 import com.composables.icons.lucide.Lightbulb
 import com.composables.icons.lucide.ListMinus
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Mic
+import com.composables.icons.lucide.UserRound
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Share2
 import com.composables.icons.lucide.SkipForward
@@ -29,8 +29,8 @@ object SongMenuItems {
     val PlayNext = SongMenuItem("下一首播放", Lucide.SkipForward)
     val AddToPlaylist = SongMenuItem("加入歌单", Lucide.Plus)
     val Thoughts = SongMenuItem("想法", Lucide.Lightbulb)
-    val ViewAlbum = SongMenuItem("查看专辑", Lucide.Album)
-    val ViewArtist = SongMenuItem("查看艺术家", Lucide.Mic)
+    val ViewAlbum = SongMenuItem("查看专辑", Lucide.DiscAlbum)
+    val ViewArtist = SongMenuItem("查看艺术家", Lucide.UserRound)
     val GoToFolder = SongMenuItem("转至文件夹", Lucide.FolderOpen)
     val Share = SongMenuItem("分享文件", Lucide.Share2)
     val OpenWith = SongMenuItem("用其他 app 打开", Lucide.ExternalLink)

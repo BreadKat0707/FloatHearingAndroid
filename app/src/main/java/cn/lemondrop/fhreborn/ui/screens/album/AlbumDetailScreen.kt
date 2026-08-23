@@ -45,7 +45,6 @@ import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
-import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
@@ -282,29 +281,56 @@ fun AlbumDetailScreen(
                 )
             }
 
-            // 曲目列表（按碟号分组）
+            // 曲目列表（按碟号分组；行内以 Disc + 音轨号替代封面缩略图，
+            // 顶部已有封面展示，避免重复加载缩略图）
             itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                Column {
-                    if (hasMultipleDiscs &&
-                        (index == 0 || songs[index - 1].discNumber != song.discNumber)
-                    ) {
-                        SectionHeader("Disc ${song.discNumber ?: 1}")
-                    }
-                    SongItem(
-                        song = song,
-                        onClick = { playerViewModel.playSongs(songs, index) },
-                        onMoreClick = { menuSong = song },
-                        selectionMode = multiSelectMode,
-                        selected = song.id in selectedSongIds,
-                        onToggleSelect = {
+                cn.lemondrop.fhreborn.ui.components.FhListItem(
+                    title = song.title,
+                    summary = "${song.artist} - ${song.album}",
+                    onClick = {
+                        if (multiSelectMode) {
                             if (song.id in selectedSongIds) {
                                 selectedSongIds.remove(song.id)
                             } else {
                                 selectedSongIds.add(song.id)
                             }
+                        } else {
+                            playerViewModel.playSongs(songs, index)
                         }
-                    )
-                }
+                    },
+                    leading = {
+                        Column(horizontalAlignment = Alignment.End) {
+                            if (hasMultipleDiscs) {
+                                Text(
+                                    text = "Disc ${song.discNumber ?: 1}",
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                )
+                            }
+                            Text(
+                                text = "%02d".format(song.trackNumber ?: (index + 1)),
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                        }
+                    },
+                    trailing = {
+                        if (multiSelectMode) {
+                            cn.lemondrop.fhreborn.ui.components.SelectionIndicator(
+                                selected = song.id in selectedSongIds,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            IconButton(onClick = { menuSong = song }) {
+                                Icon(
+                                    imageVector = Lucide.EllipsisVertical,
+                                    contentDescription = "更多",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                )
             }
 
             // 参与的艺术家

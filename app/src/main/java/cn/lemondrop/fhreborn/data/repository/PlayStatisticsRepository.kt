@@ -153,15 +153,56 @@ class PlayStatisticsRepository(private val playRecordDao: PlayRecordDao) {
         return playRecordDao.getLibrarySongsPlayCount()
     }
 
-    suspend fun recordPlay(songId: Long, duration: Long) {
-        if (duration < 3000) return
-        playRecordDao.insert(PlayRecord(songId = songId, playDuration = duration))
+    /**
+     * 记录一次播放（可能跨天）：按自然日拆分成多条。
+     *
+     * 计入规则：文件时长 <30s 的歌曲播放即计入；≥30s 的需播放满 20s 才计入。
+     * 跨天播放（如 23:50→00:10）按日期拆分，每段 timestamp 用段开始时刻，
+     * 统计按日归属正确。
+     */
+    suspend fun recordPlayRange(songId: Long, startMs: Long, endMs: Long, songDuration: Long?) {
+        val totalDuration = endMs - startMs
+        if (totalDuration <= 0) return
+        // 计入阈值
+        val threshold = if (songDuration != null && songDuration < 30_000) 0L else 20_000L
+        if (totalDuration < threshold) return
+        // 跨天拆分
+        val segments = splitByDay(startMs, endMs)
+        segments.forEach { (segStart, segEnd) ->
+            playRecordDao.insert(
+                PlayRecord(songId = songId, playDuration = segEnd - segStart, timestamp = segStart)
+            )
+        }
     }
+
+    /** 把 [startMs, endMs] 区间按自然日切分成若干段（每段在同一日内） */
+    private fun splitByDay(startMs: Long, endMs: Long): List<Pair<Long, Long>> {
+        val result = mutableListOf<Pair<Long, Long>>()
+        var segStart = startMs
+        while (segStart < endMs) {
+            val segEnd = minOf(dayEndOf(segStart), endMs)
+            result.add(segStart to segEnd)
+            segStart = segEnd
+        }
+        return result
+    }
+
+    private fun dayEndOf(ts: Long): Long = Calendar.getInstance().apply {
+        timeInMillis = ts
+        add(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
     suspend fun clearOldRecords(days: Int = 90) {
         val cutoff = System.currentTimeMillis() - days * 24 * 60 * 60 * 1000L
         playRecordDao.deleteOldRecords(cutoff)
     }
+
+    /** 清空全部播放记录（设置-数据管理：重置听歌统计） */
+    suspend fun resetAll() = playRecordDao.deleteAll()
 
     private fun now(): Long = System.currentTimeMillis()
 

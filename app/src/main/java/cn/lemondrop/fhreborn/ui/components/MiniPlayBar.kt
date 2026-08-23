@@ -59,6 +59,12 @@ fun SongCoverImage(
     var bitmap by remember(songId) { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(songId) {
+        // 缓存命中直接复用，避免滚动回收后重新 IO 解码（掉帧主因）
+        val cached = CoverImageCache.get(songId)
+        if (cached != null) {
+            bitmap = cached
+            return@LaunchedEffect
+        }
         withContext(Dispatchers.IO) {
             bitmap = try {
                 val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
@@ -69,6 +75,7 @@ fun SongCoverImage(
                 null
             }
         }
+        bitmap?.let { CoverImageCache.put(songId, it) }
     }
 
     if (bitmap != null) {

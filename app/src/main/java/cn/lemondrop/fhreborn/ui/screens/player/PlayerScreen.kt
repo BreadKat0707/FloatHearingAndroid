@@ -134,7 +134,7 @@ import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 import com.mocharealm.accompanist.lyrics.ui.composable.lyrics.KaraokeLyricsView
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.EllipsisVertical
-import com.composables.icons.lucide.FolderPlus
+import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Gauge
 import com.composables.icons.lucide.ChevronUp
 import com.composables.icons.lucide.ListMusic
@@ -2025,7 +2025,7 @@ private fun PlayerBottomActionsSection(
 
         IconButton(onClick = onAddToPlaylistClick) {
             PlayerIcon(
-                imageVector = Lucide.FolderPlus,
+                imageVector = Lucide.Plus,
                 contentDescription = "添加到歌单",
                 modifier = Modifier.size(24.dp)
             )
