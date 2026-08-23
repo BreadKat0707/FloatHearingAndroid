@@ -70,7 +70,6 @@ import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.Database
-import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.Lucide
@@ -833,9 +832,7 @@ private fun buildCategories(): List<SettingCategory> {
             icon = Lucide.Music,
             items = listOf(
                 SettingItem("auto_scan", "启动时自动扫描", "每次打开检测媒体库变更", null, SettingType.Toggle, true),
-                SettingItem("scan_directories", "扫描目录", "管理音乐文件夹", Lucide.FolderOpen, SettingType.Navigation),
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
-                SettingItem("ignore_short", "忽略短音频", "过滤时长过短的文件", null, SettingType.Toggle, true),
                 SettingItem("artist_separators", "艺术家分隔符", "配置多艺术家拆分规则", null, SettingType.Navigation)
             )
         ),

@@ -360,14 +360,15 @@ fun LibraryScreen(
                                 playerViewModel.playSongs(displaySongs, 0)
                             }
                         )
-                        // 随机循环：立即随机播放全部歌曲
+                        // 随机循环：立即随机播放全部歌曲（随机选一首作为起始，不从头开始）
                         FhPlayModeButton(
                             icon = Lucide.Shuffle,
                             label = "随机循环",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 playerViewModel.setShuffle(true)
-                                playerViewModel.playSongs(displaySongs, 0)
+                                val startIndex = if (displaySongs.isEmpty()) 0 else kotlin.random.Random.nextInt(displaySongs.size)
+                                playerViewModel.playSongs(displaySongs, startIndex)
                             }
                         )
                     }

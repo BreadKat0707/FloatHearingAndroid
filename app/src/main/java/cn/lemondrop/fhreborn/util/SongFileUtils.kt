@@ -102,21 +102,22 @@ object SongFileUtils {
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    InfoRow(label = "标题", value = song.title)
+                    InfoRow(label = "标题", value = song.title, selectable = true)
                     Spacer(modifier = Modifier.height(12.dp))
-                    InfoRow(label = "艺术家", value = song.artist)
+                    InfoRow(label = "艺术家", value = song.artist, selectable = true)
                     Spacer(modifier = Modifier.height(12.dp))
-                    InfoRow(label = "专辑", value = song.album)
+                    InfoRow(label = "专辑", value = song.album, selectable = true)
                     Spacer(modifier = Modifier.height(12.dp))
-                    InfoRow(label = "时长", value = durationText)
+                    InfoRow(label = "时长", value = durationText, selectable = true)
                     Spacer(modifier = Modifier.height(12.dp))
-                    InfoRow(label = "格式", value = song.format)
+                    InfoRow(label = "格式", value = song.format, selectable = true)
                     Spacer(modifier = Modifier.height(12.dp))
-                    InfoRow(label = "路径", value = song.path)
+                    InfoRow(label = "路径", value = song.path, selectable = true)
                     Spacer(modifier = Modifier.height(12.dp))
                     InfoRow(
                         label = "大小",
-                        value = formatFileSize(song.fileSize)
+                        value = formatFileSize(song.fileSize),
+                        selectable = true
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     InfoRow(
@@ -124,35 +125,36 @@ object SongFileUtils {
                         value = java.text.SimpleDateFormat(
                             "yyyy-MM-dd HH:mm:ss",
                             java.util.Locale.getDefault()
-                        ).format(java.util.Date(song.modifiedAt))
+                        ).format(java.util.Date(song.modifiedAt)),
+                        selectable = true
                     )
                     song.bitrate?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "比特率", value = formatBitrate(it))
+                        InfoRow(label = "比特率", value = formatBitrate(it), selectable = true)
                     }
                     song.sampleRate?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "采样率", value = "$it Hz")
+                        InfoRow(label = "采样率", value = "$it Hz", selectable = true)
                     }
                     song.channels?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "声道", value = "$it")
+                        InfoRow(label = "声道", value = "$it", selectable = true)
                     }
                     song.year?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "年份", value = "$it")
+                        InfoRow(label = "年份", value = "$it", selectable = true)
                     }
                     song.discNumber?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "碟号", value = "$it")
+                        InfoRow(label = "碟号", value = "$it", selectable = true)
                     }
                     song.trackNumber?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "音轨号", value = "$it")
+                        InfoRow(label = "音轨号", value = "$it", selectable = true)
                     }
                     if (!file.exists()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        InfoRow(label = "状态", value = "文件不存在")
+                        InfoRow(label = "状态", value = "文件不存在", selectable = true)
                     }
                 }
             }
