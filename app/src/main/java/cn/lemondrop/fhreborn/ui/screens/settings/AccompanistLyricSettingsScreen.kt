@@ -59,6 +59,7 @@ fun AccompanistLyricSettingsContent(
     val phoneticFontWeight by repository.acclLyricPhoneticFontWeight.collectAsState(initial = 400)
     val showTranslation by repository.acclLyricShowTranslation.collectAsState(initial = true)
     val showPhonetic by repository.acclLyricShowPhonetic.collectAsState(initial = true)
+    val wordLevel by repository.acclLyricWordLevel.collectAsState(initial = true)
     val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = true)
     val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
     val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
@@ -154,6 +155,14 @@ fun AccompanistLyricSettingsContent(
 
         // 显示开关
         item { SectionHeader("显示") }
+        item {
+            ToggleSettingItem(
+                title = "逐字歌词",
+                summary = "卡拉OK逐字高亮；关闭时整行高亮，可降低渲染负载",
+                checked = wordLevel,
+                onCheckedChange = { scope.launch { repository.setAcclLyricWordLevel(it) } }
+            )
+        }
         item {
             ToggleSettingItem(
                 title = "显示翻译",

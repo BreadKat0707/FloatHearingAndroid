@@ -111,11 +111,14 @@ fun SettingsScreen(
 
     // 设置页导航：页面栈（Home 为栈底，Category/子页入栈），返回逐级弹出。
     // 外部可指定直达分类（如播放器"歌词设置"→ 设置-歌词）；
-    // remember 的 key 变化会重新初始化，导航复用实例时也能生效
-    val pageStack = remember(initialCategoryKey) {
-        mutableStateListOf(
-            if (initialCategoryKey != null) SettingsPage.Category(initialCategoryKey) else SettingsPage.Home
-        )
+    // remember 的 key 变化会重新初始化，导航复用实例时也能生效。
+    // 直达时栈底始终保留 Home，保证返回链路完整（分类 → Home）
+    val pageStack: androidx.compose.runtime.snapshots.SnapshotStateList<SettingsPage> = remember(initialCategoryKey) {
+        if (initialCategoryKey != null) {
+            mutableStateListOf(SettingsPage.Home, SettingsPage.Category(initialCategoryKey))
+        } else {
+            mutableStateListOf(SettingsPage.Home)
+        }
     }
     fun currentPage(): SettingsPage = pageStack.last()
     var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }

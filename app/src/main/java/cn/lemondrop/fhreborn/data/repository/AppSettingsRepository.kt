@@ -100,6 +100,10 @@ class AppSettingsRepository(private val context: Context) {
     val acclLyricShowTranslation: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_show_translation")] ?: true }
     suspend fun setAcclLyricShowTranslation(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_show_translation")] = value }
 
+    /** 逐字歌词（卡拉OK逐字高亮）；关闭时降级为整行高亮 */
+    val acclLyricWordLevel: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_word_level")] ?: true }
+    suspend fun setAcclLyricWordLevel(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_word_level")] = value }
+
     val acclLyricShowPhonetic: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("accl_lyric_show_phonetic")] ?: true }
     suspend fun setAcclLyricShowPhonetic(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("accl_lyric_show_phonetic")] = value }
 

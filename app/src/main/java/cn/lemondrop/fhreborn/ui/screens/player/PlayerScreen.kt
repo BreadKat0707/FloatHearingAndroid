@@ -746,7 +746,7 @@ fun PlayerScreen(
                     onInfoClick = { showSongInfoSheet = true }
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // 歌词预览（两行）始终留占位
                 PlayerLyricsPreviewSection(
@@ -1082,6 +1082,11 @@ private fun LyricSheet(
 
     val acclLyricConfig = rememberAcclLyricConfig(appSettingsRepository)
 
+    // 逐字歌词开关联动 ViewModel：切换后当前歌词即时降级/恢复
+    LaunchedEffect(acclLyricConfig.wordLevel) {
+        viewModel.setWordLevelEnabled(acclLyricConfig.wordLevel)
+    }
+
     // 封面播放/暂停图标显隐：播放状态刚切换时显示暂停图标5秒；暂停时始终显示播放图标
     var showPauseIcon by remember { mutableStateOf(false) }
     LaunchedEffect(isPlaying) {
@@ -1292,6 +1297,7 @@ private data class AcclLyricConfig(
     val phoneticFontWeight: Int = 400,
     val showTranslation: Boolean = true,
     val showPhonetic: Boolean = true,
+    val wordLevel: Boolean = true,
     val useBlur: Boolean = true,
     val blurDelta: Int = 3,
     val textAlign: String = "center",
@@ -1312,6 +1318,7 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
     val phoneticFontWeight by repository.acclLyricPhoneticFontWeight.collectAsState(initial = 400)
     val showTranslation by repository.acclLyricShowTranslation.collectAsState(initial = true)
     val showPhonetic by repository.acclLyricShowPhonetic.collectAsState(initial = true)
+    val wordLevel by repository.acclLyricWordLevel.collectAsState(initial = true)
     val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = true)
     val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
     val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
@@ -1324,7 +1331,7 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
     return remember(
         mainTextSize, accompanimentTextSize, phoneticTextSize,
         mainFontWeight, accompanimentFontWeight, phoneticFontWeight,
-        showTranslation, showPhonetic, useBlur, blurDelta, textAlign,
+        showTranslation, showPhonetic, wordLevel, useBlur, blurDelta, textAlign,
         glowEffect, breathingDotsSize, translationTextSize, translationFontWeight,
         linePositionPercent
     ) {
@@ -1337,6 +1344,7 @@ private fun rememberAcclLyricConfig(repository: AppSettingsRepository): AcclLyri
             phoneticFontWeight = phoneticFontWeight,
             showTranslation = showTranslation,
             showPhonetic = showPhonetic,
+            wordLevel = wordLevel,
             useBlur = useBlur,
             blurDelta = blurDelta,
             textAlign = textAlign,
@@ -1813,7 +1821,7 @@ private fun PlayerSongInfoSection(
                     onClick = onTitleClick
                 )
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = currentSong?.let { "${it.artist} - ${it.album}" } ?: "选择一首歌曲开始",
             style = MiuixTheme.textStyles.body1,

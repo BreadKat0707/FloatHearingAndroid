@@ -38,7 +38,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -100,8 +102,17 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _showScheduledPauseDialog = MutableStateFlow(false)
     val showScheduledPauseDialog: StateFlow<Boolean> = _showScheduledPauseDialog.asStateFlow()
 
-    private val _lyrics = MutableStateFlow<SyncedLyrics?>(null)
-    val lyrics: StateFlow<SyncedLyrics?> = _lyrics.asStateFlow()
+    // 原始歌词（含逐字数据）与逐字开关：发布值 = 开关开启时用原始，关闭时降级为整行高亮
+    private val _rawLyrics = MutableStateFlow<SyncedLyrics?>(null)
+    private val _wordLevelEnabled = MutableStateFlow(true)
+    val lyrics: StateFlow<SyncedLyrics?> = combine(_rawLyrics, _wordLevelEnabled) { raw, wordLevel ->
+        if (raw == null || wordLevel) raw else downgradeToPlainLyrics(raw)
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, null)
+
+    /** 开关逐字歌词：关闭后当前歌词即时降级为整行高亮 */
+    fun setWordLevelEnabled(enabled: Boolean) {
+        _wordLevelEnabled.value = enabled
+    }
 
     private val _lyricSource = MutableStateFlow<LyricSource?>(null)
     val lyricSource: StateFlow<LyricSource?> = _lyricSource.asStateFlow()
@@ -142,7 +153,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                     _duration.value = controller.duration.coerceAtLeast(0L)
 
                     // 更新当前歌词索引
-                    val synced = _lyrics.value
+                    val synced = _rawLyrics.value
                     val lines = synced?.lines
                     if (!lines.isNullOrEmpty()) {
                         val idx = lines.indexOfLast { it.start <= pos }
@@ -348,7 +359,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val song = _currentSong.value ?: return
         // 切歌时立即清空歌词：避免旧歌词残留并与新的播放位置错配
         // （表现为歌词瞎匹配/反复乱弹跳）；空歌词时歌词视图重建成本也最低
-        _lyrics.value = null
+        _rawLyrics.value = null
         _lyricSource.value = null
         _currentLyricIndex.value = -1
         // 取消上一次未完成的加载：快速连续切歌时避免旧协程后完成导致歌词错配
@@ -363,7 +374,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (cachedSource != null && cachedParsed != null) {
                 android.util.Log.i(TAG, "lyric cache hit: ${song.id} (${System.currentTimeMillis()})")
                 _lyricSource.value = cachedSource
-                _lyrics.value = cachedParsed
+                _rawLyrics.value = cachedParsed
                 _currentLyricIndex.value = -1
                 return@launch
             }
@@ -394,7 +405,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             _lyricSource.value = source
-            _lyrics.value = parsed
+            _rawLyrics.value = parsed
             _currentLyricIndex.value = -1
             android.util.Log.i(TAG, "lyric applied: ${song.id} (${System.currentTimeMillis()})")
         }
@@ -598,4 +609,24 @@ private fun dedupeDuplicateLyricLines(lyrics: SyncedLyrics): SyncedLyrics {
         }
     }
     return if (merged.size == lyrics.lines.size) lyrics else lyrics.copy(lines = merged)
+}
+
+/**
+ * 逐字歌词降级为整行高亮：KaraokeLine 转 SyncedLine（丢弃音节级时间戳）。
+ * 关闭"逐字歌词"开关时使用，渲染走整行高亮路径。
+ */
+private fun downgradeToPlainLyrics(lyrics: SyncedLyrics): SyncedLyrics {
+    val plainLines = lyrics.lines.map { line ->
+        if (line is KaraokeLine) {
+            SyncedLine(
+                content = line.syllables.joinToString("") { it.content },
+                translation = line.translation,
+                start = line.start,
+                end = line.end
+            )
+        } else {
+            line
+        }
+    }
+    return lyrics.copy(lines = plainLines)
 }
