@@ -586,6 +586,8 @@ fun Song.toMediaItem(): MediaItem {
     return MediaItem.Builder()
         .setMediaId(id.toString())
         .setUri(android.net.Uri.parse("content://media/external/audio/media/$id"))
+        // 明确 mime 类型，帮助 renderer 精确匹配（系统解码器不支持的格式落到 FFmpeg）
+        .setMimeType(mimeTypeForFormat(format))
         .setMediaMetadata(
             androidx.media3.common.MediaMetadata.Builder()
                 .setTitle(title)
@@ -595,6 +597,19 @@ fun Song.toMediaItem(): MediaItem {
         )
         .setTag(this)
         .build()
+}
+
+/** 按歌曲格式映射 MIME 类型（用于 renderer 选择：系统优先，FFmpeg 兜底） */
+private fun mimeTypeForFormat(format: String): String? = when (format.uppercase()) {
+    "MP3" -> "audio/mpeg"
+    "M4A" -> "audio/mp4"
+    "ALAC" -> "audio/alac"
+    "FLAC" -> "audio/flac"
+    "OGG" -> "audio/ogg"
+    "OPUS" -> "audio/opus"
+    "WAV" -> "audio/wav"
+    "AAC" -> "audio/aac"
+    else -> null
 }
 
 /**

@@ -28,6 +28,13 @@
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite$* { *; }
 
+# FFmpeg 解码器：由 DefaultRenderersFactory 反射实例化，R8 需保留
+-keep class androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer { *; }
+-keep class androidx.media3.decoder.ffmpeg.FfmpegLibrary { *; }
+-keepclasseswithmembernames class androidx.media3.decoder.ffmpeg.** {
+    native <methods>;
+}
+
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface
 # class:

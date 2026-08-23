@@ -185,6 +185,8 @@ dependencies {
     // Media3
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
+    // FFmpeg 软件解码器（ALAC 等系统解码器不支持的格式兜底；预编译 AAR，由 DefaultRenderersFactory 反射加载）
+    implementation(files("libs/media3-decoder-ffmpeg-1.10.1-ffmpeg6.0-r1.aar"))
 
     // DataStore
     implementation(libs.datastore.preferences)
