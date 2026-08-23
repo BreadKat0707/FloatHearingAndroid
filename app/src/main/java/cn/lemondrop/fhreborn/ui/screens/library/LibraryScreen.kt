@@ -77,6 +77,10 @@ import com.composables.icons.lucide.LayoutList
 import com.composables.icons.lucide.EllipsisVertical
 import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.FolderOpen
+import com.composables.icons.lucide.Grid2x2
+import com.composables.icons.lucide.LayoutGrid
+import com.composables.icons.lucide.LayoutList
+import com.composables.icons.lucide.LayoutPanelTop
 import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.MapPin
@@ -89,6 +93,8 @@ import com.composables.icons.lucide.Repeat1
 import com.composables.icons.lucide.RotateCcw
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Shuffle
+import cn.lemondrop.fhreborn.ui.viewmodel.SortField
+import cn.lemondrop.fhreborn.ui.viewmodel.SortOrder
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
@@ -158,6 +164,53 @@ fun LibraryScreen(
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
+    val menuScope = rememberCoroutineScope()
+
+    // 各 tab 的排序选项（歌曲全字段 / 专辑标题·艺术家·年份 / 文件夹路径·名称）
+    val sortOptions = when (selectedNavIndex) {
+        0 -> listOf(
+            SortField.TITLE to "标题",
+            SortField.ARTIST_ALBUM to "艺术家 - 专辑",
+            SortField.ALBUM_DISC_TRACK to "专辑 - 碟号 - 音轨号",
+            SortField.MODIFIED_TIME to "修改时间",
+            SortField.ADDED_TIME to "添加时间",
+            SortField.PLAY_COUNT to "播放次数",
+            SortField.PATH_FILENAME to "路径 - 文件名",
+            SortField.FILE_NAME to "文件名",
+            SortField.RELEASE_YEAR to "发行时间",
+            SortField.DURATION to "曲目时长"
+        )
+        1 -> listOf(
+            SortField.TITLE to "标题",
+            SortField.ARTIST_ALBUM to "艺术家",
+            SortField.RELEASE_YEAR to "发行年份"
+        )
+        3 -> listOf(
+            SortField.FOLDER_PATH to "路径",
+            SortField.FOLDER_NAME to "文件夹名称"
+        )
+        else -> emptyList()
+    }
+
+    // 专辑视图样式（list / grid / card / square，与歌单页一致，持久化）
+    val albumViewStyle by bgRepo.albumViewStyle.collectAsState(initial = "grid")
+    // 文件夹 tab：是否显示已隐藏的文件夹
+    var showHiddenFolders by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+
+    // 专辑排序：标题 / 艺术家 / 发行年份（仅专辑 tab 应用）
+    val sortedAlbums = remember(albums, sortField, sortOrder) {
+        val sorted = when (sortField) {
+            SortField.ARTIST_ALBUM -> albums.sortedWith(
+                compareBy<cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album> { it.artist.lowercase() }
+                    .thenBy { it.name.lowercase() }
+            )
+            SortField.RELEASE_YEAR -> albums.sortedBy {
+                it.songs.firstNotNullOfOrNull { s -> s.year } ?: 0
+            }
+            else -> albums.sortedBy { it.name.lowercase() }
+        }
+        if (sortOrder == SortOrder.DESC) sorted.reversed() else sorted
+    }
 
     var showArtistChooser by remember { mutableStateOf(false) }
     var showSongProperties by remember { mutableStateOf(false) }
@@ -369,8 +422,9 @@ fun LibraryScreen(
                     }
                 )
                 1 -> AlbumsContent(
-                    albums = albums,
+                    albums = sortedAlbums,
                     columns = albumColumns,
+                    viewStyle = albumViewStyle,
                     selectionMode = multiSelectMode,
                     selectedSongIds = selectedSongIds,
                     onAlbumClick = { album ->
@@ -389,6 +443,9 @@ fun LibraryScreen(
                 3 -> FoldersContent(
                     songs = displaySongs,
                     hiddenFolders = hiddenFolders,
+                    showHiddenFolders = showHiddenFolders,
+                    sortField = sortField,
+                    sortOrder = sortOrder,
                     selectionMode = multiSelectMode,
                     selectedSongIds = selectedSongIds,
                     onFolderClick = { folderPath ->
@@ -463,9 +520,9 @@ fun LibraryScreen(
                             2 -> artists.flatMap { artist ->
                                 viewModel.songs.value.filter { it.artist == artist.name }.map { it.id }
                             }
-                            3 -> displaySongs.filterNot { song ->
+                            3 -> (if (showHiddenFolders) displaySongs else displaySongs.filterNot { song ->
                                 hiddenFolders.any { h -> song.path.startsWith(h) }
-                            }.map { it.id }
+                            }).map { it.id }
                             else -> emptyList()
                         }
                         SelectionStateButton(
@@ -478,35 +535,67 @@ fun LibraryScreen(
                             onDeselectAll = { selectedSongIds.clear() }
                         )
                     } else {
-                    OverlayIconDropdownMenu(
-                        entries = listOf(
-                            DropdownEntry(
-                                items = listOf(
-                                    DropdownItem("刷新", icon = { mod -> Icon(Lucide.RotateCcw, null, modifier = mod) }, onClick = { viewModel.refreshMediaStore() }),
-                                    DropdownItem("排序", icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) }, onClick = { showSortSheet = true }),
-                                    DropdownItem("多选", icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) }, onClick = {
-                                        multiSelectMode = true
-                                        selectedSongIds.clear()
-                                    }),
-                                    DropdownItem("回到顶部", icon = { mod -> Icon(Lucide.ArrowUp, null, modifier = mod) }, onClick = { /* TODO */ }),
-                                    DropdownItem("定位当前播放", icon = { mod -> Icon(Lucide.MapPin, null, modifier = mod) }, onClick = {
-                                        currentSong?.let { song ->
-                                            selectedNavIndex = 0
-                                            pendingLocateSongId = song.id
+                        // 菜单按 tab 独立：歌曲/专辑/艺术家/文件夹各显示自己的项
+                        val menuEntries = buildList {
+                            add(
+                                DropdownEntry(
+                                    items = buildList {
+                                        add(DropdownItem("刷新", icon = { mod -> Icon(Lucide.RotateCcw, null, modifier = mod) }, onClick = { viewModel.refreshMediaStore() }))
+                                        if (sortOptions.isNotEmpty()) {
+                                            add(DropdownItem("排序", icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) }, onClick = { showSortSheet = true }))
                                         }
-                                    }),
-                                    DropdownItem("列表布局", icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) }, onClick = { /* TODO */ }),
+                                        // 专辑：列表布局四种（仿歌单）
+                                        if (selectedNavIndex == 1) {
+                                            add(DropdownItem("列表", icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("list") } }))
+                                            add(DropdownItem("双栏列表", icon = { mod -> Icon(Lucide.LayoutGrid, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("grid") } }))
+                                            add(DropdownItem("卡片", icon = { mod -> Icon(Lucide.LayoutPanelTop, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("card") } }))
+                                            add(DropdownItem("方形", icon = { mod -> Icon(Lucide.Grid2x2, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("square") } }))
+                                        }
+                                        // 文件夹：显示/隐藏已隐藏的文件夹
+                                        if (selectedNavIndex == 3) {
+                                            add(DropdownItem(
+                                                "查看隐藏的文件夹",
+                                                icon = { mod -> Icon(Lucide.EyeOff, null, modifier = mod) },
+                                                selected = showHiddenFolders,
+                                                onClick = { showHiddenFolders = !showHiddenFolders }
+                                            ))
+                                        }
+                                    }
                                 )
                             )
-                        ),
-                        minHeight = 40.dp,
-                        minWidth = 40.dp,
-                    ) {
-                        Icon(
-                            imageVector = Lucide.EllipsisVertical,
-                            contentDescription = "更多"
-                        )
-                    }
+                            add(
+                                DropdownEntry(
+                                    items = buildList {
+                                        add(DropdownItem("多选", icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) }, onClick = {
+                                            multiSelectMode = true
+                                            selectedSongIds.clear()
+                                        }))
+                                        add(DropdownItem("回到顶部", icon = { mod -> Icon(Lucide.ArrowUp, null, modifier = mod) }, onClick = {
+                                            menuScope.launch { listState.animateScrollToItem(0) }
+                                        }))
+                                        // 定位当前播放：仅歌曲 tab（播放列表即歌曲列表）
+                                        if (selectedNavIndex == 0) {
+                                            add(DropdownItem("定位当前播放", icon = { mod -> Icon(Lucide.MapPin, null, modifier = mod) }, onClick = {
+                                                currentSong?.let { song ->
+                                                    selectedNavIndex = 0
+                                                    pendingLocateSongId = song.id
+                                                }
+                                            }))
+                                        }
+                                    }
+                                )
+                            )
+                        }
+                        OverlayIconDropdownMenu(
+                            entries = menuEntries,
+                            minHeight = 40.dp,
+                            minWidth = 40.dp,
+                        ) {
+                            Icon(
+                                imageVector = Lucide.EllipsisVertical,
+                                contentDescription = "更多"
+                            )
+                        }
                     }
                 }
             )
@@ -559,6 +648,7 @@ fun LibraryScreen(
         if (showSortSheet) {
             BackHandler { showSortSheet = false }
             SortSheet(
+                options = sortOptions,
                 currentField = sortField,
                 currentOrder = sortOrder,
                 onDismiss = { showSortSheet = false },
@@ -852,11 +942,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.SongsContent(
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
-    albums: List<LibraryViewModel.Album>,
+    albums: List<cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album>,
     columns: Int,
+    viewStyle: String,
     selectionMode: Boolean = false,
     selectedSongIds: SnapshotStateSet<Long>? = null,
-    onAlbumClick: (LibraryViewModel.Album) -> Unit
+    onAlbumClick: (cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album) -> Unit
 ) {
     item {
         Text(
@@ -867,40 +958,265 @@ private fun androidx.compose.foundation.lazy.LazyListScope.AlbumsContent(
         )
     }
 
-    val rows = albums.chunked(columns)
-    items(rows.size, key = { rows[it].first().name + "#" + rows[it].first().artist }) { index ->
-        val rowAlbums = rows[index]
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            rowAlbums.forEach { album ->
-                AlbumItem(
+    fun isSelected(album: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album): Boolean =
+        selectedSongIds?.let { sel ->
+            album.songs.isNotEmpty() && album.songs.all { it.id in sel }
+        } == true
+
+    fun onAlbumToggle(album: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album) {
+        if (selectionMode && selectedSongIds != null) {
+            val ids = album.songs.map { it.id }
+            val allSelected = ids.isNotEmpty() && ids.all { it in selectedSongIds }
+            if (allSelected) {
+                ids.forEach { selectedSongIds.remove(it) }
+            } else {
+                selectedSongIds.addAll(ids)
+            }
+        } else {
+            onAlbumClick(album)
+        }
+    }
+
+    fun albumKey(album: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album) = album.name + "#" + album.artist
+
+    when (viewStyle) {
+        // 列表：整行封面 + 文字，选择标志右中（对齐歌单列表）
+        "list" -> {
+            items(albums, key = { albumKey(it) }) { album ->
+                AlbumListRow(
                     album = album,
                     selectionMode = selectionMode,
-                    selected = selectedSongIds?.let { sel ->
-                        album.songs.isNotEmpty() && album.songs.all { it.id in sel }
-                    } == true,
-                    onClick = {
-                        if (selectionMode && selectedSongIds != null) {
-                            val ids = album.songs.map { it.id }
-                            val allSelected = ids.isNotEmpty() && ids.all { it in selectedSongIds }
-                            if (allSelected) {
-                                ids.forEach { selectedSongIds.remove(it) }
-                            } else {
-                                selectedSongIds.addAll(ids)
-                            }
-                        } else {
-                            onAlbumClick(album)
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
+                    selected = isSelected(album),
+                    onClick = { onAlbumToggle(album) }
                 )
             }
-            if (rowAlbums.size == 1) {
-                Spacer(modifier = Modifier.weight(1f))
+        }
+        // 卡片：Card 大封面 + 文字，选择标志右上
+        "card" -> {
+            val rows = albums.chunked(columns)
+            items(rows.size, key = { albumKey(rows[it].first()) }) { index ->
+                val rowAlbums = rows[index]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowAlbums.forEach { album ->
+                        AlbumCardItem(
+                            album = album,
+                            selectionMode = selectionMode,
+                            selected = isSelected(album),
+                            onClick = { onAlbumToggle(album) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (rowAlbums.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+        // 方形：方形封面 + 名称/艺术家，选择标志右上（对齐歌单方形）
+        "square" -> {
+            val rows = albums.chunked(columns)
+            items(rows.size, key = { albumKey(rows[it].first()) }) { index ->
+                val rowAlbums = rows[index]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowAlbums.forEach { album ->
+                        AlbumItem(
+                            album = album,
+                            selectionMode = selectionMode,
+                            selected = isSelected(album),
+                            onClick = { onAlbumToggle(album) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (rowAlbums.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+        // 双栏列表：横向紧凑卡片，选择标志右中（对齐歌单双栏列表）
+        else -> {
+            val rows = albums.chunked(columns)
+            items(rows.size, key = { albumKey(rows[it].first()) }) { index ->
+                val rowAlbums = rows[index]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowAlbums.forEach { album ->
+                        AlbumGridItem(
+                            album = album,
+                            selectionMode = selectionMode,
+                            selected = isSelected(album),
+                            onClick = { onAlbumToggle(album) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (rowAlbums.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 双栏列表项：56dp 圆角封面 + 名称/艺术家（仿歌单双栏列表） */
+@Composable
+private fun AlbumGridItem(
+    album: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SongCoverImage(
+                songId = album.coverSongId,
+                modifier = Modifier.size(56.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = album.name,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = album.artist,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (selectionMode) {
+            // 多选标志统一右侧垂直居中（对齐歌单双栏列表）
+            SelectionIndicator(
+                selected = selected,
+                modifier = Modifier.align(Alignment.CenterEnd).size(20.dp)
+            )
+        }
+    }
+}
+
+/** 列表项：48dp 圆角封面 + 名称/艺术家（仿歌单列表） */
+@Composable
+private fun AlbumListRow(
+    album: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album,
+    onClick: () -> Unit,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SongCoverImage(
+            songId = album.coverSongId,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = album.name,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = album.artist,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (selectionMode) {
+            // 多选标志统一右侧垂直居中
+            SelectionIndicator(
+                selected = selected,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/** 卡片项：Card 大封面 + 名称/艺术家（仿歌单卡片） */
+@Composable
+private fun AlbumCardItem(
+    album: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Album,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    selected: Boolean = false
+) {
+    // Card 背景圆角不裁切内容，需 clip 整卡让封面顶部贴合圆角（封面本身不加圆角）
+    top.yukonga.miuix.kmp.basic.Card(
+        modifier = modifier.clip(RoundedCornerShape(16.dp)),
+        pressFeedbackType = top.yukonga.miuix.kmp.utils.PressFeedbackType.Sink,
+        onClick = onClick,
+    ) {
+        Box {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SongCoverImage(
+                    songId = album.coverSongId,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        // 卡片视图：封面自身不带圆角，由 Card 裁切上方圆角
+                        .clip(RoundedCornerShape(0.dp))
+                )
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Text(
+                        text = album.name,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = album.artist,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (selectionMode) {
+                // 卡片视图：多选标志保留封面右上角
+                SelectionIndicator(
+                    selected = selected,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                )
             }
         }
     }
@@ -950,12 +1266,15 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(
 private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     songs: List<Song>,
     hiddenFolders: Set<String>,
+    showHiddenFolders: Boolean = false,
+    sortField: SortField = SortField.FOLDER_PATH,
+    sortOrder: SortOrder = SortOrder.ASC,
     selectionMode: Boolean = false,
     selectedSongIds: SnapshotStateSet<Long>? = null,
     onFolderClick: (String) -> Unit,
     onHideFolder: (String) -> Unit
 ) {
-    val visibleSongs = songs.filterNot { song ->
+    val visibleSongs = if (showHiddenFolders) songs else songs.filterNot { song ->
         hiddenFolders.any { hidden -> song.path.startsWith(hidden) }
     }
 
@@ -974,7 +1293,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     }
 
     val folderMap = visibleSongs.groupBy { it.path.substringBeforeLast('/') }
-    val sortedFolders = folderMap.toSortedMap()
+    // 排序：路径 / 文件夹名称（方向由 SortOrder 控制）
+    val sortedFolders = when (sortField) {
+        SortField.FOLDER_NAME -> {
+            val entries = folderMap.entries.sortedBy { it.key.substringAfterLast('/').lowercase() }
+            if (sortOrder == SortOrder.DESC) entries.reversed() else entries
+        }
+        else -> {
+            val entries = folderMap.entries.sortedBy { it.key.lowercase() }
+            if (sortOrder == SortOrder.DESC) entries.reversed() else entries
+        }
+    }
 
     item {
         Text(
@@ -986,6 +1315,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     }
 
     sortedFolders.forEach { (folderPath, folderSongs) ->
+        val isHidden = hiddenFolders.contains(folderPath)
         item(key = folderPath) {
             var showOptions by remember { mutableStateOf(false) }
             Row(
@@ -1015,13 +1345,28 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = folderPath.substringAfterLast('/'),
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = folderPath.substringAfterLast('/'),
+                            style = MiuixTheme.textStyles.body1,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (isHidden) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "已隐藏",
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(MiuixTheme.colorScheme.surfaceVariant)
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
                     Text(
                         text = folderPath,
                         style = MiuixTheme.textStyles.footnote2,
@@ -1207,10 +1552,11 @@ internal fun AlbumItem(
                     .clip(RoundedCornerShape(8.dp))
             )
             if (selectionMode) {
+                // 方形视图：多选标志保留封面右上角（对齐歌单方形视图）
                 SelectionIndicator(
                     selected = selected,
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
+                        .align(Alignment.TopEnd)
                         .padding(6.dp)
                         .size(22.dp)
                 )

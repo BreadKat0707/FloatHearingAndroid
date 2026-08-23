@@ -38,6 +38,8 @@ import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.EllipsisVertical
+import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Play
@@ -65,6 +67,7 @@ fun FolderDetailScreen(
 ) {
     val context = LocalContext.current
     val allSongs by libraryViewModel.songs.collectAsState(initial = emptyList())
+    val hiddenFolders by libraryViewModel.hiddenFolders.collectAsState(initial = emptySet())
     // 仅直接子文件：与媒体库-文件夹 tab 的文件夹划分一致
     val folderSongs = remember(allSongs, folderPath) {
         allSongs.filter { it.path.substringBeforeLast('/') == folderPath }
@@ -72,6 +75,7 @@ fun FolderDetailScreen(
     val folderName = folderPath.substringAfterLast('/').ifBlank { folderPath }
     val totalDuration = folderSongs.sumOf { it.duration }
     val meta = "${folderSongs.size} 首 · ${formatFolderDuration(totalDuration)}"
+    val isHidden = hiddenFolders.contains(folderPath)
 
     // 歌曲更多菜单（三点菜单）
     var menuSong by remember { mutableStateOf<Song?>(null) }
@@ -109,6 +113,31 @@ fun FolderDetailScreen(
                             contentDescription = "返回",
                             tint = MiuixTheme.colorScheme.onSurface
                         )
+                    }
+                },
+                actions = {
+                    // 已隐藏的文件夹：提供取消隐藏入口
+                    if (isHidden) {
+                        top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
+                            entries = listOf(
+                                top.yukonga.miuix.kmp.basic.DropdownEntry(
+                                    items = listOf(
+                                        top.yukonga.miuix.kmp.basic.DropdownItem(
+                                            "取消隐藏",
+                                            icon = { mod -> Icon(Lucide.EyeOff, null, modifier = mod) },
+                                            onClick = { libraryViewModel.unhideFolder(folderPath) }
+                                        )
+                                    )
+                                )
+                            ),
+                            minHeight = 40.dp,
+                            minWidth = 40.dp,
+                        ) {
+                            Icon(
+                                imageVector = Lucide.EllipsisVertical,
+                                contentDescription = "更多"
+                            )
+                        }
                     }
                 }
             )

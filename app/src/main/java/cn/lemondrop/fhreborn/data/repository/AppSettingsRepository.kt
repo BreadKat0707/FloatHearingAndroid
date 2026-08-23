@@ -36,6 +36,10 @@ class AppSettingsRepository(private val context: Context) {
     val playlistViewStyle: Flow<String> = dataStore.data.map { it[stringPreferencesKey("playlist_view_style")] ?: "list" }
     suspend fun setPlaylistViewStyle(value: String) = dataStore.edit { it[stringPreferencesKey("playlist_view_style")] = value }
 
+    /** 媒体库-专辑视图样式：list / grid / card / square */
+    val albumViewStyle: Flow<String> = dataStore.data.map { it[stringPreferencesKey("album_view_style")] ?: "grid" }
+    suspend fun setAlbumViewStyle(value: String) = dataStore.edit { it[stringPreferencesKey("album_view_style")] = value }
+
     val accentColor: Flow<String> = dataStore.data.map { it[stringPreferencesKey("accent_color")] ?: "default" }
     suspend fun setAccentColor(value: String) = dataStore.edit { it[stringPreferencesKey("accent_color")] = value }
 

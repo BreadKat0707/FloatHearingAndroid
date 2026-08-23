@@ -32,7 +32,8 @@ import kotlinx.coroutines.withContext
 
 enum class SortField {
     TITLE, ARTIST_ALBUM, ALBUM_DISC_TRACK, MODIFIED_TIME, ADDED_TIME,
-    PLAY_COUNT, PATH_FILENAME, FILE_NAME, RELEASE_YEAR, DURATION
+    PLAY_COUNT, PATH_FILENAME, FILE_NAME, RELEASE_YEAR, DURATION,
+    FOLDER_PATH, FOLDER_NAME
 }
 
 enum class SortOrder { ASC, DESC }
@@ -104,6 +105,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             SortField.FILE_NAME -> compareBy { it.path.substringAfterLast('/').lowercase() }
             SortField.RELEASE_YEAR -> compareBy { it.year ?: 0 }
             SortField.DURATION -> compareBy { it.duration }
+            // 文件夹排序字段不作用于歌曲列表
+            SortField.FOLDER_PATH, SortField.FOLDER_NAME -> compareBy { it.path.lowercase() }
         }
 
         val finalComparator = if (order == SortOrder.DESC) comparator.reversed() else comparator

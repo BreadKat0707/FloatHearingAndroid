@@ -2,10 +2,9 @@ package cn.lemondrop.fhreborn.ui.screens.settings
 
 import android.app.Application
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,11 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -39,11 +40,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+import cn.lemondrop.fhreborn.BuildConfig
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalPlayerOpen
@@ -62,19 +70,14 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.FolderOpen
-import com.composables.icons.lucide.Github
 import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
-import com.composables.icons.lucide.MessageSquare
 import com.composables.icons.lucide.MonitorSpeaker
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Puzzle
-import com.composables.icons.lucide.RefreshCw
-import com.composables.icons.lucide.ScrollText
-import com.composables.icons.lucide.Send
 import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
 import com.composables.icons.lucide.X
@@ -328,7 +331,6 @@ fun SettingsScreen(
                     )
 
                     SettingsPage.About -> AboutContent(
-                        viewModel = viewModel,
                         paddingValues = padding,
                         onOpenSource = { pageStack.add(SettingsPage.OpenSourceLicenses) }
                     )
@@ -840,122 +842,164 @@ private fun buildCategories(): List<SettingCategory> {
         )
     )
 }
-/** 关于页：miuix 风格信息卡 + 链接列表（Telegram / GitHub / 开源许可等） */
+/** 关于页：参照 miuix example 的 AboutPage——Logo 滚动视差头部 + Card 分组的 ArrowPreference 链接 */
 @Composable
 private fun AboutContent(
-    viewModel: SettingsViewModel,
     paddingValues: PaddingValues,
     onOpenSource: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    fun openUrl(url: String) {
-        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-    }
+    val uriHandler = LocalUriHandler.current
+    val listState = rememberLazyListState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(top = paddingValues.calculateTopPadding(), bottom = paddingValues.calculateBottomPadding() + 160.dp)
-    ) {
-        // App 信息卡
-        top.yukonga.miuix.kmp.basic.Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MiuixTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Lucide.Music,
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = MiuixTheme.colorScheme.onPrimary
-                    )
+    // 滚动进度：Logo 区滚出顶栏区域时从 0 渐变到 1
+    val scrollProgress by remember {
+        derivedStateOf {
+            when {
+                listState.firstVisibleItemIndex > 0 -> 1f
+                else -> {
+                    val spacer = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "logoSpacer" }
+                    if (spacer != null && spacer.size > 0) {
+                        (listState.firstVisibleItemScrollOffset.toFloat() / spacer.size).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "FloatHearing",
-                    style = MiuixTheme.textStyles.title1,
-                    color = MiuixTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "FH Reborn v1.0.0",
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                )
             }
         }
+    }
+    // 各元素按不同进度淡出缩小（与 miuix example 一致的视差节奏）
+    val iconProgress = ((scrollProgress - 0.35f) / 0.15f).coerceIn(0f, 1f)
+    val titleProgress = ((scrollProgress - 0.20f) / 0.15f).coerceIn(0f, 1f)
+    val versionProgress = ((scrollProgress - 0.05f) / 0.15f).coerceIn(0f, 1f)
 
-        // 链接列表
-        cn.lemondrop.fhreborn.ui.components.FhListItem(
-            title = "Telegram 频道",
-            summary = "@breadkat_nest",
-            leading = {
-                Icon(
-                    imageVector = Lucide.Send,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary
-                )
-            },
-            onClick = { openUrl("https://t.me/breadkat_nest") }
-        )
-        cn.lemondrop.fhreborn.ui.components.FhListItem(
-            title = "GitHub 仓库",
-            summary = "BreadKat0707/FloatHearingAndroid",
-            leading = {
-                Icon(
-                    imageVector = Lucide.Github,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary
-                )
-            },
-            onClick = { openUrl("https://github.com/BreadKat0707/FloatHearingAndroid") }
-        )
-        cn.lemondrop.fhreborn.ui.components.FhListItem(
-            title = "开源许可",
-            leading = {
-                Icon(
-                    imageVector = Lucide.ScrollText,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary
-                )
-            },
-            onClick = onOpenSource
-        )
-        cn.lemondrop.fhreborn.ui.components.FhListItem(
-            title = "检查更新",
-            leading = {
-                Icon(
-                    imageVector = Lucide.RefreshCw,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary
-                )
-            },
-            onClick = { /* TODO: 检查更新 */ }
-        )
-        cn.lemondrop.fhreborn.ui.components.FhListItem(
-            title = "反馈",
-            summary = "意见或建议请通过 Telegram 联系",
-            leading = {
-                Icon(
-                    imageVector = Lucide.MessageSquare,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary
-                )
-            },
-            onClick = { openUrl("https://t.me/breadkat_nest") }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding(),
+                bottom = paddingValues.calculateBottomPadding() + 160.dp
+            )
+        ) {
+            // Logo 头部：图标 + 应用名 + 版本号，滚动时淡出
+            item(key = "logoSpacer") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(88.dp)
+                            .graphicsLayer {
+                                val p = iconProgress
+                                clip = true
+                                shape = RoundedCornerShape(24.dp)
+                                alpha = 1 - p
+                                scaleX = 1 - p * 0.05f
+                                scaleY = 1 - p * 0.05f
+                            }
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(cn.lemondrop.fhreborn.R.mipmap.ic_launcher),
+                            contentDescription = null,
+                            modifier = Modifier.size(74.dp)
+                        )
+                    }
+                    Text(
+                        text = "FloatHearing",
+                        modifier = Modifier
+                            .padding(top = 12.dp, bottom = 5.dp)
+                            .graphicsLayer {
+                                val p = titleProgress
+                                alpha = 1 - p
+                                scaleX = 1 - p * 0.05f
+                                scaleY = 1 - p * 0.05f
+                            },
+                        color = MiuixTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 35.sp
+                    )
+                    Text(
+                        text = "v${BuildConfig.VERSION_NAME}",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                val p = versionProgress
+                                alpha = 1 - p
+                                scaleX = 1 - p * 0.05f
+                                scaleY = 1 - p * 0.05f
+                            },
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            // 链接卡片：GitHub / Telegram / 许可 / 更新 / 反馈
+            item(key = "about") {
+                Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                    Card {
+                        ArrowPreference(
+                            title = "GitHub 仓库",
+                            endActions = {
+                                Text(
+                                    text = "BreadKat0707/FloatHearingAndroid",
+                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                )
+                            },
+                            onClick = { uriHandler.openUri("https://github.com/BreadKat0707/FloatHearingAndroid") }
+                        )
+                        ArrowPreference(
+                            title = "Telegram 频道",
+                            endActions = {
+                                Text(
+                                    text = "@breadkat_nest",
+                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                )
+                            },
+                            onClick = { uriHandler.openUri("https://t.me/breadkat_nest") }
+                        )
+                    }
+                    Card(modifier = Modifier.padding(top = 12.dp)) {
+                        ArrowPreference(
+                            title = "开源许可",
+                            onClick = onOpenSource
+                        )
+                        ArrowPreference(
+                            title = "检查更新",
+                            onClick = { /* TODO: 检查更新 */ }
+                        )
+                        ArrowPreference(
+                            title = "反馈",
+                            endActions = {
+                                Text(
+                                    text = "Telegram",
+                                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                )
+                            },
+                            onClick = { uriHandler.openUri("https://t.me/breadkat_nest") }
+                        )
+                    }
+                }
+            }
+        }
+        // 滚动条（不渲染在顶栏/底栏之下层）
+        LazyListScrollBar(
+            listState = listState,
+            modifier = Modifier.align(Alignment.CenterEnd),
+            trackPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding(),
+                bottom = paddingValues.calculateBottomPadding() + 160.dp
+            )
         )
     }
 }

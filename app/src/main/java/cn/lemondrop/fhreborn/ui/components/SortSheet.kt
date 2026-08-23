@@ -32,24 +32,14 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SortSheet(
+    options: List<Pair<SortField, String>>,
     currentField: SortField,
     currentOrder: SortOrder,
     onDismiss: () -> Unit,
     onSelectField: (SortField) -> Unit,
     onToggleOrder: () -> Unit
 ) {
-    val sortOptions = listOf(
-        SortField.TITLE to "标题",
-        SortField.ARTIST_ALBUM to "艺术家 - 专辑",
-        SortField.ALBUM_DISC_TRACK to "专辑 - 碟号 - 音轨号",
-        SortField.MODIFIED_TIME to "修改时间",
-        SortField.ADDED_TIME to "添加时间",
-        SortField.PLAY_COUNT to "播放次数",
-        SortField.PATH_FILENAME to "路径 - 文件名",
-        SortField.FILE_NAME to "文件名",
-        SortField.RELEASE_YEAR to "发行时间",
-        SortField.DURATION to "曲目时长"
-    )
+    val sortOptions = options
 
     FhBottomSheet(
         show = true,
