@@ -18,7 +18,7 @@ datastore = "1.1.6"
 coroutines = "1.10.2"
 lucide = "1.0.0"
 jaudiotagger = "3.0.1"
-miuix = "0.9.3"
+miuix = "0.9.4-rc01"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

@@ -2,7 +2,7 @@ package cn.lemondrop.fhreborn.ui.screens.folderbrowser
 
 import android.app.Application
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -26,8 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
@@ -41,10 +41,8 @@ import cn.lemondrop.fhreborn.ui.screens.library.buildFileTree
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ChevronLeft
-import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
-import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -197,19 +195,24 @@ fun FolderBrowserScreen(
                 )
             )
 
-            // 地址栏：固定在底部标题栏上方，左侧返回上级，中间路径面包屑
+            // 地址栏：固定在底部标题栏上方，左侧返回上级，右侧 miuix BreadcrumbBar
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(bottom = padding.calculateBottomPadding())
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 8.dp,
+                        bottom = padding.calculateBottomPadding()
+                    )
             ) {
-                HorizontalDivider()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(addressBarHeight)
-                        .padding(horizontal = 4.dp),
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MiuixTheme.colorScheme.surfaceContainer),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -229,31 +232,17 @@ fun FolderBrowserScreen(
                         )
                     }
 
-                    androidx.compose.foundation.lazy.LazyRow(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        itemsIndexed(breadcrumb) { index, name ->
-                            val isLast = index == breadcrumb.lastIndex
-                            Text(
-                                text = name,
-                                style = MiuixTheme.textStyles.body2,
-                                color = if (isLast) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
-                                modifier = Modifier.clickable(enabled = !isLast) {
-                                    currentPath = if (index <= 1) emptyList() else currentPath.take(index - 1)
-                                }
-                            )
-                            if (!isLast) {
-                                Icon(
-                                    imageVector = Lucide.ChevronRight,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                                )
-                            }
-                        }
-                    }
+                    top.yukonga.miuix.kmp.basic.BreadcrumbBar(
+                        items = breadcrumb.map { name ->
+                            top.yukonga.miuix.kmp.basic.BreadcrumbItem(path = name, text = name)
+                        },
+                        onItemClick = { index ->
+                            // breadcrumb: ["根", part0, part1, ...]
+                            // 点击根 -> 根目录；点击第 i 段 -> 保留前 i 段路径
+                            currentPath = if (index == 0) emptyList() else currentPath.take(index)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }

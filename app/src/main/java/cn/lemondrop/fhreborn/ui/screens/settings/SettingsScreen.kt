@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,14 +62,19 @@ import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.Database
 import com.composables.icons.lucide.FolderOpen
+import com.composables.icons.lucide.Github
 import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
+import com.composables.icons.lucide.MessageSquare
 import com.composables.icons.lucide.MonitorSpeaker
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Palette
 import com.composables.icons.lucide.Puzzle
+import com.composables.icons.lucide.RefreshCw
+import com.composables.icons.lucide.ScrollText
+import com.composables.icons.lucide.Send
 import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
 import com.composables.icons.lucide.X
@@ -138,6 +145,7 @@ fun SettingsScreen(
             "open_source" -> pageStack.add(SettingsPage.OpenSourceLicenses)
             "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
             "reset_stats" -> showResetStatsConfirm = true
+            "about_page" -> pageStack.add(SettingsPage.About)
         }
     }
 
@@ -183,6 +191,7 @@ fun SettingsScreen(
             SettingsPage.AccompanistLyric -> "Accompanist Lyric 设置"
             SettingsPage.OpenSourceLicenses -> "开源许可"
             SettingsPage.PlayerBackground -> "播放器页面背景"
+            SettingsPage.About -> "关于"
         }
     }
 
@@ -317,6 +326,12 @@ fun SettingsScreen(
                         paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
+
+                    SettingsPage.About -> AboutContent(
+                        viewModel = viewModel,
+                        paddingValues = padding,
+                        onOpenSource = { pageStack.add(SettingsPage.OpenSourceLicenses) }
+                    )
                 }
             }
         }
@@ -331,6 +346,7 @@ private sealed class SettingsPage {
     data object AccompanistLyric : SettingsPage()
     data object OpenSourceLicenses : SettingsPage()
     data object PlayerBackground : SettingsPage()
+    data object About : SettingsPage()
 }
 
 @Composable
@@ -393,7 +409,9 @@ private fun SettingsListContent(
     // 滚动条：自动淡入淡出，可拖动定位
     LazyListScrollBar(
         listState = listState,
-        modifier = Modifier.align(Alignment.CenterEnd)
+        modifier = Modifier.align(Alignment.CenterEnd),
+        // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
+        trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = bottomOverlayHeight)
     )
     }
 }
@@ -817,12 +835,127 @@ private fun buildCategories(): List<SettingCategory> {
             title = "关于",
             icon = Lucide.Heart,
             items = listOf(
-                SettingItem("app_version", "版本", "FH Reborn v1.0.0", null, SettingType.Info, "v1.0.0"),
-                SettingItem("open_source", "开源许可", "查看第三方库许可证", null, SettingType.Navigation),
-                SettingItem("privacy_policy", "隐私政策", null, null, SettingType.Navigation),
-                SettingItem("check_update", "检查更新", null, null, SettingType.Navigation),
-                SettingItem("feedback", "反馈", "发送意见或建议", null, SettingType.Navigation)
+                SettingItem("about_page", "关于", "版本信息与相关链接", null, SettingType.Navigation)
             )
         )
     )
+}
+/** 关于页：miuix 风格信息卡 + 链接列表（Telegram / GitHub / 开源许可等） */
+@Composable
+private fun AboutContent(
+    viewModel: SettingsViewModel,
+    paddingValues: PaddingValues,
+    onOpenSource: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    fun openUrl(url: String) {
+        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(top = paddingValues.calculateTopPadding(), bottom = paddingValues.calculateBottomPadding() + 160.dp)
+    ) {
+        // App 信息卡
+        top.yukonga.miuix.kmp.basic.Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MiuixTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Lucide.Music,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MiuixTheme.colorScheme.onPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "FloatHearing",
+                    style = MiuixTheme.textStyles.title1,
+                    color = MiuixTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "FH Reborn v1.0.0",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
+        }
+
+        // 链接列表
+        cn.lemondrop.fhreborn.ui.components.FhListItem(
+            title = "Telegram 频道",
+            summary = "@breadkat_nest",
+            leading = {
+                Icon(
+                    imageVector = Lucide.Send,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary
+                )
+            },
+            onClick = { openUrl("https://t.me/breadkat_nest") }
+        )
+        cn.lemondrop.fhreborn.ui.components.FhListItem(
+            title = "GitHub 仓库",
+            summary = "BreadKat0707/FloatHearingAndroid",
+            leading = {
+                Icon(
+                    imageVector = Lucide.Github,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary
+                )
+            },
+            onClick = { openUrl("https://github.com/BreadKat0707/FloatHearingAndroid") }
+        )
+        cn.lemondrop.fhreborn.ui.components.FhListItem(
+            title = "开源许可",
+            leading = {
+                Icon(
+                    imageVector = Lucide.ScrollText,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary
+                )
+            },
+            onClick = onOpenSource
+        )
+        cn.lemondrop.fhreborn.ui.components.FhListItem(
+            title = "检查更新",
+            leading = {
+                Icon(
+                    imageVector = Lucide.RefreshCw,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary
+                )
+            },
+            onClick = { /* TODO: 检查更新 */ }
+        )
+        cn.lemondrop.fhreborn.ui.components.FhListItem(
+            title = "反馈",
+            summary = "意见或建议请通过 Telegram 联系",
+            leading = {
+                Icon(
+                    imageVector = Lucide.MessageSquare,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary
+                )
+            },
+            onClick = { openUrl("https://t.me/breadkat_nest") }
+        )
+    }
 }

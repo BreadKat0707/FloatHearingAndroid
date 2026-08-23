@@ -57,6 +57,7 @@ import cn.lemondrop.fhreborn.ui.screens.album.AlbumDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.artist.ArtistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderBrowserScreen
+import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.ideas.IdeasScreen
 import cn.lemondrop.fhreborn.ui.screens.library.LibraryScreen
 import cn.lemondrop.fhreborn.ui.screens.onboarding.OnboardingScreen
@@ -75,6 +76,9 @@ sealed class Screen(val route: String) {
     data object Library : Screen("library")
     data object Playlists : Screen("playlists")
     data object FolderBrowser : Screen("folder_browser")
+    data object FolderDetail : Screen("folder_detail/{folderPath}") {
+        fun createRoute(folderPath: String) = "folder_detail/${Uri.encode(folderPath)}"
+    }
     data object Ideas : Screen("ideas")
     data object Settings : Screen("settings")
     data object Statistics : Screen("statistics")
@@ -410,6 +414,24 @@ fun FHRebornApp() {
                             restoreState = true
                         }
                     }
+                )
+            }
+
+            composable(
+                route = Screen.FolderDetail.route,
+                arguments = listOf(
+                    navArgument("folderPath") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val folderPath = backStackEntry.arguments?.getString("folderPath") ?: ""
+                val libraryViewModel: LibraryViewModel = viewModel(
+                    factory = LibraryViewModel.Factory(context.applicationContext as Application)
+                )
+                FolderDetailScreen(
+                    folderPath = folderPath,
+                    onBack = { navController.navigateUp() },
+                    playerViewModel = playerViewModel,
+                    libraryViewModel = libraryViewModel
                 )
             }
 

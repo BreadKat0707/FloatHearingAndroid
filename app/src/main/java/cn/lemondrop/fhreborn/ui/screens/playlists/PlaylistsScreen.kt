@@ -407,7 +407,9 @@ fun PlaylistsScreen(
                         }
                         LazyGridScrollBar(
                             gridState = gridState,
-                            modifier = Modifier.align(Alignment.CenterEnd)
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
                         )
                     }
                     "card" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
@@ -437,7 +439,9 @@ fun PlaylistsScreen(
                         }
                         LazyGridScrollBar(
                             gridState = gridState,
-                            modifier = Modifier.align(Alignment.CenterEnd)
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
                         )
                     }
                     "square" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
@@ -467,7 +471,9 @@ fun PlaylistsScreen(
                         }
                         LazyGridScrollBar(
                             gridState = gridState,
-                            modifier = Modifier.align(Alignment.CenterEnd)
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
                         )
                     }
                     else -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
@@ -496,7 +502,9 @@ fun PlaylistsScreen(
                         }
                         LazyListScrollBar(
                             listState = listState,
-                            modifier = Modifier.align(Alignment.CenterEnd)
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
                         )
                     }
                 }

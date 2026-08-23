@@ -490,7 +490,9 @@ fun PlaylistDetailScreen(
             // 滚动条：自动淡入淡出，可拖动定位
             LazyListScrollBar(
                 listState = listState,
-                modifier = Modifier.align(Alignment.CenterEnd)
+                modifier = Modifier.align(Alignment.CenterEnd),
+                // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
+                trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight)
             )
             }
 

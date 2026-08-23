@@ -11,26 +11,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -53,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
@@ -78,7 +69,6 @@ import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PermissionUtils
 import com.composables.icons.lucide.DiscAlbum
-import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.ChevronRight
@@ -164,8 +154,6 @@ fun LibraryScreen(
 
     // 当前 tab 保存：从专辑/艺术家等 tab 进入二级页返回后仍停留原 tab
     var selectedNavIndex by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
-    var showFolderBrowser by remember { mutableStateOf(false) }
-    var folderBrowserInitialPath by remember { mutableStateOf(listOf<String>()) }
     var showSongMenu by remember { mutableStateOf(false) }
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
@@ -403,9 +391,8 @@ fun LibraryScreen(
                     hiddenFolders = hiddenFolders,
                     selectionMode = multiSelectMode,
                     selectedSongIds = selectedSongIds,
-                    onFolderClick = { pathParts ->
-                        folderBrowserInitialPath = pathParts
-                        showFolderBrowser = true
+                    onFolderClick = { folderPath ->
+                        onNavigate(Screen.FolderDetail.createRoute(folderPath))
                     },
                     onHideFolder = { viewModel.hideFolder(it) }
                 )
@@ -568,17 +555,6 @@ fun LibraryScreen(
             }
         }
     ) { padding ->
-        // 浏览路径 — 文件管理器式覆盖层
-        if (showFolderBrowser) {
-            BackHandler { showFolderBrowser = false }
-            FolderBrowserOverlay(
-                songs = songs,
-                initialPath = folderBrowserInitialPath,
-                playerViewModel = playerViewModel,
-                onDismiss = { showFolderBrowser = false }
-            )
-        }
-
         // 排序弹窗
         if (showSortSheet) {
             BackHandler { showSortSheet = false }
@@ -976,7 +952,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     hiddenFolders: Set<String>,
     selectionMode: Boolean = false,
     selectedSongIds: SnapshotStateSet<Long>? = null,
-    onFolderClick: (List<String>) -> Unit,
+    onFolderClick: (String) -> Unit,
     onHideFolder: (String) -> Unit
 ) {
     val visibleSongs = songs.filterNot { song ->
@@ -1025,8 +1001,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                                 selectedSongIds.addAll(ids)
                             }
                         } else {
-                            val parts = folderPath.split('/').filter { it.isNotEmpty() }
-                            onFolderClick(parts)
+                            onFolderClick(folderPath)
                         }
                     }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -1352,170 +1327,6 @@ internal fun buildFileTree(songs: List<Song>): FileNode {
     return root
 }
 
-@Composable
-internal fun FolderBrowserOverlay(
-    songs: List<Song>,
-    initialPath: List<String> = emptyList(),
-    playerViewModel: PlayerViewModel,
-    onDismiss: () -> Unit
-) {
-    val rootNode = remember(songs) { buildFileTree(songs) }
-    var currentPath by remember { mutableStateOf(initialPath) }
-
-    val currentNode = remember(rootNode, currentPath) {
-        var node = rootNode
-        for (part in currentPath) {
-            node = node.children[part] ?: break
-        }
-        node
-    }
-
-    val foldersInCurrent = remember(currentNode) {
-        currentNode.children.values
-            .filter { it.isDirectory }
-            .sortedBy { it.name.lowercase() }
-    }
-
-    val songsInCurrent = remember(currentNode) {
-        currentNode.children.values
-            .filter { !it.isDirectory && it.song != null }
-            .sortedBy { it.name.lowercase() }
-            .mapNotNull { it.song }
-    }
-
-    val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues()
-    val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
-    val bottomControlsHeight = 56.dp + navBarPadding
-
-    // 地址栏路径：根 > 一级 > 二级
-    val breadcrumb = listOf("根") + currentPath
-
-    val cutoutPadding = WindowInsets.displayCutout.asPaddingValues()
-    val cutoutLeft = cutoutPadding.calculateLeftPadding(LayoutDirection.Ltr)
-    val cutoutRight = cutoutPadding.calculateRightPadding(LayoutDirection.Ltr)
-
-    BackHandler {
-        if (currentPath.isEmpty()) {
-            onDismiss()
-        } else {
-            currentPath = currentPath.dropLast(1)
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = statusBarPadding.calculateTopPadding(),
-                    start = cutoutLeft,
-                    end = cutoutRight
-                )
-        ) {
-            // 地址栏
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                itemsIndexed(breadcrumb) { index, name ->
-                    val isLast = index == breadcrumb.lastIndex
-                    Text(
-                        text = name,
-                        style = MiuixTheme.textStyles.body2,
-                        color = if (isLast) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable(enabled = !isLast) {
-                            // breadcrumb: ["根", part0, part1, ...]
-                            // 点击根 -> 空路径；点击第 n 个 -> 保留前 n-1 段
-                            currentPath = if (index <= 1) emptyList() else currentPath.take(index - 1)
-                        }
-                    )
-                    if (!isLast) {
-                        Icon(
-                            imageVector = Lucide.ChevronRight,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        )
-                    }
-                }
-            }
-
-            HorizontalDivider()
-
-            // 文件/文件夹列表
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = 8.dp,
-                    bottom = bottomControlsHeight + 16.dp
-                )
-            ) {
-                if (foldersInCurrent.isEmpty() && songsInCurrent.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(64.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("此目录为空", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                        }
-                    }
-                } else {
-                    items(foldersInCurrent, key = { it.path }) { item ->
-                        FileBrowserItemRow(
-                            item = item,
-                            onClick = {
-                                currentPath = currentPath + item.name
-                            }
-                        )
-                    }
-                    items(songsInCurrent, key = { it.id }) { song ->
-                        SongItem(
-                            song = song,
-                            onClick = {
-                                playerViewModel.playSongs(songsInCurrent, songsInCurrent.indexOf(song))
-                            },
-                            onMoreClick = { /* TODO: 歌曲更多操作 */ }
-                        )
-                    }
-                }
-            }
-        }
-
-        // 底部标题栏
-        BlurTopBar(
-            title = if (currentPath.isEmpty()) "浏览路径" else currentNode.path,
-            navigationIcon = {
-                IconButton(onClick = {
-                    if (currentPath.isEmpty()) {
-                        onDismiss()
-                    } else {
-                        currentPath = currentPath.dropLast(1)
-                    }
-                }) {
-                    Icon(
-                        imageVector = Lucide.ArrowLeft,
-                        contentDescription = if (currentPath.isEmpty()) "关闭" else "返回上级",
-                    )
-                }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(
-                    bottom = navBarPadding,
-                    start = cutoutLeft,
-                    end = cutoutRight
-                )
-        )
-    }
-}
 
 @Composable
 internal fun FileBrowserItemRow(

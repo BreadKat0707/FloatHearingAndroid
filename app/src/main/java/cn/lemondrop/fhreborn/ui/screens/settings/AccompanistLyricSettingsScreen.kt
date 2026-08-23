@@ -269,7 +269,7 @@ fun AccompanistLyricSettingsContent(
     LazyListScrollBar(
         listState = listState,
         modifier = Modifier.align(Alignment.CenterEnd),
-        trackPadding = PaddingValues(top = paddingValues.calculateTopPadding())
+        trackPadding = PaddingValues(top = paddingValues.calculateTopPadding(), bottom = bottomOverlayHeight)
     )
     }
 }
