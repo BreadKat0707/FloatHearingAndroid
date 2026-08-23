@@ -43,9 +43,7 @@ fun PlayerBackgroundPickerContent(
         .collectAsState(initial = PlayerBackgroundType.CoverBlur.key)
 
     val options = listOf(
-        PlayerBackgroundType.RotatingFluid to "旋转流体背景",
         PlayerBackgroundType.AgslFluid to "AGSL 流体背景",
-        PlayerBackgroundType.AccordBlend to "Accord 流体背景",
         PlayerBackgroundType.CoverBlur to "专辑封面模糊",
         PlayerBackgroundType.DefaultColor to "默认背景色"
     )

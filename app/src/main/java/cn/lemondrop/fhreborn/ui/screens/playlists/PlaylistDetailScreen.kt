@@ -539,7 +539,7 @@ fun PlaylistDetailScreen(
         SongMenuSheet(
             song = song,
             onDismiss = { menuSong = null },
-            onPlayNext = { /* TODO: 加入播放队列下一首 */ },
+            onPlayNext = { playerViewModel.playNext(listOf(song)) },
             onAddToPlaylist = {
                 addTargetSong = song
                 menuSong = null

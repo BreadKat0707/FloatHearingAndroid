@@ -47,26 +47,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
-import cn.lemondrop.fhreborn.player.effects.BlendView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
 
 sealed class PlayerBackgroundType(val key: String) {
-    data object RotatingFluid : PlayerBackgroundType("rotating_fluid")
     data object AgslFluid : PlayerBackgroundType("agsl_fluid")
     data object CoverBlur : PlayerBackgroundType("cover_blur")
-    data object AccordBlend : PlayerBackgroundType("accord_blend")
     data object DefaultColor : PlayerBackgroundType("default_color")
 
     companion object {
         fun fromKey(key: String?): PlayerBackgroundType = when (key) {
-            RotatingFluid.key -> RotatingFluid
             AgslFluid.key -> AgslFluid
             CoverBlur.key -> CoverBlur
-            AccordBlend.key -> AccordBlend
             DefaultColor.key -> DefaultColor
+            // 旧版本遗留 key（旋转流体 / Accord 流体）回退到封面模糊
             else -> CoverBlur
         }
     }
@@ -88,20 +84,9 @@ fun PlayerBackground(
     val isDarkTheme = MiuixTheme.colorScheme.background.luminance() < 0.5f
 
     when (type) {
-        PlayerBackgroundType.RotatingFluid -> FluidBackground(
-            songId = songId,
-            isPlaying = isPlaying,
-            isDarkTheme = isDarkTheme,
-            modifier = modifier
-        )
         PlayerBackgroundType.AgslFluid -> AgslFluidBackground(
             songId = songId,
             isDarkTheme = isDarkTheme,
-            modifier = modifier
-        )
-        PlayerBackgroundType.AccordBlend -> AccordBlendBackground(
-            songId = songId,
-            isPlaying = isPlaying,
             modifier = modifier
         )
         PlayerBackgroundType.CoverBlur -> CoverBlurBackground(
@@ -129,25 +114,8 @@ fun DefaultPlayerBackground(
 }
 
 /**
- * Accord（Gramophone）风格流体背景：封面整图模糊打底，
- * 左上/右下 1/4 切片以不同速度旋转形成流体感。
+ * 专辑封面模糊背景：封面整图模糊打底 + 深浅遮罩。
  */
-@Composable
-fun AccordBlendBackground(
-    songId: Long?,
-    isPlaying: Boolean,
-    modifier: Modifier = Modifier
-) {
-    AndroidView(
-        factory = { BlendView(it) },
-        update = { view ->
-            view.setSong(songId)
-            view.setPlaying(isPlaying)
-        },
-        modifier = modifier.fillMaxSize()
-    )
-}
-
 @Composable
 fun CoverBlurBackground(
     songId: Long?,
@@ -261,8 +229,8 @@ fun AgslFluidBackground(
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         AgslFluidBackgroundImpl(songId, isDarkTheme, modifier)
     } else {
-        // 低版本回退到旋转流体
-        FluidBackground(songId, isPlaying = true, isDarkTheme = isDarkTheme, modifier = modifier)
+        // 低版本回退到封面模糊
+        CoverBlurBackground(songId, isDarkTheme, modifier)
     }
 }
 

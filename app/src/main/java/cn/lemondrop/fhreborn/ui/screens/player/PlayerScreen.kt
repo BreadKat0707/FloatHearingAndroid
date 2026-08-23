@@ -413,7 +413,7 @@ fun PlayerScreen(
         SharedTransitionLayout {
             val sharedTransitionScope = this@SharedTransitionLayout
 
-            // 播放器背景（根据设置选择：旋转流体 / AGSL 流体 / 封面模糊 / 默认颜色）
+            // 播放器背景（根据设置选择：AGSL 流体 / 封面模糊 / 默认颜色）
         PlayerBackground(
             songId = currentSong?.id,
             isPlaying = isPlaying,
@@ -866,7 +866,6 @@ fun PlayerScreen(
                     showMore = false
                     showAddToPlaylist = true
                 },
-                onPlayNextClick = { viewModel.next() },
                 onSpeedClick = { /* TODO: 倍速 */ },
                 onTimerClick = { viewModel.showScheduledPause() },
                 onAudioOutputClick = { /* TODO: 输出与音效 */ },

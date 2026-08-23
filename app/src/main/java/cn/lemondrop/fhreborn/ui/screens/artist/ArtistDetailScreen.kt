@@ -304,6 +304,7 @@ fun ArtistDetailScreen(
         cn.lemondrop.fhreborn.ui.components.SongMenuSheet(
             song = song,
             onDismiss = { menuSong = null },
+            onPlayNext = { playerViewModel.playNext(listOf(song)) },
             onViewAlbum = { onNavigateToAlbum(song.album, song.albumArtist ?: song.artist) },
             onShare = { cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, song) },
             onOpenWith = { cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, song) },

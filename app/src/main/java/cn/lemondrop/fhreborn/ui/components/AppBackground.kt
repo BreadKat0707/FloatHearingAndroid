@@ -20,7 +20,7 @@ import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.util.BackgroundImageUtils
 
 /**
- * 主页面共享背景层：纯色 / 自选图片（亮度 + 模糊）/ 云母（系统壁纸实时透出）。
+ * 主页面共享背景层：纯色 / 自选图片（亮度 + 模糊）。
  *
  * 只渲染背景，不含上层内容。各页面通过 scaffold 的 background 参数引入，
  * 统一背景以透到所有页面。

@@ -45,7 +45,6 @@ fun PlayerMoreSheet(
     artistSeparators: Set<String>,
     onDismiss: () -> Unit,
     onAddToPlaylistClick: () -> Unit = {},
-    onPlayNextClick: () -> Unit = {},
     onSpeedClick: () -> Unit = {},
     onTimerClick: () -> Unit = {},
     onAudioOutputClick: () -> Unit = {},
@@ -63,7 +62,6 @@ fun PlayerMoreSheet(
 ) {
     // 公共项与曲目/歌单菜单共用 SongMenuItems 定义（图标与文案全局一致）
     val menuItems = listOf(
-        MoreMenuItem(SongMenuItems.PlayNext.label, SongMenuItems.PlayNext.icon, onPlayNextClick),
         MoreMenuItem(SongMenuItems.AddToPlaylist.label, SongMenuItems.AddToPlaylist.icon, onAddToPlaylistClick),
         MoreMenuItem("倍速", Lucide.Gauge, onSpeedClick),
         MoreMenuItem("计划暂停", Lucide.Timer, onTimerClick),

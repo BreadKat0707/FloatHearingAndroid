@@ -77,10 +77,7 @@ import com.composables.icons.lucide.LayoutList
 import com.composables.icons.lucide.EllipsisVertical
 import com.composables.icons.lucide.EyeOff
 import com.composables.icons.lucide.FolderOpen
-import com.composables.icons.lucide.Grid2x2
-import com.composables.icons.lucide.LayoutGrid
 import com.composables.icons.lucide.LayoutList
-import com.composables.icons.lucide.LayoutPanelTop
 import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.MapPin
@@ -114,6 +111,7 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
+import cn.lemondrop.fhreborn.ui.components.LayoutStyleSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.SelectionIndicator
 import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
@@ -164,6 +162,7 @@ fun LibraryScreen(
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
+    var showAlbumLayoutSheet by remember { mutableStateOf(false) }
     val menuScope = rememberCoroutineScope()
 
     // 各 tab 的排序选项（歌曲全字段 / 专辑标题·艺术家·年份 / 文件夹路径·名称）
@@ -194,8 +193,6 @@ fun LibraryScreen(
 
     // 专辑视图样式（list / grid / card / square，与歌单页一致，持久化）
     val albumViewStyle by bgRepo.albumViewStyle.collectAsState(initial = "grid")
-    // 文件夹 tab：是否显示已隐藏的文件夹
-    var showHiddenFolders by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 
     // 专辑排序：标题 / 艺术家 / 发行年份（仅专辑 tab 应用）
     val sortedAlbums = remember(albums, sortField, sortOrder) {
@@ -443,7 +440,6 @@ fun LibraryScreen(
                 3 -> FoldersContent(
                     songs = displaySongs,
                     hiddenFolders = hiddenFolders,
-                    showHiddenFolders = showHiddenFolders,
                     sortField = sortField,
                     sortOrder = sortOrder,
                     selectionMode = multiSelectMode,
@@ -520,9 +516,9 @@ fun LibraryScreen(
                             2 -> artists.flatMap { artist ->
                                 viewModel.songs.value.filter { it.artist == artist.name }.map { it.id }
                             }
-                            3 -> (if (showHiddenFolders) displaySongs else displaySongs.filterNot { song ->
+                            3 -> displaySongs.filterNot { song ->
                                 hiddenFolders.any { h -> song.path.startsWith(h) }
-                            }).map { it.id }
+                            }.map { it.id }
                             else -> emptyList()
                         }
                         SelectionStateButton(
@@ -535,57 +531,49 @@ fun LibraryScreen(
                             onDeselectAll = { selectedSongIds.clear() }
                         )
                     } else {
-                        // 菜单按 tab 独立：歌曲/专辑/艺术家/文件夹各显示自己的项
-                        val menuEntries = buildList {
-                            add(
-                                DropdownEntry(
-                                    items = buildList {
-                                        add(DropdownItem("刷新", icon = { mod -> Icon(Lucide.RotateCcw, null, modifier = mod) }, onClick = { viewModel.refreshMediaStore() }))
-                                        if (sortOptions.isNotEmpty()) {
-                                            add(DropdownItem("排序", icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) }, onClick = { showSortSheet = true }))
-                                        }
-                                        // 专辑：列表布局四种（仿歌单）
-                                        if (selectedNavIndex == 1) {
-                                            add(DropdownItem("列表", icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("list") } }))
-                                            add(DropdownItem("双栏列表", icon = { mod -> Icon(Lucide.LayoutGrid, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("grid") } }))
-                                            add(DropdownItem("卡片", icon = { mod -> Icon(Lucide.LayoutPanelTop, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("card") } }))
-                                            add(DropdownItem("方形", icon = { mod -> Icon(Lucide.Grid2x2, null, modifier = mod) }, onClick = { menuScope.launch { bgRepo.setAlbumViewStyle("square") } }))
-                                        }
-                                        // 文件夹：显示/隐藏已隐藏的文件夹
-                                        if (selectedNavIndex == 3) {
-                                            add(DropdownItem(
-                                                "查看隐藏的文件夹",
-                                                icon = { mod -> Icon(Lucide.EyeOff, null, modifier = mod) },
-                                                selected = showHiddenFolders,
-                                                onClick = { showHiddenFolders = !showHiddenFolders }
-                                            ))
-                                        }
+                        // 菜单按 tab 独立：歌曲/专辑/艺术家/文件夹各显示自己的项（单组无分割线）
+                        val menuEntries = listOf(
+                            DropdownEntry(
+                                items = buildList {
+                                    add(DropdownItem("刷新", icon = { mod -> Icon(Lucide.RotateCcw, null, modifier = mod) }, onClick = { viewModel.refreshMediaStore() }))
+                                    if (sortOptions.isNotEmpty()) {
+                                        add(DropdownItem("排序", icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) }, onClick = { showSortSheet = true }))
                                     }
-                                )
-                            )
-                            add(
-                                DropdownEntry(
-                                    items = buildList {
-                                        add(DropdownItem("多选", icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) }, onClick = {
-                                            multiSelectMode = true
-                                            selectedSongIds.clear()
-                                        }))
-                                        add(DropdownItem("回到顶部", icon = { mod -> Icon(Lucide.ArrowUp, null, modifier = mod) }, onClick = {
-                                            menuScope.launch { listState.animateScrollToItem(0) }
-                                        }))
-                                        // 定位当前播放：仅歌曲 tab（播放列表即歌曲列表）
-                                        if (selectedNavIndex == 0) {
-                                            add(DropdownItem("定位当前播放", icon = { mod -> Icon(Lucide.MapPin, null, modifier = mod) }, onClick = {
-                                                currentSong?.let { song ->
-                                                    selectedNavIndex = 0
-                                                    pendingLocateSongId = song.id
-                                                }
-                                            }))
-                                        }
+                                    // 专辑：列表布局弹窗选择（miuix 无级联子菜单，用弹窗替代）
+                                    if (selectedNavIndex == 1) {
+                                        add(DropdownItem(
+                                            "列表布局",
+                                            icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
+                                            onClick = { showAlbumLayoutSheet = true }
+                                        ))
                                     }
-                                )
+                                    // 文件夹：查看隐藏的文件夹 → 二级页面
+                                    if (selectedNavIndex == 3) {
+                                        add(DropdownItem(
+                                            "查看隐藏的文件夹",
+                                            icon = { mod -> Icon(Lucide.EyeOff, null, modifier = mod) },
+                                            onClick = { onNavigate(Screen.HiddenFolders.createRoute()) }
+                                        ))
+                                    }
+                                    add(DropdownItem("多选", icon = { mod -> Icon(Lucide.ListChecks, null, modifier = mod) }, onClick = {
+                                        multiSelectMode = true
+                                        selectedSongIds.clear()
+                                    }))
+                                    add(DropdownItem("回到顶部", icon = { mod -> Icon(Lucide.ArrowUp, null, modifier = mod) }, onClick = {
+                                        menuScope.launch { listState.animateScrollToItem(0) }
+                                    }))
+                                    // 定位当前播放：仅歌曲 tab（播放列表即歌曲列表）
+                                    if (selectedNavIndex == 0) {
+                                        add(DropdownItem("定位当前播放", icon = { mod -> Icon(Lucide.MapPin, null, modifier = mod) }, onClick = {
+                                            currentSong?.let { song ->
+                                                selectedNavIndex = 0
+                                                pendingLocateSongId = song.id
+                                            }
+                                        }))
+                                    }
+                                }
                             )
-                        }
+                        )
                         OverlayIconDropdownMenu(
                             entries = menuEntries,
                             minHeight = 40.dp,
@@ -657,6 +645,23 @@ fun LibraryScreen(
             )
         }
 
+        // 专辑列表布局弹窗
+        if (showAlbumLayoutSheet) {
+            BackHandler { showAlbumLayoutSheet = false }
+            LayoutStyleSheet(
+                title = "列表布局",
+                options = listOf(
+                    "list" to "列表",
+                    "grid" to "双栏列表",
+                    "card" to "卡片",
+                    "square" to "方形"
+                ),
+                currentStyle = albumViewStyle,
+                onSelect = { style -> menuScope.launch { bgRepo.setAlbumViewStyle(style) } },
+                onDismiss = { showAlbumLayoutSheet = false }
+            )
+        }
+
         // 歌曲上下文菜单
         if (showSongMenu && menuSong != null) {
             BackHandler { showSongMenu = false }
@@ -664,7 +669,7 @@ fun LibraryScreen(
                 song = menuSong!!,
                 onDismiss = { showSongMenu = false },
                 onPlayNext = {
-                    // TODO: 将歌曲加入播放队列的下一首
+                    menuSong?.let { playerViewModel.playNext(listOf(it)) }
                 },
                 onAddToPlaylist = {
                     showSongMenu = false
@@ -1266,7 +1271,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ArtistsContent(
 private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     songs: List<Song>,
     hiddenFolders: Set<String>,
-    showHiddenFolders: Boolean = false,
     sortField: SortField = SortField.FOLDER_PATH,
     sortOrder: SortOrder = SortOrder.ASC,
     selectionMode: Boolean = false,
@@ -1274,7 +1278,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     onFolderClick: (String) -> Unit,
     onHideFolder: (String) -> Unit
 ) {
-    val visibleSongs = if (showHiddenFolders) songs else songs.filterNot { song ->
+    // 隐藏的文件夹始终不显示在媒体库
+    val visibleSongs = songs.filterNot { song ->
         hiddenFolders.any { hidden -> song.path.startsWith(hidden) }
     }
 
@@ -1315,7 +1320,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
     }
 
     sortedFolders.forEach { (folderPath, folderSongs) ->
-        val isHidden = hiddenFolders.contains(folderPath)
         item(key = folderPath) {
             var showOptions by remember { mutableStateOf(false) }
             Row(
@@ -1345,28 +1349,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = folderPath.substringAfterLast('/'),
-                            style = MiuixTheme.textStyles.body1,
-                            color = MiuixTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        if (isHidden) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "已隐藏",
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(MiuixTheme.colorScheme.surfaceVariant)
-                                    .padding(horizontal = 6.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = folderPath.substringAfterLast('/'),
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(
                         text = folderPath,
                         style = MiuixTheme.textStyles.footnote2,

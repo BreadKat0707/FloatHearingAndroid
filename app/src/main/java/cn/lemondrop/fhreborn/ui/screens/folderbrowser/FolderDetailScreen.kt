@@ -48,6 +48,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
@@ -73,9 +74,19 @@ fun FolderDetailScreen(
         allSongs.filter { it.path.substringBeforeLast('/') == folderPath }
     }
     val folderName = folderPath.substringAfterLast('/').ifBlank { folderPath }
-    val totalDuration = folderSongs.sumOf { it.duration }
-    val meta = "${folderSongs.size} 首 · ${formatFolderDuration(totalDuration)}"
     val isHidden = hiddenFolders.contains(folderPath)
+    // 当前文件夹下被隐藏的直接子文件夹（取消隐藏入口）
+    val hiddenSubFolders = remember(allSongs, folderPath, hiddenFolders) {
+        allSongs
+            .map { it.path.substringBeforeLast('/') }
+            .filter { it.startsWith("$folderPath/") }
+            .map { it.removePrefix("$folderPath/") }
+            .filter { !it.contains('/') }
+            .map { "$folderPath/$it" }
+            .distinct()
+            .filter { it in hiddenFolders }
+            .sortedBy { it.lowercase() }
+    }
 
     // 歌曲更多菜单（三点菜单）
     var menuSong by remember { mutableStateOf<Song?>(null) }
@@ -116,6 +127,16 @@ fun FolderDetailScreen(
                     }
                 },
                 actions = {
+                    // 播放整个文件夹
+                    IconButton(onClick = {
+                        if (folderSongs.isNotEmpty()) playerViewModel.playSongs(folderSongs, 0)
+                    }) {
+                        Icon(
+                            imageVector = Lucide.Play,
+                            contentDescription = "播放文件夹",
+                            tint = MiuixTheme.colorScheme.onSurface
+                        )
+                    }
                     // 已隐藏的文件夹：提供取消隐藏入口
                     if (isHidden) {
                         top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
@@ -153,21 +174,10 @@ fun FolderDetailScreen(
                 state = folderListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    top = padding.calculateTopPadding(),
+                    top = padding.calculateTopPadding() + 8.dp,
                     bottom = padding.calculateBottomPadding() + bottomOverlayHeight
                 )
             ) {
-                // 头部：文件夹图标 + 名称 + 信息 + 播放按钮
-                item {
-                    FolderHeader(
-                        name = folderName,
-                        meta = meta,
-                        onPlayFolder = {
-                            if (folderSongs.isNotEmpty()) playerViewModel.playSongs(folderSongs, 0)
-                        }
-                    )
-                }
-
                 if (folderSongs.isEmpty()) {
                     item {
                         Box(
@@ -191,6 +201,48 @@ fun FolderDetailScreen(
                     }
                 }
 
+                // 已隐藏的子文件夹：单独列出，对应"取消隐藏"
+                if (hiddenSubFolders.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "已隐藏的文件夹",
+                            style = MiuixTheme.textStyles.title3,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
+                        )
+                    }
+                    items(hiddenSubFolders, key = { it }) { subFolder ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Lucide.FolderOpen,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = subFolder.substringAfterLast('/'),
+                                style = MiuixTheme.textStyles.body1,
+                                color = MiuixTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                text = "取消隐藏",
+                                onClick = { libraryViewModel.unhideFolder(subFolder) }
+                            )
+                        }
+                    }
+                }
+
                 // 底部留白，避免内容被迷你播放条遮挡
                 item { Spacer(modifier = Modifier.height(bottomOverlayHeight)) }
             }
@@ -208,6 +260,7 @@ fun FolderDetailScreen(
         cn.lemondrop.fhreborn.ui.components.SongMenuSheet(
             song = song,
             onDismiss = { menuSong = null },
+            onPlayNext = { playerViewModel.playNext(listOf(song)) },
             onAddToPlaylist = {
                 addTargetSongId = song.id
                 menuSong = null
@@ -252,74 +305,4 @@ fun FolderDetailScreen(
             }
         )
     }
-}
-
-@Composable
-private fun FolderHeader(
-    name: String,
-    meta: String,
-    onPlayFolder: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(160.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MiuixTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Lucide.FolderOpen,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = name,
-            style = MiuixTheme.textStyles.title1,
-            color = MiuixTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = meta,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = onPlayFolder) {
-            Icon(
-                imageVector = Lucide.Play,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = MiuixTheme.colorScheme.onPrimary
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "播放文件夹",
-                color = MiuixTheme.colorScheme.onPrimary
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-    }
-}
-
-private fun formatFolderDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    return if (hours > 0) "${hours}小时${minutes}分" else "${minutes}分钟"
 }

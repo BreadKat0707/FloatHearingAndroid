@@ -113,7 +113,7 @@ fun SortSheet(
     }
 }
 
-/** 升/降序切换按钮：选中时 primary 填充 */
+/** 升/降序切换按钮：选中时 primary 填充，未选中无底色 */
 @Composable
 private fun SortOrderButton(
     label: String,
@@ -127,7 +127,7 @@ private fun SortOrderButton(
             .clip(RoundedCornerShape(8.dp))
             .background(
                 if (selected) MiuixTheme.colorScheme.primary
-                else MiuixTheme.colorScheme.surfaceVariant
+                else androidx.compose.ui.graphics.Color.Transparent
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),

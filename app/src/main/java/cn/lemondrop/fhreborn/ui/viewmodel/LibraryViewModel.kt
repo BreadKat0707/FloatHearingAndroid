@@ -76,11 +76,16 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     val songs: StateFlow<List<Song>> = combine(
         repository.allSongs,
+        settingsRepository.hiddenFolders,
         _sortField,
         _sortOrder,
         playCountMap
-    ) { songList, field, order, counts ->
-        sortSongs(songList, field, order, counts)
+    ) { songList, hidden, field, order, counts ->
+        // 隐藏文件夹中的歌曲从媒体库全局过滤（歌曲/专辑/艺术家/文件夹均不显示）
+        val filtered = songList.filterNot { song ->
+            hidden.any { h -> song.path.startsWith(h) }
+        }
+        sortSongs(filtered, field, order, counts)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun sortSongs(

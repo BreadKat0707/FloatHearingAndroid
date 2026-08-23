@@ -107,7 +107,7 @@ fun CrashReportScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    Button(onClick = onDismiss) {
+                    Button(onClick = onDismiss, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
                         Text("关闭")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -117,7 +117,8 @@ fun CrashReportScreen(
                             val clip = ClipData.newPlainText("崩溃日志", crashLog)
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
-                        }
+                        },
+                        colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()
                     ) {
                         Icon(imageVector = Lucide.Copy, contentDescription = "复制")
                         Text("复制")

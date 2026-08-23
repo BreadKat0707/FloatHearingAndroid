@@ -58,6 +58,7 @@ import cn.lemondrop.fhreborn.ui.screens.artist.ArtistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.crash.CrashReportScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderBrowserScreen
 import cn.lemondrop.fhreborn.ui.screens.folderbrowser.FolderDetailScreen
+import cn.lemondrop.fhreborn.ui.screens.hidden.HiddenFoldersScreen
 import cn.lemondrop.fhreborn.ui.screens.ideas.IdeasScreen
 import cn.lemondrop.fhreborn.ui.screens.library.LibraryScreen
 import cn.lemondrop.fhreborn.ui.screens.onboarding.OnboardingScreen
@@ -78,6 +79,9 @@ sealed class Screen(val route: String) {
     data object FolderBrowser : Screen("folder_browser")
     data object FolderDetail : Screen("folder_detail/{folderPath}") {
         fun createRoute(folderPath: String) = "folder_detail/${Uri.encode(folderPath)}"
+    }
+    data object HiddenFolders : Screen("hidden_folders") {
+        fun createRoute() = "hidden_folders"
     }
     data object Ideas : Screen("ideas")
     data object Settings : Screen("settings")
@@ -225,7 +229,9 @@ fun FHRebornApp() {
             Screen.Settings.route,
             Screen.AlbumDetail.route,
             Screen.ArtistDetail.route,
-            Screen.PlaylistDetail.route
+            Screen.PlaylistDetail.route,
+            Screen.FolderDetail.route,
+            Screen.HiddenFolders.route
         )
     }
     // 多选等场景下页面通过 LocalPlayBarOverride 置 true 隐藏播放条（同一引用）
@@ -432,6 +438,17 @@ fun FHRebornApp() {
                     onBack = { navController.navigateUp() },
                     playerViewModel = playerViewModel,
                     libraryViewModel = libraryViewModel
+                )
+            }
+
+            composable(Screen.HiddenFolders.route) { backStackEntry ->
+                val libraryViewModel: LibraryViewModel = viewModel(
+                    factory = LibraryViewModel.Factory(context.applicationContext as Application)
+                )
+                HiddenFoldersScreen(
+                    libraryViewModel = libraryViewModel,
+                    playerViewModel = playerViewModel,
+                    onBack = { navController.navigateUp() }
                 )
             }
 

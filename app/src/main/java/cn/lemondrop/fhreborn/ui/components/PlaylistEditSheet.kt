@@ -251,17 +251,13 @@ fun PlaylistEditSheet(
                     TextButton(
                         text = "取消",
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
+                        modifier = Modifier.weight(1f)
                     )
                     TextButton(
                         text = "保存",
                         enabled = name.isNotBlank(),
                         onClick = { onSave(name, description, playMode, coverPath, coverSource) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }

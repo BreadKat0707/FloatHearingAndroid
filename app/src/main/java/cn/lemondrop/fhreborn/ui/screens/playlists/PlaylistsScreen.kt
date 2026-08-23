@@ -61,6 +61,7 @@ import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyGridScrollBar
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
+import cn.lemondrop.fhreborn.ui.components.LayoutStyleSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.PlaylistCover
 import cn.lemondrop.fhreborn.ui.components.PlaylistEditSheet
@@ -72,10 +73,7 @@ import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.EllipsisVertical
-import com.composables.icons.lucide.Grid2x2
-import com.composables.icons.lucide.LayoutGrid
 import com.composables.icons.lucide.LayoutList
-import com.composables.icons.lucide.LayoutPanelTop
 import com.composables.icons.lucide.ListChecks
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
@@ -189,6 +187,7 @@ fun PlaylistsScreen(
     }.value
 
     var showCreateSheet by remember { mutableStateOf(false) }
+    var showLayoutSheet by remember { mutableStateOf(false) }
     var editingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
     var deletingPlaylist by remember { mutableStateOf<PlaylistWithCount?>(null) }
 
@@ -298,30 +297,15 @@ fun PlaylistsScreen(
                                     onDeselectAll = { selectedPlaylistIds.clear() }
                                 )
                             } else {
-                                // 视图样式与歌单管理操作统一收纳进三点菜单
+                                // 视图样式与歌单管理操作统一收纳进三点菜单（布局用弹窗选择）
                                 top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu(
                                     entries = listOf(
                                         DropdownEntry(
                                             items = listOf(
                                                 DropdownItem(
-                                                    "列表",
+                                                    "列表布局",
                                                     icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
-                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("list") } }
-                                                ),
-                                                DropdownItem(
-                                                    "双栏列表",
-                                                    icon = { mod -> Icon(Lucide.LayoutGrid, null, modifier = mod) },
-                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("grid") } }
-                                                ),
-                                                DropdownItem(
-                                                    "卡片",
-                                                    icon = { mod -> Icon(Lucide.LayoutPanelTop, null, modifier = mod) },
-                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("card") } }
-                                                ),
-                                                DropdownItem(
-                                                    "方形",
-                                                    icon = { mod -> Icon(Lucide.Grid2x2, null, modifier = mod) },
-                                                    onClick = { settingsScope.launch { appSettingsRepository.setPlaylistViewStyle("square") } }
+                                                    onClick = { showLayoutSheet = true }
                                                 )
                                             )
                                         ),
@@ -545,6 +529,23 @@ fun PlaylistsScreen(
             multiSelectMode = false
             selectedPlaylistIds.clear()
         }
+    }
+
+    // 列表布局选择
+    if (showLayoutSheet) {
+        BackHandler { showLayoutSheet = false }
+        LayoutStyleSheet(
+            title = "列表布局",
+            options = listOf(
+                "list" to "列表",
+                "grid" to "双栏列表",
+                "card" to "卡片",
+                "square" to "方形"
+            ),
+            currentStyle = viewStyle,
+            onSelect = { style -> settingsScope.launch { appSettingsRepository.setPlaylistViewStyle(style) } },
+            onDismiss = { showLayoutSheet = false }
+        )
     }
 
     // 新建歌单

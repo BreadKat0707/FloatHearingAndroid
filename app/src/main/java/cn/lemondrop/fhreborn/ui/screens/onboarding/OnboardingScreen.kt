@@ -174,11 +174,11 @@ private fun StoragePermissionStep(
                 style = MiuixTheme.textStyles.body1
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onNext) {
+            Button(onClick = onNext, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
                 Text("下一步")
             }
         } else {
-            Button(onClick = onRequestPermission) {
+            Button(onClick = onRequestPermission, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
                 Text("授权存储权限")
             }
         }
@@ -224,12 +224,13 @@ private fun NotificationPermissionStep(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!granted) {
                 Button(
-                    onClick = onRequestPermission
+                    onClick = onRequestPermission,
+                    colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()
                 ) {
                     Text("授权通知权限")
                 }
             }
-            Button(onClick = onNext) {
+            Button(onClick = onNext, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
                 Text(if (granted) "下一步" else "跳过")
             }
         }
@@ -293,7 +294,7 @@ private fun ScanningStep(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("共发现 ${progress.songsFound} 首歌曲")
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onFinish) {
+                Button(onClick = onFinish, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
                     Text("进入应用")
                 }
             }
@@ -309,7 +310,7 @@ private fun ScanningStep(
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary
                 )
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onFinish) {
+                Button(onClick = onFinish, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
                     Text("继续")
                 }
             }

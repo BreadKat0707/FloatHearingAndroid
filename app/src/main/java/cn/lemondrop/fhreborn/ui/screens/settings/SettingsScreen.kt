@@ -116,6 +116,9 @@ fun SettingsScreen(
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.Factory(context.applicationContext as Application)
     )
+    val libraryViewModel: cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel = viewModel(
+        factory = cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Factory(context.applicationContext as Application)
+    )
     val settingsRepository = remember { SettingsRepository(context) }
     val scope = rememberCoroutineScope()
     val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = setOf(" / "))
@@ -148,6 +151,7 @@ fun SettingsScreen(
             "accompanist_lyric" -> pageStack.add(SettingsPage.AccompanistLyric)
             "open_source" -> pageStack.add(SettingsPage.OpenSourceLicenses)
             "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
+            "hidden_folders" -> pageStack.add(SettingsPage.HiddenFolders)
             "reset_stats" -> showResetStatsConfirm = true
             "about_page" -> pageStack.add(SettingsPage.About)
         }
@@ -195,6 +199,7 @@ fun SettingsScreen(
             SettingsPage.AccompanistLyric -> "Accompanist Lyric 设置"
             SettingsPage.OpenSourceLicenses -> "开源许可"
             SettingsPage.PlayerBackground -> "播放器页面背景"
+            SettingsPage.HiddenFolders -> "隐藏文件夹"
             SettingsPage.About -> "关于"
         }
     }
@@ -244,40 +249,35 @@ fun SettingsScreen(
                 )
             }
 
-            // 重置听歌统计确认
+            // 重置听歌统计确认（高危操作：Dialog + 按钮均分 + 错误色）
             if (showResetStatsConfirm) {
                 BackHandler { showResetStatsConfirm = false }
-                cn.lemondrop.fhreborn.ui.components.FhBottomSheet(
+                top.yukonga.miuix.kmp.overlay.OverlayDialog(
                     show = true,
-                    onDismissRequest = { showResetStatsConfirm = false },
                     title = "重置听歌统计",
-                    backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+                    summary = "将清空所有播放记录（次数、时长、排行），此操作不可恢复。",
+                    onDismissRequest = { showResetStatsConfirm = false }
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "将清空所有播放记录（次数、时长、排行），此操作不可恢复。",
-                            style = MiuixTheme.textStyles.body2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        TextButton(
+                            text = "取消",
+                            onClick = { showResetStatsConfirm = false },
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            TextButton(text = "取消", onClick = { showResetStatsConfirm = false })
-                            Spacer(modifier = Modifier.width(8.dp))
-                            TextButton(
-                                text = "重置",
-                                onClick = {
-                                    viewModel.resetPlayStats()
-                                    showResetStatsConfirm = false
-                                }
-                            )
-                        }
+                        TextButton(
+                            text = "重置",
+                            colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.textButtonColors(
+                                textColor = MiuixTheme.colorScheme.error
+                            ),
+                            onClick = {
+                                viewModel.resetPlayStats()
+                                showResetStatsConfirm = false
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -301,8 +301,13 @@ fun SettingsScreen(
                         viewModel = viewModel,
                         currentPage = currentPage(),
                         onCategoryClick = { key ->
-                            pageStack.add(SettingsPage.Category(key))
-                            viewModel.selectCategory(key)
+                            if (key == "about") {
+                                // 关于分类下仅一项：点击直接进关于页，不再套一层分类列表
+                                pageStack.add(SettingsPage.About)
+                            } else {
+                                pageStack.add(SettingsPage.Category(key))
+                                viewModel.selectCategory(key)
+                            }
                         },
                         onSettingItemClick = onSettingItemClick,
                         bottomOverlayHeight = bottomOverlayHeight,
@@ -330,6 +335,11 @@ fun SettingsScreen(
                         paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
+                    SettingsPage.HiddenFolders -> cn.lemondrop.fhreborn.ui.screens.hidden.HiddenFoldersContent(
+                        libraryViewModel = libraryViewModel,
+                        playerViewModel = playerViewModel,
+                        contentPadding = padding
+                    )
 
                     SettingsPage.About -> AboutContent(
                         paddingValues = padding,
@@ -349,6 +359,7 @@ private sealed class SettingsPage {
     data object AccompanistLyric : SettingsPage()
     data object OpenSourceLicenses : SettingsPage()
     data object PlayerBackground : SettingsPage()
+    data object HiddenFolders : SettingsPage()
     data object About : SettingsPage()
 }
 
@@ -551,7 +562,9 @@ private fun ArtistSeparatorSheet(
         backgroundColor = MiuixTheme.colorScheme.surfaceContainer
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         ) {
             Text(
                 text = "用于拆分歌曲艺术家字段。例如添加 \" / \" 后，\"A / B\" 会被识别为两个艺术家 A 和 B。",
@@ -612,7 +625,8 @@ private fun ArtistSeparatorSheet(
                             input = ""
                             onSave(current)
                         }
-                    }
+                    },
+                    colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()
                 ) {
                     Text("添加")
                 }
@@ -625,7 +639,8 @@ private fun ArtistSeparatorSheet(
                     current = setOf(" / ").toSortedSet()
                     onSave(current)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()
             ) {
                 Text("恢复默认")
             }
@@ -777,12 +792,12 @@ private fun buildCategories(): List<SettingCategory> {
                 // 主界面
                 SettingItem("", "主界面", null, null, SettingType.Info),
                 SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
-                SettingItem("main_bg", "主页面背景", "纯色 / 自选图片 / 云母", null, SettingType.Navigation),
-                SettingItem("player_bg", "播放器页面背景", "旋转流体 / AGSL 流体 / 封面模糊", null, SettingType.Navigation),
+                SettingItem("main_bg", "主页面背景", "纯色 / 自选图片", null, SettingType.Navigation),
+                SettingItem("player_bg", "播放器页面背景", "AGSL 流体 / 封面模糊", null, SettingType.Navigation),
 
                 // 播放器
                 SettingItem("", "播放器", null, null, SettingType.Info),
-                SettingItem("player_cover_corner_radius", "封面圆角", "播放器封面圆角大小", null, SettingType.Slider(0f, 32f, 16), 12),
+                SettingItem("player_cover_corner_radius", "封面圆角", "播放器封面圆角大小", null, SettingType.Slider(0f, 32f, 31), 12),
                 SettingItem("player_cover_rotating", "圆形旋转封面", "非正方形封面将裁切为方形显示", null, SettingType.Toggle, false),
 
                 SettingItem("predictive_back", "预测性返回手势", "返回时预览上一页（实验，可能有异常）", null, SettingType.Toggle, false)

@@ -449,6 +449,7 @@ fun AlbumDetailScreen(
         cn.lemondrop.fhreborn.ui.components.SongMenuSheet(
             song = song,
             onDismiss = { menuSong = null },
+            onPlayNext = { playerViewModel.playNext(listOf(song)) },
             onShare = { cn.lemondrop.fhreborn.util.SongFileUtils.shareSong(context, song) },
             onOpenWith = { cn.lemondrop.fhreborn.util.SongFileUtils.openWithOtherApp(context, song) },
             onProperties = {
@@ -535,7 +536,7 @@ private fun AlbumHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = onPlayAlbum) {
+        Button(onClick = onPlayAlbum, colors = top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()) {
             Icon(
                 imageVector = Lucide.Play,
                 contentDescription = null,

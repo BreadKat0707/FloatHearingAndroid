@@ -340,6 +340,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * 将歌曲插入到当前播放的下一首（不打断当前播放）。
+     */
+    fun playNext(songs: List<Song>) {
+        if (songs.isEmpty()) return
+        val controller = mediaController ?: return
+        ensureServiceStarted()
+        val insertIndex = (_currentIndex.value + 1).coerceAtMost(_queue.value.size)
+        val newQueue = _queue.value.toMutableList()
+        newQueue.addAll(insertIndex, songs)
+        _queue.value = newQueue
+        controller.addMediaItems(insertIndex, songs.map { it.toMediaItem() })
+        saveState()
+    }
+
+    /**
      * 播放歌单：按歌单默认播放模式设置 repeatMode / shuffle。
      * @param playMode 歌单的 defaultPlayMode（0=顺序 1=列表循环 2=单曲循环 3=随机）
      */
