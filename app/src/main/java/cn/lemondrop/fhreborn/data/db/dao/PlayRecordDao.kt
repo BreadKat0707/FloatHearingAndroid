@@ -36,6 +36,9 @@ interface PlayRecordDao {
     @Query("SELECT * FROM play_records WHERE timestamp >= :startTime ORDER BY timestamp DESC")
     fun getRecordsSince(startTime: Long): Flow<List<PlayRecord>>
 
+    @Query("SELECT COUNT(*) FROM play_records WHERE songId = :songId")
+    suspend fun getPlayCountBySong(songId: Long): Int?
+
     @Query("DELETE FROM play_records WHERE timestamp < :beforeTime")
     suspend fun deleteOldRecords(beforeTime: Long)
 
