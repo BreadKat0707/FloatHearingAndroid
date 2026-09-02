@@ -8,6 +8,7 @@ uniform float time;
 uniform float transitionMix;
 uniform vec2 viewScale;
 uniform float imageScale;
+uniform float speedMultiplier;
 
 half4 main(float2 coord) {
     vec2 uv = coord / viewScale;
@@ -15,7 +16,6 @@ half4 main(float2 coord) {
 
     const float twoPi = 6.28318530717958;
 
-    // Background layer: aspect-fill, no rotation
     half4 currentBg = currentArtwork.eval(coord);
     half4 previousBg = previousArtwork.eval(coord);
     half4 bgColor = mix(previousBg, currentBg, transitionMix);
@@ -25,7 +25,7 @@ half4 main(float2 coord) {
 
     // Layer 0: base rotation (120s per revolution)
     {
-        float angle = time * twoPi / 120.0;
+        float angle = time * twoPi / (120.0 / speedMultiplier);
         float s = sin(angle);
         float c = cos(angle);
         vec2 pos = center * imageScale;
@@ -44,7 +44,7 @@ half4 main(float2 coord) {
 
     // Layer 1: offset rotation (90s per revolution)
     {
-        float angle = time * twoPi / 90.0;
+        float angle = time * twoPi / (90.0 / speedMultiplier);
         float s = sin(angle);
         float c = cos(angle);
         vec2 pos = center * imageScale;
@@ -63,7 +63,7 @@ half4 main(float2 coord) {
 
     // Layer 2: fast offset rotation (70s per revolution)
     {
-        float angle = time * twoPi / 70.0;
+        float angle = time * twoPi / (70.0 / speedMultiplier);
         float s = sin(angle);
         float c = cos(angle);
         vec2 pos = center * imageScale;

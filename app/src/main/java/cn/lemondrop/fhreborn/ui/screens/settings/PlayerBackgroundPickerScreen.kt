@@ -1,5 +1,6 @@
 package cn.lemondrop.fhreborn.ui.screens.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +26,8 @@ import cn.lemondrop.fhreborn.ui.screens.player.PlayerBackgroundType
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.basic.Slider
+import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -97,5 +101,149 @@ fun PlayerBackgroundPickerContent(
                 }
             }
         }
+
+        // Apple Music 背景设置面板
+        if (currentKey == PlayerBackgroundType.AppleMusic.key) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item { AppleMusicSettingsPanel(repository, scope) }
+        }
+    }
+}
+
+@Composable
+private fun AppleMusicSettingsPanel(
+    repository: AppSettingsRepository,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    val blurDp by repository.appleMusicBlurDp.collectAsState(initial = 40)
+    val scrimPct by repository.appleMusicScrimPct.collectAsState(initial = 30)
+    val speed by repository.appleMusicSpeed.collectAsState(initial = 1.0)
+    val crossfadeMs by repository.appleMusicCrossfadeMs.collectAsState(initial = 600)
+    val saturation by repository.appleMusicSaturation.collectAsState(initial = 1.0)
+    val renderScale by repository.appleMusicRenderScale.collectAsState(initial = 0.5)
+    val bassPulse by repository.appleMusicBassPulse.collectAsState(initial = false)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // 模糊强度
+        SettingSliderItem(
+            label = "模糊强度",
+            value = blurDp.toFloat(),
+            valueRange = 0f..100f,
+            steps = 99,
+            displayText = "${blurDp}dp",
+            onValueChange = { scope.launch { repository.setAppleMusicBlurDp(it.toInt()) } }
+        )
+
+        // 暗色遮罩
+        SettingSliderItem(
+            label = "暗色遮罩",
+            value = scrimPct.toFloat(),
+            valueRange = 0f..100f,
+            steps = 99,
+            displayText = "${scrimPct}%",
+            onValueChange = { scope.launch { repository.setAppleMusicScrimPct(it.toInt()) } }
+        )
+
+        // 旋转速度
+        SettingSliderItem(
+            label = "旋转速度",
+            value = speed.toFloat(),
+            valueRange = 0.25f..4f,
+            steps = 0,
+            displayText = String.format("%.2fx", speed),
+            onValueChange = { scope.launch { repository.setAppleMusicSpeed(it.toDouble()) } }
+        )
+
+        // 过渡时间
+        SettingSliderItem(
+            label = "切歌过渡时间",
+            value = crossfadeMs.toFloat(),
+            valueRange = 0f..1200f,
+            steps = 0,
+            displayText = "${crossfadeMs}ms",
+            onValueChange = { scope.launch { repository.setAppleMusicCrossfadeMs(it.toInt()) } }
+        )
+
+        // 色彩饱和度
+        SettingSliderItem(
+            label = "色彩饱和度",
+            value = saturation.toFloat(),
+            valueRange = 0f..2f,
+            steps = 0,
+            displayText = String.format("%.0f%%", saturation * 100),
+            onValueChange = { scope.launch { repository.setAppleMusicSaturation(it.toDouble()) } }
+        )
+
+        // 渲染分辨率
+        SettingSliderItem(
+            label = "渲染分辨率",
+            value = renderScale.toFloat(),
+            valueRange = 0.25f..1f,
+            steps = 0,
+            displayText = String.format("%.0f%%", renderScale * 100),
+            onValueChange = { scope.launch { repository.setAppleMusicRenderScale(it.toDouble()) } }
+        )
+
+        // 低音脉冲开关
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "低音脉冲",
+                    style = MiuixTheme.textStyles.body1
+                )
+                Text(
+                    text = "随音乐节拍律动",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+            }
+            Switch(
+                checked = bassPulse,
+                onCheckedChange = { scope.launch { repository.setAppleMusicBassPulse(it) } }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingSliderItem(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    displayText: String,
+    onValueChange: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MiuixTheme.textStyles.body1,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = displayText,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps
+        )
     }
 }

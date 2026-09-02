@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -227,4 +228,39 @@ class AppSettingsRepository(private val context: Context) {
 
     suspend fun setInt(key: String, value: Int) =
         dataStore.edit { it[intPreferencesKey(key)] = value }
+
+    fun getDouble(key: String, default: Double = 0.0): Flow<Double> =
+        dataStore.data.map { it[doublePreferencesKey(key)] ?: default }
+
+    suspend fun setDouble(key: String, value: Double) =
+        dataStore.edit { it[doublePreferencesKey(key)] = value }
+
+    // ========== Apple Music 背景 ==========
+    /** 模糊强度 (dp) */
+    val appleMusicBlurDp: Flow<Int> = dataStore.data.map { it[intPreferencesKey("apple_music_blur_dp")] ?: 40 }
+    suspend fun setAppleMusicBlurDp(value: Int) = dataStore.edit { it[intPreferencesKey("apple_music_blur_dp")] = value }
+
+    /** 暗色遮罩强度 (%) */
+    val appleMusicScrimPct: Flow<Int> = dataStore.data.map { it[intPreferencesKey("apple_music_scrim_pct")] ?: 30 }
+    suspend fun setAppleMusicScrimPct(value: Int) = dataStore.edit { it[intPreferencesKey("apple_music_scrim_pct")] = value }
+
+    /** 旋转速度倍率 */
+    val appleMusicSpeed: Flow<Double> = dataStore.data.map { it[doublePreferencesKey("apple_music_speed")] ?: 1.0 }
+    suspend fun setAppleMusicSpeed(value: Double) = dataStore.edit { it[doublePreferencesKey("apple_music_speed")] = value }
+
+    /** 交叉淡入淡出时间 (ms) */
+    val appleMusicCrossfadeMs: Flow<Int> = dataStore.data.map { it[intPreferencesKey("apple_music_crossfade_ms")] ?: 600 }
+    suspend fun setAppleMusicCrossfadeMs(value: Int) = dataStore.edit { it[intPreferencesKey("apple_music_crossfade_ms")] = value }
+
+    /** 色彩饱和度倍率 */
+    val appleMusicSaturation: Flow<Double> = dataStore.data.map { it[doublePreferencesKey("apple_music_saturation")] ?: 1.0 }
+    suspend fun setAppleMusicSaturation(value: Double) = dataStore.edit { it[doublePreferencesKey("apple_music_saturation")] = value }
+
+    /** 渲染分辨率缩放 */
+    val appleMusicRenderScale: Flow<Double> = dataStore.data.map { it[doublePreferencesKey("apple_music_render_scale")] ?: 0.5 }
+    suspend fun setAppleMusicRenderScale(value: Double) = dataStore.edit { it[doublePreferencesKey("apple_music_render_scale")] = value }
+
+    /** 低音脉冲开关 */
+    val appleMusicBassPulse: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("apple_music_bass_pulse")] ?: false }
+    suspend fun setAppleMusicBassPulse(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("apple_music_bass_pulse")] = value }
 }

@@ -6,6 +6,7 @@ uniform shader image;
 uniform float blackScrimAlpha;
 uniform float ditherStrength;
 uniform vec2 resolution;
+uniform float saturationMultiplier;
 
 half3 applySaturation(half3 color, float saturation) {
     half3 redColumn = half3(
@@ -27,10 +28,12 @@ half4 main(float2 coord) {
     half4 input = image.eval(coord);
     half3 color = input.rgb;
 
-    // Saturation boost → clamp → reduce
-    color = applySaturation(color, 1.4);
+    // Saturation boost → clamp → reduce (scaled by multiplier)
+    float boost = mix(1.0, 1.4, saturationMultiplier);
+    float reduce = mix(1.0, 0.70, saturationMultiplier);
+    color = applySaturation(color, boost);
     color = clamp(color, half3(-0.752941), half3(1.25098));
-    color = applySaturation(color, 0.70);
+    color = applySaturation(color, reduce);
 
     // Dark scrim
     color = mix(color, half3(0.0), blackScrimAlpha);

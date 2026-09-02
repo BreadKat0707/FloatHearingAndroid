@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
+import cn.lemondrop.fhreborn.ui.screens.player.apple_music.AppleMusicMeshRenderer
+import cn.lemondrop.fhreborn.ui.screens.player.apple_music.BassPulseProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -88,6 +90,7 @@ fun PlayerBackground(
     when (type) {
         PlayerBackgroundType.AppleMusic -> AppleMusicBackground(
             songId = songId,
+            isPlaying = isPlaying,
             isDarkTheme = isDarkTheme,
             modifier = modifier
         )
@@ -234,11 +237,12 @@ private fun AgslFluidBackgroundImpl(
 @Composable
 fun AppleMusicBackground(
     songId: Long?,
+    isPlaying: Boolean,
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        AppleMusicBackgroundImpl(songId, isDarkTheme, modifier)
+        AppleMusicBackgroundImpl(songId, isPlaying, isDarkTheme, modifier)
     } else {
         CoverBlurBackground(songId, isDarkTheme, modifier)
     }
@@ -248,23 +252,33 @@ fun AppleMusicBackground(
 @Composable
 private fun AppleMusicBackgroundImpl(
     songId: Long?,
+    isPlaying: Boolean,
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val repository = remember { AppSettingsRepository(context) }
 
-    val baseBg = if (isDarkTheme) Color.Black else Color.White
-    val overlay = if (isDarkTheme) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.5f)
+    val blurDp by repository.appleMusicBlurDp.collectAsState(initial = 40)
+    val scrimPct by repository.appleMusicScrimPct.collectAsState(initial = 30)
+    val speed by repository.appleMusicSpeed.collectAsState(initial = 1.0)
+    val crossfadeMs by repository.appleMusicCrossfadeMs.collectAsState(initial = 600)
+    val saturation by repository.appleMusicSaturation.collectAsState(initial = 1.0)
+    val renderScale by repository.appleMusicRenderScale.collectAsState(initial = 0.5)
+    val bassPulseEnabled by repository.appleMusicBassPulse.collectAsState(initial = false)
+
+    val scrimAlpha = scrimPct / 100f
+    val overlay = if (isDarkTheme) Color.Black.copy(alpha = scrimAlpha) else Color.White.copy(alpha = (scrimAlpha + 0.2f).coerceAtMost(1f))
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(baseBg),
+            .background(if (isDarkTheme) Color.Black else Color.White),
         contentAlignment = Alignment.Center
     ) {
         Crossfade(
             targetState = songId,
-            animationSpec = tween(600, easing = FastOutSlowInEasing),
+            animationSpec = tween(crossfadeMs, easing = FastOutSlowInEasing),
             label = "apple_music_bg"
         ) { currentSongId ->
             var bitmap by remember(currentSongId) { mutableStateOf<Bitmap?>(null) }
@@ -277,11 +291,34 @@ private fun AppleMusicBackgroundImpl(
 
             bitmap?.let { bmp ->
                 AndroidView(
-                    factory = { ctx -> AppleMusicBackgroundView(ctx) },
-                    update = { view -> view.setBitmap(bmp) },
+                    factory = { ctx ->
+                        AppleMusicBackgroundView(ctx).apply {
+                            this.speedMultiplier = speed.toFloat()
+                            this.crossfadeDurationMs = crossfadeMs
+                            this.saturationMultiplier = saturation.toFloat()
+                            this.renderScaleValue = renderScale.toFloat()
+                            if (bassPulseEnabled) {
+                                this.bassPulseProcessor = BassPulseProcessor()
+                            }
+                        }
+                    },
+                    update = { view ->
+                        view.setBitmap(bmp)
+                        view.setPlaying(isPlaying)
+                        view.speedMultiplier = speed.toFloat()
+                        view.crossfadeDurationMs = crossfadeMs
+                        view.saturationMultiplier = saturation.toFloat()
+                        view.renderScaleValue = renderScale.toFloat()
+                        if (bassPulseEnabled && view.bassPulseProcessor == null) {
+                            view.bassPulseProcessor = BassPulseProcessor()
+                        } else if (!bassPulseEnabled && view.bassPulseProcessor != null) {
+                            view.bassPulseProcessor?.release()
+                            view.bassPulseProcessor = null
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(40.dp)
+                        .blur(blurDp.dp)
                 )
             }
         }
@@ -313,12 +350,32 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
     private var isTransitioning = false
     private val startTime = SystemClock.elapsedRealtime()
 
+    // Pause/play support: freeze time when paused
+    private var isPlaying = true
+    private var frozenTime = 0f
+    private var pauseStartTime = 0L
+
+    // Settings (updated from Compose)
+    var speedMultiplier = 1f
+    var crossfadeDurationMs = 600
+    var saturationMultiplier = 1f
+    var renderScaleValue = 0.5f
+    var bassPulseProcessor: BassPulseProcessor? = null
+        set(value) {
+            field?.release()
+            field = value
+        }
+
+    private val meshRenderer = AppleMusicMeshRenderer()
+
     private val shaderCode = """
         uniform shader current;
         uniform shader previous;
         uniform float time;
         uniform float transitionMix;
         uniform vec2 resolution;
+        uniform float speedMul;
+        uniform float imageScale;
 
         half4 main(float2 coord) {
             vec2 uv = coord / resolution;
@@ -327,18 +384,16 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
             const float pi = 3.14159265;
             const float twoPi = 6.28318530;
 
-            // Background layer
             half4 bgColor = current.eval(coord);
-
             half4 result = bgColor;
             float totalAlpha = bgColor.a;
 
             // Layer 0: base rotation (120s per revolution)
             {
-                float angle = time * twoPi / 120.0;
+                float angle = time * twoPi / (120.0 / speedMul);
                 float s = sin(angle);
                 float c = cos(angle);
-                vec2 pos = center;
+                vec2 pos = center * imageScale;
                 vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
                 r1 += vec2(0.0, 0.0);
                 vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
@@ -351,10 +406,10 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
 
             // Layer 1: offset rotation (90s per revolution)
             {
-                float angle = time * twoPi / 90.0;
+                float angle = time * twoPi / (90.0 / speedMul);
                 float s = sin(angle);
                 float c = cos(angle);
-                vec2 pos = center;
+                vec2 pos = center * imageScale;
                 vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
                 r1 += vec2(-0.5, 0.7);
                 vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
@@ -367,10 +422,10 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
 
             // Layer 2: fast offset rotation (70s per revolution)
             {
-                float angle = time * twoPi / 70.0;
+                float angle = time * twoPi / (70.0 / speedMul);
                 float s = sin(angle);
                 float c = cos(angle);
-                vec2 pos = center;
+                vec2 pos = center * imageScale;
                 vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
                 r1 += vec2(-0.95, -0.7);
                 vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
@@ -395,6 +450,18 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
         updateShader()
     }
 
+    fun setPlaying(playing: Boolean) {
+        if (playing == isPlaying) return
+        if (playing) {
+            // Resume: add paused duration to startTime offset
+            val pausedDuration = SystemClock.elapsedRealtime() - pauseStartTime
+            frozenTime += pausedDuration / 1000f
+        } else {
+            pauseStartTime = SystemClock.elapsedRealtime()
+        }
+        isPlaying = playing
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         updateShader()
@@ -403,22 +470,35 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val shader = runtimeShader ?: return
-        val seconds = (SystemClock.elapsedRealtime() - startTime) / 1000f
+
+        // Compute elapsed time (frozen when paused)
+        val rawSeconds = (SystemClock.elapsedRealtime() - startTime) / 1000f
+        val seconds = if (isPlaying) rawSeconds - frozenTime else frozenTime
 
         val transitionMix = if (isTransitioning) {
             val elapsed = (SystemClock.elapsedRealtime() - transitionStartTime) / 1000f
-            if (elapsed >= 0.5f) {
+            val duration = crossfadeDurationMs / 1000f
+            if (elapsed >= duration) {
                 isTransitioning = false
                 previousBitmap = null
                 1f
             } else {
-                (elapsed / 0.5f).coerceIn(0f, 1f)
+                (elapsed / duration).coerceIn(0f, 1f)
             }
         } else 1f
 
+        // Bass pulse: drive imageScale
+        val pulseScale = bassPulseProcessor?.getPulse() ?: 0f
+        val imageScale = 1f + pulseScale * 0.15f
+
+        shader.setInputShader("current", currentBitmapShader!!)
+        shader.setInputShader("previous", previousBitmapShader ?: currentBitmapShader!!)
         shader.setFloatUniform("time", seconds)
         shader.setFloatUniform("transitionMix", transitionMix)
         shader.setFloatUniform("resolution", width.toFloat(), height.toFloat())
+        shader.setFloatUniform("speedMul", speedMultiplier)
+        shader.setFloatUniform("imageScale", imageScale)
+
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
     }
 
@@ -430,6 +510,8 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         choreographer.removeFrameCallback(frameCallback)
+        bassPulseProcessor?.release()
+        bassPulseProcessor = null
     }
 
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -439,36 +521,39 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
         }
     }
 
+    private var currentBitmapShader: BitmapShader? = null
+    private var previousBitmapShader: BitmapShader? = null
+
     private fun updateShader() {
         val bmp = bitmap ?: return
         val w = width.toFloat().coerceAtLeast(1f)
         val h = height.toFloat().coerceAtLeast(1f)
 
-        val bitmapShader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        currentBitmapShader = createArtworkShader(bmp, w, h)
+        val prevBmp = previousBitmap ?: bmp
+        previousBitmapShader = createArtworkShader(prevBmp, w, h)
+
+        val runtime = RuntimeShader(shaderCode)
+        runtime.setInputShader("current", currentBitmapShader!!)
+        runtime.setInputShader("previous", previousBitmapShader ?: currentBitmapShader!!)
+        runtime.setFloatUniform("resolution", w, h)
+        runtime.setFloatUniform("speedMul", speedMultiplier)
+        runtime.setFloatUniform("imageScale", 1f)
+        runtimeShader = runtime
+        paint.shader = runtime
+    }
+
+    private fun createArtworkShader(bmp: Bitmap, w: Float, h: Float): BitmapShader {
+        val shader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
         val matrix = android.graphics.Matrix()
         val scale = maxOf(w / bmp.width, h / bmp.height)
         matrix.setScale(scale, scale)
-        val dx = (w - bmp.width * scale) * 0.5f
-        val dy = (h - bmp.height * scale) * 0.5f
-        matrix.postTranslate(dx, dy)
-        bitmapShader.setLocalMatrix(matrix)
-
-        val prevBmp = previousBitmap ?: bmp
-        val prevBitmapShader = BitmapShader(prevBmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-        val prevMatrix = android.graphics.Matrix()
-        val prevScale = maxOf(w / prevBmp.width, h / prevBmp.height)
-        prevMatrix.setScale(prevScale, prevScale)
-        val prevDx = (w - prevBmp.width * prevScale) * 0.5f
-        val prevDy = (h - prevBmp.height * prevScale) * 0.5f
-        prevMatrix.postTranslate(prevDx, prevDy)
-        prevBitmapShader.setLocalMatrix(prevMatrix)
-
-        val runtime = RuntimeShader(shaderCode)
-        runtime.setInputShader("current", bitmapShader)
-        runtime.setInputShader("previous", prevBitmapShader)
-        runtime.setFloatUniform("resolution", w, h)
-        runtimeShader = runtime
-        paint.shader = runtime
+        matrix.postTranslate(
+            (w - bmp.width * scale) * 0.5f,
+            (h - bmp.height * scale) * 0.5f
+        )
+        shader.setLocalMatrix(matrix)
+        return shader
     }
 }
 
