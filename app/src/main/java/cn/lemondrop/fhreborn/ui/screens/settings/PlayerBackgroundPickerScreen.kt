@@ -247,3 +247,52 @@ private fun SettingSliderItem(
         )
     }
 }
+
+@Composable
+private fun CoverAppearanceSettingsPanel(
+    repository: AppSettingsRepository,
+    scope: kotlinx.coroutines.CoroutineScope
+) {
+    val shadowY by repository.playerCoverShadowY.collectAsState(initial = 16)
+    val shadowAlpha by repository.playerCoverShadowAlpha.collectAsState(initial = 40)
+    val shadowBlur by repository.playerCoverShadowBlur.collectAsState(initial = 20)
+    val pauseScale by repository.playerCoverPauseScale.collectAsState(initial = 92)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SettingSliderItem(
+            label = "投影 Y 轴偏移",
+            value = shadowY.toFloat(),
+            valueRange = 0f..60f,
+            steps = 59,
+            displayText = "${shadowY}dp",
+            onValueChange = { scope.launch { repository.setPlayerCoverShadowY(it.toInt()) } }
+        )
+
+        SettingSliderItem(
+            label = "投影颜色浓度",
+            value = shadowAlpha.toFloat(),
+            valueRange = 0f..100f,
+            steps = 99,
+            displayText = "${shadowAlpha}%",
+            onValueChange = { scope.launch { repository.setPlayerCoverShadowAlpha(it.toInt()) } }
+        )
+
+        SettingSliderItem(
+            label = "投影模糊程度",
+            value = shadowBlur.toFloat(),
+            valueRange = 0f..60f,
+            steps = 59,
+            displayText = "${shadowBlur}dp",
+            onValueChange = { scope.launch { repository.setPlayerCoverShadowBlur(it.toInt()) } }
+        )
+
+        SettingSliderItem(
+            label = "暂停时缩小比例",
+            value = pauseScale.toFloat(),
+            valueRange = 50f..100f,
+            steps = 49,
+            displayText = "${pauseScale}%",
+            onValueChange = { scope.launch { repository.setPlayerCoverPauseScale(it.toInt()) } }
+        )
+    }
+}

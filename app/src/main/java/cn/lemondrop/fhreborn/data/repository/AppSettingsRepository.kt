@@ -146,6 +146,22 @@ class AppSettingsRepository(private val context: Context) {
     val playerCoverRotating: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("player_cover_rotating")] ?: false }
     suspend fun setPlayerCoverRotating(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("player_cover_rotating")] = value }
 
+    /** 封面投影 Y 轴偏移（dp） */
+    val playerCoverShadowY: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_shadow_y")] ?: 16 }
+    suspend fun setPlayerCoverShadowY(value: Int) = dataStore.edit { it[intPreferencesKey("player_cover_shadow_y")] = value }
+
+    /** 封面投影颜色浓度（0-100%，控制阴影 alpha） */
+    val playerCoverShadowAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_shadow_alpha")] ?: 40 }
+    suspend fun setPlayerCoverShadowAlpha(value: Int) = dataStore.edit { it[intPreferencesKey("player_cover_shadow_alpha")] = value }
+
+    /** 封面投影模糊程度（dp） */
+    val playerCoverShadowBlur: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_shadow_blur")] ?: 20 }
+    suspend fun setPlayerCoverShadowBlur(value: Int) = dataStore.edit { it[intPreferencesKey("player_cover_shadow_blur")] = value }
+
+    /** 暂停时封面缩小百分比（50-100%，默认92%） */
+    val playerCoverPauseScale: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_pause_scale")] ?: 92 }
+    suspend fun setPlayerCoverPauseScale(value: Int) = dataStore.edit { it[intPreferencesKey("player_cover_pause_scale")] = value }
+
     // ========== 媒体库 ==========
     val autoScanOnLaunch: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("auto_scan")] ?: true }
     suspend fun setAutoScanOnLaunch(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("auto_scan")] = value }

@@ -26,6 +26,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -177,6 +179,10 @@ fun PlayerScreen(
     // 播放器封面设置：圆角 + 圆形旋转封面
     val coverCornerRadius by appSettingsRepository.playerCoverCornerRadius.collectAsState(initial = 12)
     val coverRotating by appSettingsRepository.playerCoverRotating.collectAsState(initial = false)
+    val coverShadowY by appSettingsRepository.playerCoverShadowY.collectAsState(initial = 16)
+    val coverShadowAlpha by appSettingsRepository.playerCoverShadowAlpha.collectAsState(initial = 40)
+    val coverShadowBlur by appSettingsRepository.playerCoverShadowBlur.collectAsState(initial = 20)
+    val coverPauseScale by appSettingsRepository.playerCoverPauseScale.collectAsState(initial = 92)
 
     // Accompanist Lyric 设置
     val acclMainTextSize by appSettingsRepository.acclLyricMainTextSizeSp.collectAsState(initial = 34)
@@ -457,7 +463,7 @@ fun PlayerScreen(
                     }
             ) {
                 val coverSizeMultiplier by animateFloatAsState(
-                    targetValue = if (isCompactLandscape) 1f else if (isPlaying) 1f else 0.92f,
+                    targetValue = if (isCompactLandscape) 1f else if (isPlaying) 1f else coverPauseScale / 100f,
                     animationSpec = tween(200, easing = FastOutSlowInEasing),
                     label = "coverSizeMultiplierTwoPane"
                 )
@@ -554,7 +560,10 @@ fun PlayerScreen(
                             cornerRadiusDp = coverCornerRadius,
                             rotating = coverRotating,
                             isPlaying = isPlaying,
-                            useSharedTransition = false
+                            useSharedTransition = false,
+                            shadowY = coverShadowY,
+                            shadowAlphaPercent = coverShadowAlpha,
+                            shadowBlur = coverShadowBlur
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -711,7 +720,7 @@ fun PlayerScreen(
                 // 封面区域：有封面时按原图宽高比适配（支持不规则封面），无封面时占位为方形；
                 // 圆形旋转封面裁切为方形显示
                 val coverSizeMultiplier by animateFloatAsState(
-                    targetValue = if (isPlaying) 1f else 0.92f,
+                    targetValue = if (isPlaying) 1f else coverPauseScale / 100f,
                     animationSpec = tween(200, easing = FastOutSlowInEasing),
                     label = "coverSizeMultiplier"
                 )
@@ -731,7 +740,10 @@ fun PlayerScreen(
                     isPlaying = isPlaying,
                     useSharedTransition = true,
                     sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = this@AnimatedContent
+                    animatedVisibilityScope = this@AnimatedContent,
+                    shadowY = coverShadowY,
+                    shadowAlphaPercent = coverShadowAlpha,
+                    shadowBlur = coverShadowBlur
                 )
 
                 Spacer(modifier = Modifier.height(28.dp))
@@ -1617,7 +1629,10 @@ private fun PlayerCoverSection(
     isPlaying: Boolean = false,
     useSharedTransition: Boolean = true,
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    shadowY: Int = 16,
+    shadowAlphaPercent: Int = 40,
+    shadowBlur: Int = 20
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -1703,12 +1718,34 @@ private fun PlayerCoverSection(
             }
         }
 
+        val shadowColor = Color.Black.copy(alpha = shadowAlphaPercent / 100f)
         val baseCoverModifier = Modifier
             .size(coverWidth, coverHeight)
             .graphicsLayer {
                 if (rotating) rotationZ = rotation
             }
-            .shadow(20.dp, coverShape)
+            .drawBehind {
+                // 手动画投影：用 Canvas 圆角矩形 + BlurMaskFilter
+                if (shadowBlur > 0 && shadowAlphaPercent > 0) {
+                    val paint = android.graphics.Paint().apply {
+                        color = shadowColor.hashCode()
+                        maskFilter = android.graphics.BlurMaskFilter(
+                            shadowBlur.dp.toPx(),
+                            android.graphics.BlurMaskFilter.Blur.NORMAL
+                        )
+                        isAntiAlias = true
+                    }
+                    val cornerRadius = if (rotating) size.minDimension / 2f else cornerRadiusDp.dp.toPx()
+                    drawIntoCanvas { canvas ->
+                        canvas.nativeCanvas.drawRoundRect(
+                            0f, shadowY.dp.toPx(),
+                            size.width, size.height + shadowY.dp.toPx(),
+                            cornerRadius, cornerRadius,
+                            paint
+                        )
+                    }
+                }
+            }
             .clip(coverShape)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },

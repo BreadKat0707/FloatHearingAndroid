@@ -22,7 +22,7 @@ import top.yukonga.miuix.kmp.blur.drawBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 模糊半径（像素）。顶栏/底栏对 backdrop 层的实时模糊强度。 */
-private const val BackdropBlurRadius = 40f
+private const val BackdropBlurRadius = 60f
 
 /** 叠加在模糊上的表面色不透明度（磨砂玻璃观感，越高越不透） */
 private const val BackdropSurfaceAlpha = 0.8f

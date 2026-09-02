@@ -798,6 +798,10 @@ private fun buildCategories(): List<SettingCategory> {
                 SettingItem("", "播放器", null, null, SettingType.Info),
                 SettingItem("player_cover_corner_radius", "封面圆角", "播放器封面圆角大小", null, SettingType.Slider(0f, 32f, 31), 12),
                 SettingItem("player_cover_rotating", "圆形旋转封面", "非正方形封面将裁切为方形显示", null, SettingType.Toggle, false),
+                SettingItem("player_cover_shadow_y", "投影 Y 轴偏移", "封面投影的垂直位置", null, SettingType.Slider(-30f, 60f, 90), 16),
+                SettingItem("player_cover_shadow_alpha", "投影颜色浓度", "封面投影的不透明度", null, SettingType.Slider(0f, 100f, 100), 40),
+                SettingItem("player_cover_shadow_blur", "投影模糊半径", "封面投影的模糊程度", null, SettingType.Slider(0f, 60f, 60), 20),
+                SettingItem("player_cover_pause_scale", "暂停时缩小比例", "暂停播放时封面缩小到的比例", null, SettingType.Slider(50f, 100f, 50), 92),
 
                 SettingItem("predictive_back", "预测性返回手势", "返回时预览上一页（实验，可能有异常）", null, SettingType.Toggle, false)
             )
