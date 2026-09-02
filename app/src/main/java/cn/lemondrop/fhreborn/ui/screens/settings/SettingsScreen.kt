@@ -97,6 +97,7 @@ import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.color.core.Transforms
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
+import kotlinx.coroutines.flow.first
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference
@@ -399,10 +400,22 @@ private fun SettingsListContent(
             if (category != null) {
                 category.items.forEach { item ->
                     item {
+                        // 同步预加载当前设置项的值，避免闪烁
+                        val preloadedValue = remember(item.key) {
+                            if (item.key.isEmpty()) null else kotlinx.coroutines.runBlocking {
+                                when (item.type) {
+                                    is SettingType.Toggle -> viewModel.getToggleValue(item.key, item.defaultValue as? Boolean ?: false).first()
+                                    is SettingType.Slider -> viewModel.getIntValue(item.key, (item.defaultValue as? Number)?.toInt() ?: 0).first()
+                                    is SettingType.Selection -> viewModel.getStringValue(item.key, item.defaultValue as? String ?: "").first()
+                                    else -> item.defaultValue
+                                }
+                            }
+                        }
                         SettingItemRow(
                             item = item,
                             viewModel = viewModel,
-                            onClick = onSettingItemClick
+                            onClick = onSettingItemClick,
+                            preloadedValue = preloadedValue
                         )
                         // 个性化页：主题色选择器紧跟"主题与颜色"分组标题（动态取色时隐藏）
                         if (category.key == "personalize" && item.key.isEmpty() && item.title == "主题与颜色") {
@@ -670,12 +683,14 @@ private fun CategoryItem(
 private fun SettingItemRow(
     item: SettingItem,
     viewModel: SettingsViewModel,
-    onClick: (SettingItem) -> Unit
+    onClick: (SettingItem) -> Unit,
+    preloadedValue: Any? = null
 ) {
     when (item.type) {
         is SettingType.Toggle -> {
-            val toggleValue by viewModel.getToggleValue(item.key, item.defaultValue as? Boolean ?: false)
-                .collectAsState(initial = item.defaultValue as? Boolean ?: false)
+            val defaultVal = item.defaultValue as? Boolean ?: false
+            val toggleValue by viewModel.getToggleValue(item.key, defaultVal)
+                .collectAsState(initial = preloadedValue as? Boolean ?: defaultVal)
             SwitchPreference(
                 checked = toggleValue,
                 onCheckedChange = { viewModel.toggleSetting(item) },
@@ -687,8 +702,9 @@ private fun SettingItemRow(
             )
         }
         is SettingType.Selection -> {
-            val stringValue by viewModel.getStringValue(item.key, item.defaultValue as? String ?: "")
-                .collectAsState(initial = item.defaultValue as? String ?: "")
+            val defaultVal = item.defaultValue as? String ?: ""
+            val stringValue by viewModel.getStringValue(item.key, defaultVal)
+                .collectAsState(initial = preloadedValue as? String ?: defaultVal)
             val options = (item.type as SettingType.Selection).options
             val selectedLabel = options.find { it.key == stringValue }?.label ?: stringValue
             ArrowPreference(
@@ -701,8 +717,9 @@ private fun SettingItemRow(
             )
         }
         is SettingType.Slider -> {
-            val sliderValue by viewModel.getIntValue(item.key, (item.defaultValue as? Number)?.toInt() ?: 0)
-                .collectAsState(initial = (item.defaultValue as? Number)?.toInt() ?: 0)
+            val defaultVal = (item.defaultValue as? Number)?.toInt() ?: 0
+            val sliderValue by viewModel.getIntValue(item.key, defaultVal)
+                .collectAsState(initial = (preloadedValue as? Number)?.toInt() ?: defaultVal)
             val sliderType = item.type as SettingType.Slider
             SliderPreference(
                 value = sliderValue.toFloat(),
