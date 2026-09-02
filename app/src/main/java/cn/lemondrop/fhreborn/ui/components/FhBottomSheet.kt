@@ -49,7 +49,7 @@ fun FhBottomSheet(
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp, bottom = 8.dp)
+                            .padding(top = 4.dp, bottom = 8.dp)
                     )
                 }
                 content()

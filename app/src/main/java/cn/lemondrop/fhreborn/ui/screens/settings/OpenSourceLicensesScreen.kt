@@ -43,7 +43,7 @@ fun OpenSourceLicensesContent(
     ) {
         item {
             Text(
-                text = "FH Reborn 使用了以下开源项目，感谢所有贡献者。",
+                text = "Float Hearing 使用了以下开源项目，感谢所有贡献者。",
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.padding(vertical = 12.dp)
@@ -163,14 +163,14 @@ private fun rememberOpenSourceLicenses(): List<OpenSourceLicense> {
             ),
             OpenSourceLicense(
                 name = "Media3",
-                version = "1.7.0",
+                version = "1.10.1",
                 license = "Apache-2.0",
                 url = "https://github.com/androidx/media",
                 description = "ExoPlayer 播放核心与 MediaSession"
             ),
             OpenSourceLicense(
                 name = "Kotlin",
-                version = "2.2.10",
+                version = "2.3.10",
                 license = "Apache-2.0",
                 url = "https://github.com/JetBrains/kotlin",
                 description = "Kotlin 标准库与编译器"
@@ -184,17 +184,17 @@ private fun rememberOpenSourceLicenses(): List<OpenSourceLicense> {
             ),
             OpenSourceLicense(
                 name = "Kotlin Symbol Processing (KSP)",
-                version = "2.2.10-2.0.2",
+                version = "2.3.10",
                 license = "Apache-2.0",
                 url = "https://github.com/google/ksp",
                 description = "Room 等注解处理工具"
             ),
             OpenSourceLicense(
-                name = "Compose Fluent UI",
-                version = "v0.1.0",
-                license = "MIT",
-                url = "https://github.com/Konyaco/compose-fluent-ui",
-                description = "Fluent Design 风格组件"
+                name = "Miuix",
+                version = "0.9.4-rc01",
+                license = "Apache-2.0",
+                url = "https://github.com/compose-miuix-ui/miuix",
+                description = "MIUI 风格 Compose 组件库（UI、模糊、squircle）"
             ),
             OpenSourceLicense(
                 name = "Lucide Icons",
@@ -209,6 +209,20 @@ private fun rememberOpenSourceLicenses(): List<OpenSourceLicense> {
                 license = "Apache-2.0",
                 url = "https://github.com/mocharealm/Accompanist-Lyrics",
                 description = "逐字歌词显示组件"
+            ),
+            OpenSourceLicense(
+                name = "JAudioTagger",
+                version = "3.0.1",
+                license = "LGPL-3.0",
+                url = "https://github.com/mpatric/mp3agic",
+                description = "音频文件标签读写库（ID3v1/v2、FLAC Vorbis Comment）"
+            ),
+            OpenSourceLicense(
+                name = "FFmpeg Media3 Decoder",
+                version = "1.10.1-ffmpeg6.0-r1",
+                license = "LGPL-2.1",
+                url = "https://github.com/nickoala/media3-decoder-ffmpeg",
+                description = "Media3 FFmpeg 软件解码器（ALAC 等格式支持）"
             )
         )
     }

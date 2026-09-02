@@ -27,6 +27,7 @@ import com.composables.icons.lucide.FolderPlus
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Share2
+import com.composables.icons.lucide.ListMinus
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.X
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
@@ -61,7 +62,8 @@ fun MultiSelectToolbar(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     backdrop: LayerBackdrop? = null,
-    showSongActions: Boolean = true
+    showSongActions: Boolean = true,
+    onRemoveFromPlaylist: (() -> Unit)? = null
 ) {
     val enabled = selectedCount > 0
     val useBlur = backdrop != null && isRuntimeShaderSupported
@@ -119,6 +121,15 @@ fun MultiSelectToolbar(
                     label = "分享",
                     enabled = enabled,
                     onClick = onShare
+                )
+            }
+            if (onRemoveFromPlaylist != null) {
+                MultiSelectToolItem(
+                    icon = Lucide.ListMinus,
+                    label = "移除",
+                    enabled = enabled,
+                    destructive = true,
+                    onClick = onRemoveFromPlaylist
                 )
             }
             MultiSelectToolItem(

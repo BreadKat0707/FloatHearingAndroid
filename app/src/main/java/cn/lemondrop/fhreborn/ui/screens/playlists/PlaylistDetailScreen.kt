@@ -132,6 +132,7 @@ fun PlaylistDetailScreen(
     val selectedSongIds = remember { mutableStateSetOf<Long>() }
     var showBatchAddSheet by remember { mutableStateOf(false) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+    var showBatchRemoveConfirm by remember { mutableStateOf(false) }
 
     // 多选时隐藏全局播放条（底部由多选工具栏接管）；离开页面时复位
     val playBarOverride = LocalPlayBarOverride.current
@@ -527,6 +528,9 @@ fun PlaylistDetailScreen(
                         },
                         onDelete = {
                             if (selectedSongIds.isNotEmpty()) showBatchDeleteConfirm = true
+                        },
+                        onRemoveFromPlaylist = {
+                            if (selectedSongIds.isNotEmpty()) showBatchRemoveConfirm = true
                         }
                     )
                 }
@@ -632,6 +636,43 @@ fun PlaylistDetailScreen(
                                 snackbarScope.launch {
                                     snackbarHostState.showSnackbar("已删除 $deleted 首歌曲")
                                 }
+                            }
+                            multiSelectMode = false
+                            selectedSongIds.clear()
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // 批量从歌单移除确认（多选工具栏）
+    if (showBatchRemoveConfirm) {
+        BackHandler { showBatchRemoveConfirm = false }
+        FhBottomSheet(
+            show = true,
+            onDismissRequest = { showBatchRemoveConfirm = false },
+            title = "从歌单移除",
+            backgroundColor = MiuixTheme.colorScheme.surfaceContainer
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(
+                    text = "确定从歌单中移除选中的 ${selectedSongIds.size} 首歌曲吗？文件不会从设备中删除。",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(text = "取消", onClick = { showBatchRemoveConfirm = false })
+                    TextButton(
+                        text = "移除",
+                        onClick = {
+                            showBatchRemoveConfirm = false
+                            for (songId in selectedSongIds.toList()) {
+                                viewModel.removeSong(playlistId, songId)
                             }
                             multiSelectMode = false
                             selectedSongIds.clear()

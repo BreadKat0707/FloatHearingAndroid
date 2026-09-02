@@ -96,6 +96,7 @@ import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.color.core.Transforms
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference
@@ -403,11 +404,15 @@ private fun SettingsListContent(
                             viewModel = viewModel,
                             onClick = onSettingItemClick
                         )
-                    }
-                    // 个性化页：主题色选择器紧跟"主题与颜色"分组标题
-                    if (category.key == "personalize" && item.key.isEmpty() && item.title == "主题与颜色") {
-                        item {
-                            AccentColorPickerItem(viewModel = viewModel)
+                        // 个性化页：主题色选择器紧跟"主题与颜色"分组标题（动态取色时隐藏）
+                        if (category.key == "personalize" && item.key.isEmpty() && item.title == "主题与颜色") {
+                            val ctx = androidx.compose.ui.platform.LocalContext.current
+                            val appSettingsRepo = remember(ctx) { AppSettingsRepository(ctx) }
+                            val isDynamicColor by appSettingsRepo.useDynamicColor
+                                .collectAsState(initial = false)
+                            if (!isDynamicColor) {
+                                AccentColorPickerItem(viewModel = viewModel)
+                            }
                         }
                     }
                 }
