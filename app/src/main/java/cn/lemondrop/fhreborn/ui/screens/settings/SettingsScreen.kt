@@ -449,8 +449,11 @@ private fun SettingsListContent(
 
 @Composable
 private fun AccentColorPickerItem(viewModel: SettingsViewModel) {
+    val initialColor = remember {
+        kotlinx.coroutines.runBlocking { viewModel.getStringValue("accent_color", "default").first() }
+    }
     val accentColorSetting by viewModel.getStringValue("accent_color", "default")
-        .collectAsState(initial = "default")
+        .collectAsState(initial = initialColor)
     val currentColor = remember(accentColorSetting) {
         cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
     }
