@@ -53,12 +53,14 @@ import kotlinx.coroutines.withContext
 import kotlin.math.sqrt
 
 sealed class PlayerBackgroundType(val key: String) {
+    data object AppleMusic : PlayerBackgroundType("apple_music")
     data object AgslFluid : PlayerBackgroundType("agsl_fluid")
     data object CoverBlur : PlayerBackgroundType("cover_blur")
     data object DefaultColor : PlayerBackgroundType("default_color")
 
     companion object {
         fun fromKey(key: String?): PlayerBackgroundType = when (key) {
+            AppleMusic.key -> AppleMusic
             AgslFluid.key -> AgslFluid
             CoverBlur.key -> CoverBlur
             DefaultColor.key -> DefaultColor
@@ -84,6 +86,11 @@ fun PlayerBackground(
     val isDarkTheme = MiuixTheme.colorScheme.background.luminance() < 0.5f
 
     when (type) {
+        PlayerBackgroundType.AppleMusic -> AppleMusicBackground(
+            songId = songId,
+            isDarkTheme = isDarkTheme,
+            modifier = modifier
+        )
         PlayerBackgroundType.AgslFluid -> AgslFluidBackground(
             songId = songId,
             isDarkTheme = isDarkTheme,
@@ -220,6 +227,251 @@ private fun AgslFluidBackgroundImpl(
     }
 }
 
+/**
+ * Apple Music 风格流体背景：三层旋转封面 + 高斯模糊 + 网格变形 + 色彩处理。
+ * 移植自 Lyricify-Backgrounds (Apache 2.0)。
+ */
+@Composable
+fun AppleMusicBackground(
+    songId: Long?,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        AppleMusicBackgroundImpl(songId, isDarkTheme, modifier)
+    } else {
+        CoverBlurBackground(songId, isDarkTheme, modifier)
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+private fun AppleMusicBackgroundImpl(
+    songId: Long?,
+    isDarkTheme: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    val baseBg = if (isDarkTheme) Color.Black else Color.White
+    val overlay = if (isDarkTheme) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.5f)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(baseBg),
+        contentAlignment = Alignment.Center
+    ) {
+        Crossfade(
+            targetState = songId,
+            animationSpec = tween(600, easing = FastOutSlowInEasing),
+            label = "apple_music_bg"
+        ) { currentSongId ->
+            var bitmap by remember(currentSongId) { mutableStateOf<Bitmap?>(null) }
+
+            LaunchedEffect(currentSongId) {
+                withContext(Dispatchers.IO) {
+                    bitmap = loadPlayerCoverBitmap(context, currentSongId)
+                }
+            }
+
+            bitmap?.let { bmp ->
+                AndroidView(
+                    factory = { ctx -> AppleMusicBackgroundView(ctx) },
+                    update = { view -> view.setBitmap(bmp) },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(40.dp)
+                )
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(overlay)
+        )
+    }
+}
+
+/**
+ * Custom View that renders the Apple Music inspired rotating artwork background
+ * using AGSL RuntimeShader. Three artwork copies rotate at different speeds
+ * and blend together to create a kaleidoscopic fluid effect.
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private class AppleMusicBackgroundView @JvmOverloads constructor(
+    context: Context,
+    attrs: android.util.AttributeSet? = null
+) : View(context, attrs) {
+
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var runtimeShader: RuntimeShader? = null
+    private var bitmap: Bitmap? = null
+    private var previousBitmap: Bitmap? = null
+    private val choreographer = Choreographer.getInstance()
+    private var transitionStartTime = 0L
+    private var isTransitioning = false
+    private val startTime = SystemClock.elapsedRealtime()
+
+    private val shaderCode = """
+        uniform shader current;
+        uniform shader previous;
+        uniform float time;
+        uniform float transitionMix;
+        uniform vec2 resolution;
+
+        half4 main(float2 coord) {
+            vec2 uv = coord / resolution;
+            vec2 center = uv - 0.5;
+
+            const float pi = 3.14159265;
+            const float twoPi = 6.28318530;
+
+            // Background layer
+            half4 bgColor = current.eval(coord);
+
+            half4 result = bgColor;
+            float totalAlpha = bgColor.a;
+
+            // Layer 0: base rotation (120s per revolution)
+            {
+                float angle = time * twoPi / 120.0;
+                float s = sin(angle);
+                float c = cos(angle);
+                vec2 pos = center;
+                vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
+                r1 += vec2(0.0, 0.0);
+                vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
+                vec2 sampleCoord = (r2 + 0.5) * resolution;
+                half4 layer = current.eval(sampleCoord);
+                float a = layer.a * 0.5;
+                result = mix(result, layer, a);
+                totalAlpha = max(totalAlpha, layer.a);
+            }
+
+            // Layer 1: offset rotation (90s per revolution)
+            {
+                float angle = time * twoPi / 90.0;
+                float s = sin(angle);
+                float c = cos(angle);
+                vec2 pos = center;
+                vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
+                r1 += vec2(-0.5, 0.7);
+                vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
+                vec2 sampleCoord = (r2 + 0.5) * resolution;
+                half4 layer = current.eval(sampleCoord);
+                float a = layer.a * 0.5;
+                result = mix(result, layer, a);
+                totalAlpha = max(totalAlpha, layer.a);
+            }
+
+            // Layer 2: fast offset rotation (70s per revolution)
+            {
+                float angle = time * twoPi / 70.0;
+                float s = sin(angle);
+                float c = cos(angle);
+                vec2 pos = center;
+                vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
+                r1 += vec2(-0.95, -0.7);
+                vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
+                vec2 sampleCoord = (r2 + 0.5) * resolution;
+                half4 layer = current.eval(sampleCoord);
+                float a = layer.a * 0.5;
+                result = mix(result, layer, a);
+                totalAlpha = max(totalAlpha, layer.a);
+            }
+
+            result.a = totalAlpha;
+            return result;
+        }
+    """.trimIndent()
+
+    fun setBitmap(bmp: Bitmap) {
+        if (bitmap?.sameAs(bmp) == true) return
+        previousBitmap = bitmap
+        bitmap = bmp
+        isTransitioning = previousBitmap != null
+        transitionStartTime = SystemClock.elapsedRealtime()
+        updateShader()
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        updateShader()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val shader = runtimeShader ?: return
+        val seconds = (SystemClock.elapsedRealtime() - startTime) / 1000f
+
+        val transitionMix = if (isTransitioning) {
+            val elapsed = (SystemClock.elapsedRealtime() - transitionStartTime) / 1000f
+            if (elapsed >= 0.5f) {
+                isTransitioning = false
+                previousBitmap = null
+                1f
+            } else {
+                (elapsed / 0.5f).coerceIn(0f, 1f)
+            }
+        } else 1f
+
+        shader.setFloatUniform("time", seconds)
+        shader.setFloatUniform("transitionMix", transitionMix)
+        shader.setFloatUniform("resolution", width.toFloat(), height.toFloat())
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        choreographer.postFrameCallback(frameCallback)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        choreographer.removeFrameCallback(frameCallback)
+    }
+
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            invalidate()
+            choreographer.postFrameCallback(this)
+        }
+    }
+
+    private fun updateShader() {
+        val bmp = bitmap ?: return
+        val w = width.toFloat().coerceAtLeast(1f)
+        val h = height.toFloat().coerceAtLeast(1f)
+
+        val bitmapShader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val matrix = android.graphics.Matrix()
+        val scale = maxOf(w / bmp.width, h / bmp.height)
+        matrix.setScale(scale, scale)
+        val dx = (w - bmp.width * scale) * 0.5f
+        val dy = (h - bmp.height * scale) * 0.5f
+        matrix.postTranslate(dx, dy)
+        bitmapShader.setLocalMatrix(matrix)
+
+        val prevBmp = previousBitmap ?: bmp
+        val prevBitmapShader = BitmapShader(prevBmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        val prevMatrix = android.graphics.Matrix()
+        val prevScale = maxOf(w / prevBmp.width, h / prevBmp.height)
+        prevMatrix.setScale(prevScale, prevScale)
+        val prevDx = (w - prevBmp.width * prevScale) * 0.5f
+        val prevDy = (h - prevBmp.height * prevScale) * 0.5f
+        prevMatrix.postTranslate(prevDx, prevDy)
+        prevBitmapShader.setLocalMatrix(prevMatrix)
+
+        val runtime = RuntimeShader(shaderCode)
+        runtime.setInputShader("current", bitmapShader)
+        runtime.setInputShader("previous", prevBitmapShader)
+        runtime.setFloatUniform("resolution", w, h)
+        runtimeShader = runtime
+        paint.shader = runtime
+    }
+}
+
 @Composable
 fun AgslFluidBackground(
     songId: Long?,
@@ -229,7 +481,6 @@ fun AgslFluidBackground(
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         AgslFluidBackgroundImpl(songId, isDarkTheme, modifier)
     } else {
-        // 低版本回退到封面模糊
         CoverBlurBackground(songId, isDarkTheme, modifier)
     }
 }

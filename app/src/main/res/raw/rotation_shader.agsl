@@ -1,0 +1,85 @@
+// Apple Music Inspired Rotation Shader
+// Renders three rotating artwork layers with crossfade transition.
+// Ported from Lyricify-Backgrounds HLSL (Apache 2.0).
+
+uniform shader currentArtwork;
+uniform shader previousArtwork;
+uniform float time;
+uniform float transitionMix;
+uniform vec2 viewScale;
+uniform float imageScale;
+
+half4 main(float2 coord) {
+    vec2 uv = coord / viewScale;
+    vec2 center = uv - 0.5;
+
+    const float twoPi = 6.28318530717958;
+
+    // Background layer: aspect-fill, no rotation
+    half4 currentBg = currentArtwork.eval(coord);
+    half4 previousBg = previousArtwork.eval(coord);
+    half4 bgColor = mix(previousBg, currentBg, transitionMix);
+
+    half4 blendedColor = bgColor;
+    float totalAlpha = bgColor.a;
+
+    // Layer 0: base rotation (120s per revolution)
+    {
+        float angle = time * twoPi / 120.0;
+        float s = sin(angle);
+        float c = cos(angle);
+        vec2 pos = center * imageScale;
+        vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
+        r1 += vec2(0.0, 0.0);
+        vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
+        vec2 sampleCoord = (r2 + 0.5) * viewScale;
+        half4 layer = mix(
+            previousArtwork.eval(sampleCoord),
+            currentArtwork.eval(sampleCoord),
+            transitionMix);
+        float a = layer.a * 0.5;
+        blendedColor = mix(blendedColor, layer, a);
+        totalAlpha = max(totalAlpha, layer.a);
+    }
+
+    // Layer 1: offset rotation (90s per revolution)
+    {
+        float angle = time * twoPi / 90.0;
+        float s = sin(angle);
+        float c = cos(angle);
+        vec2 pos = center * imageScale;
+        vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
+        r1 += vec2(-0.5, 0.7);
+        vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
+        vec2 sampleCoord = (r2 + 0.5) * viewScale;
+        half4 layer = mix(
+            previousArtwork.eval(sampleCoord),
+            currentArtwork.eval(sampleCoord),
+            transitionMix);
+        float a = layer.a * 0.5;
+        blendedColor = mix(blendedColor, layer, a);
+        totalAlpha = max(totalAlpha, layer.a);
+    }
+
+    // Layer 2: fast offset rotation (70s per revolution)
+    {
+        float angle = time * twoPi / 70.0;
+        float s = sin(angle);
+        float c = cos(angle);
+        vec2 pos = center * imageScale;
+        vec2 r1 = vec2(c * pos.x + s * pos.y, -s * pos.x + c * pos.y);
+        r1 += vec2(-0.95, -0.7);
+        vec2 r2 = vec2(c * r1.x + s * r1.y, -s * r1.x + c * r1.y);
+        vec2 sampleCoord = (r2 + 0.5) * viewScale;
+        half4 layer = mix(
+            previousArtwork.eval(sampleCoord),
+            currentArtwork.eval(sampleCoord),
+            transitionMix);
+        float a = layer.a * 0.5;
+        blendedColor = mix(blendedColor, layer, a);
+        totalAlpha = max(totalAlpha, layer.a);
+    }
+
+    blendedColor.a = totalAlpha;
+    return blendedColor;
+}

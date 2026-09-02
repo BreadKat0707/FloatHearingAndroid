@@ -1,0 +1,45 @@
+// Material Treatment Shader
+// Applies saturation adjustment, dark scrim, and dithering.
+// Ported from Lyricify-Backgrounds HLSL (Apache 2.0).
+
+uniform shader image;
+uniform float blackScrimAlpha;
+uniform float ditherStrength;
+uniform vec2 resolution;
+
+half3 applySaturation(half3 color, float saturation) {
+    half3 redColumn = half3(
+        0.2126 + 0.7873 * saturation,
+        0.2126 - 0.2126 * saturation,
+        0.2126 - 0.2126 * saturation);
+    half3 greenColumn = half3(
+        0.7152 - 0.7152 * saturation,
+        0.7152 + 0.2848 * saturation,
+        0.7152 - 0.7152 * saturation);
+    half3 blueColumn = half3(
+        0.0722 - 0.0722 * saturation,
+        0.0722 - 0.0722 * saturation,
+        0.0722 + 0.9278 * saturation);
+    return redColumn * color.r + greenColumn * color.g + blueColumn * color.b;
+}
+
+half4 main(float2 coord) {
+    half4 input = image.eval(coord);
+    half3 color = input.rgb;
+
+    // Saturation boost → clamp → reduce
+    color = applySaturation(color, 1.4);
+    color = clamp(color, half3(-0.752941), half3(1.25098));
+    color = applySaturation(color, 0.70);
+
+    // Dark scrim
+    color = mix(color, half3(0.0), blackScrimAlpha);
+
+    // Ordered dithering to reduce banding
+    float dither = fract(
+        52.9829189 * fract(dot(coord, vec2(0.06711056, 0.00583715)))
+    ) - 0.5;
+    color += dither * (ditherStrength / 255.0);
+
+    return half4(clamp(color, half3(0.07), half3(0.97)), 1.0);
+}

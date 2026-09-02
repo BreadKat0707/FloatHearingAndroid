@@ -1,0 +1,58 @@
+// Separable Gaussian Blur Shader
+// Two-pass (horizontal + vertical) blur with 48-tap kernel.
+// Ported from Lyricify-Backgrounds HLSL (Apache 2.0).
+// Reduced from 77 taps for mobile performance.
+
+uniform shader image;
+uniform vec2 direction;
+uniform vec2 texSize;
+
+half4 main(float2 coord) {
+    // 48-tap Gaussian kernel (sigma ~30 in kernel space)
+    const int TAP_COUNT = 48;
+    const float centerWeight = 0.0141;
+
+    const float offsets[48] = float[48](
+        1.4998, 3.4995, 5.4992, 7.4990,
+        9.4987, 11.4984, 13.4981, 15.4979,
+        17.4976, 19.4973, 21.4970, 23.4967,
+        25.4965, 27.4962, 29.4959, 31.4956,
+        33.4954, 35.4951, 37.4948, 39.4945,
+        41.4943, 43.4940, 45.4937, 47.4934,
+        49.4931, 51.4929, 53.4926, 55.4923,
+        57.4920, 59.4918, 61.4915, 63.4912,
+        65.4909, 67.4907, 69.4904, 71.4901,
+        73.4898, 75.4896, 77.4893, 79.4890,
+        81.4887, 83.4884, 85.4882, 87.4879,
+        89.4876, 91.4873, 93.4871, 95.4868
+    );
+
+    const float weights[48] = float[48](
+        0.0194, 0.0193, 0.0191, 0.0189,
+        0.0186, 0.0183, 0.0179, 0.0175,
+        0.0171, 0.0166, 0.0161, 0.0156,
+        0.0151, 0.0145, 0.0139, 0.0133,
+        0.0127, 0.0121, 0.0115, 0.0108,
+        0.0102, 0.0095, 0.0089, 0.0083,
+        0.0077, 0.0071, 0.0066, 0.0061,
+        0.0056, 0.0051, 0.0047, 0.0043,
+        0.0039, 0.0035, 0.0032, 0.0029,
+        0.0027, 0.0024, 0.0022, 0.0020,
+        0.0018, 0.0016, 0.0015, 0.0013,
+        0.0012, 0.0011, 0.0010, 0.0009
+    );
+
+    half4 color = image.eval(coord) * centerWeight;
+    float totalWeight = centerWeight;
+
+    for (int i = 0; i < TAP_COUNT; i++) {
+        vec2 offset = direction * offsets[i];
+        half4 s1 = image.eval(coord + offset);
+        half4 s2 = image.eval(coord - offset);
+        half4 pair = s1 + s2;
+        color += pair * weights[i];
+        totalWeight += weights[i] * 2.0;
+    }
+
+    return color / totalWeight;
+}
