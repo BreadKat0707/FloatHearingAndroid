@@ -286,4 +286,68 @@ object LyricParser {
             .toLongOrNull() ?: 0) * 10f.pow(3 - msString.length).toLong()
         return minutes * 60000 + seconds * 1000 + ms
     }
+
+    /**
+     * 从 TTML 原始内容中提取罗马音数据
+     * 查找 <span ttm:role="x-romanization"> 标签，提取其文本内容和父级 <p> 元素的 begin 时间
+     *
+     * @return Map<开始时间(ms), 罗马音文本>
+     */
+    fun extractRomanjiFromTTML(ttmlContent: String): Map<Int, String> {
+        val result = mutableMapOf<Int, String>()
+        try {
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = false
+            val parser = factory.newPullParser()
+            parser.setInput(ttmlContent.reader())
+
+            var eventType = parser.eventType
+            var currentPBegin: Int = -1
+            var inRomanSpan = false
+            val romanTextBuilder = StringBuilder()
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        when (parser.name) {
+                            "p" -> {
+                                currentPBegin = parseTTMLTime(parser.getAttributeValue(null, "begin") ?: "").toInt()
+                            }
+                            "span" -> {
+                                // 检查是否是 x-romanization 标签
+                                for (i in 0 until parser.attributeCount) {
+                                    val attrName = parser.getAttributeName(i)
+                                    val attrValue = parser.getAttributeValue(i)
+                                    if (attrName.endsWith(":role") && attrValue == "x-romanization") {
+                                        inRomanSpan = true
+                                        romanTextBuilder.clear()
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    XmlPullParser.TEXT -> {
+                        if (inRomanSpan) {
+                            romanTextBuilder.append(parser.text ?: "")
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (parser.name == "span" && inRomanSpan) {
+                            inRomanSpan = false
+                            val romanji = romanTextBuilder.toString().trim()
+                            if (romanji.isNotBlank() && currentPBegin >= 0) {
+                                result[currentPBegin] = romanji
+                            }
+                            romanTextBuilder.clear()
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+        } catch (_: Exception) {
+            // 解析失败返回空 map
+        }
+        return result
+    }
 }

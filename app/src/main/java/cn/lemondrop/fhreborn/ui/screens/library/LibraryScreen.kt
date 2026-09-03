@@ -357,6 +357,7 @@ fun LibraryScreen(
                             label = "顺序循环",
                             modifier = Modifier.weight(1f),
                             onClick = {
+                                playerViewModel.setShuffle(false)
                                 playerViewModel.playSongs(displaySongs, 0)
                             }
                         )

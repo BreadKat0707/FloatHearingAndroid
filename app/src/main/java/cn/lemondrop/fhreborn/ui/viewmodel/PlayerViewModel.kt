@@ -21,6 +21,7 @@ import cn.lemondrop.fhreborn.data.lyrics.LyricReader
 import cn.lemondrop.fhreborn.data.lyrics.LyricSource
 import cn.lemondrop.fhreborn.data.lyrics.LyricSourceType
 import cn.lemondrop.fhreborn.data.lyrics.LyricFormatType
+import cn.lemondrop.fhreborn.data.lyrics.LyricParser
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
 import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
@@ -382,11 +383,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun loadLyrics() {
         val song = _currentSong.value ?: return
-        // 切歌时立即清空歌词：避免旧歌词残留并与新的播放位置错配
-        // （表现为歌词瞎匹配/反复乱弹跳）；空歌词时歌词视图重建成本也最低
-        _rawLyrics.value = null
-        _lyricSource.value = null
-        _currentLyricIndex.value = -1
+        // 切歌时不清空歌词，等待新歌词加载完成后再替换
+        // 这样可以避免歌词跳动（先显示空内容再跳到当前行）
         // 取消上一次未完成的加载：快速连续切歌时避免旧协程后完成导致歌词错配
         lyricLoadJob?.cancel()
         lyricLoadJob = viewModelScope.launch {
@@ -423,14 +421,22 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             }
             android.util.Log.i(TAG, "lyric parse done: ${song.id} (${System.currentTimeMillis()})")
 
+            // 提取罗马音数据并应用到解析后的歌词
+            val romanjiMap = source.rawText?.let { LyricParser.extractRomanjiFromTTML(it) }
+            val lyricsWithRomanji = if (romanjiMap != null && romanjiMap.isNotEmpty() && parsed != null) {
+                applyRomanjiToLyrics(parsed, romanjiMap)
+            } else {
+                parsed
+            }
+
             lyricSourceCache.put(song.id, source)
             // LruCache 不允许 null value：无歌词/解析失败时不缓存 parsed
-            if (parsed != null) {
-                parsedLyricCache.put(song.id, parsed)
+            if (lyricsWithRomanji != null) {
+                parsedLyricCache.put(song.id, lyricsWithRomanji)
             }
 
             _lyricSource.value = source
-            _rawLyrics.value = parsed
+            _rawLyrics.value = lyricsWithRomanji
             _currentLyricIndex.value = -1
             android.util.Log.i(TAG, "lyric applied: ${song.id} (${System.currentTimeMillis()})")
         }
@@ -654,6 +660,37 @@ private fun dedupeDuplicateLyricLines(lyrics: SyncedLyrics): SyncedLyrics {
         }
     }
     return if (merged.size == lyrics.lines.size) lyrics else lyrics.copy(lines = merged)
+}
+
+/**
+ * 将罗马音数据应用到解析后的歌词
+ * 根据时间戳匹配罗马音到对应的歌词行
+ */
+private fun applyRomanjiToLyrics(lyrics: SyncedLyrics, romanjiMap: Map<Int, String>): SyncedLyrics {
+    if (romanjiMap.isEmpty()) return lyrics
+
+    val updatedLines = lyrics.lines.map { line ->
+        if (line is KaraokeLine.MainKaraokeLine) {
+            // 尝试通过时间戳匹配罗马音
+            val romanji = romanjiMap[line.start]
+            if (romanji != null && line.phonetic.isNullOrBlank()) {
+                KaraokeLine.MainKaraokeLine(
+                    syllables = line.syllables,
+                    translation = line.translation,
+                    alignment = line.alignment,
+                    start = line.start,
+                    end = line.end,
+                    accompanimentLines = line.accompanimentLines,
+                    phonetic = romanji
+                )
+            } else {
+                line
+            }
+        } else {
+            line
+        }
+    }
+    return lyrics.copy(lines = updatedLines)
 }
 
 /**

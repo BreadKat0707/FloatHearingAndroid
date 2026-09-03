@@ -162,6 +162,100 @@ class AppSettingsRepository(private val context: Context) {
     val playerCoverPauseScale: Flow<Int> = dataStore.data.map { it[intPreferencesKey("player_cover_pause_scale")] ?: 92 }
     suspend fun setPlayerCoverPauseScale(value: Int) = dataStore.edit { it[intPreferencesKey("player_cover_pause_scale")] = value }
 
+    // ========== 播放器元素外观 — 浅色模式（10个元素各自独立） ==========
+    // 1.拖拽手柄
+    val playerEl01HandleAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe01_a")] ?: 100 }
+    suspend fun setPlayerEl01HandleAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe01_a")] = v }
+    val playerEl01HandleBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe01_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl01HandleBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe01_b")] = v }
+    // 2.歌名
+    val playerEl02TitleAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe02_a")] ?: 100 }
+    suspend fun setPlayerEl02TitleAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe02_a")] = v }
+    val playerEl02TitleBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe02_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl02TitleBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe02_b")] = v }
+    // 3.专辑-艺术家
+    val playerEl03ArtistAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe03_a")] ?: 100 }
+    suspend fun setPlayerEl03ArtistAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe03_a")] = v }
+    val playerEl03ArtistBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe03_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl03ArtistBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe03_b")] = v }
+    // 4.小歌词
+    val playerEl04MiniLyricAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe04_a")] ?: 100 }
+    suspend fun setPlayerEl04MiniLyricAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe04_a")] = v }
+    val playerEl04MiniLyricBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe04_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl04MiniLyricBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe04_b")] = v }
+    // 5.进度条底轨
+    val playerEl05TrackAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe05_a")] ?: 50 }
+    suspend fun setPlayerEl05TrackAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe05_a")] = v }
+    val playerEl05TrackBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe05_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl05TrackBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe05_b")] = v }
+    // 6.进度条进度
+    val playerEl06FillAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe06_a")] ?: 100 }
+    suspend fun setPlayerEl06FillAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe06_a")] = v }
+    val playerEl06FillBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe06_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl06FillBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe06_b")] = v }
+    // 7.进度条时间文字
+    val playerEl07TimeAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe07_a")] ?: 100 }
+    suspend fun setPlayerEl07TimeAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe07_a")] = v }
+    val playerEl07TimeBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe07_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl07TimeBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe07_b")] = v }
+    // 8.播控图标
+    val playerEl08ControlsAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe08_a")] ?: 100 }
+    suspend fun setPlayerEl08ControlsAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe08_a")] = v }
+    val playerEl08ControlsBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe08_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl08ControlsBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe08_b")] = v }
+    // 9.播放模式（随机/循环）
+    val playerEl09ModeAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe09_a")] ?: 100 }
+    suspend fun setPlayerEl09ModeAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe09_a")] = v }
+    val playerEl09ModeBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe09_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl09ModeBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe09_b")] = v }
+    // 10.底部图标
+    val playerEl10BottomAlpha: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe10_a")] ?: 100 }
+    suspend fun setPlayerEl10BottomAlpha(v: Int) = dataStore.edit { it[intPreferencesKey("pe10_a")] = v }
+    val playerEl10BottomBlend: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe10_b")] ?: "SrcOver" }
+    suspend fun setPlayerEl10BottomBlend(v: String) = dataStore.edit { it[stringPreferencesKey("pe10_b")] = v }
+
+    // ========== 播放器元素外观 — 深色模式（10个元素各自独立） ==========
+    val playerEl01HandleAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe01_a_d")] ?: 100 }
+    suspend fun setPlayerEl01HandleAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe01_a_d")] = v }
+    val playerEl01HandleBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe01_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl01HandleBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe01_b_d")] = v }
+    val playerEl02TitleAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe02_a_d")] ?: 100 }
+    suspend fun setPlayerEl02TitleAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe02_a_d")] = v }
+    val playerEl02TitleBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe02_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl02TitleBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe02_b_d")] = v }
+    val playerEl03ArtistAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe03_a_d")] ?: 100 }
+    suspend fun setPlayerEl03ArtistAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe03_a_d")] = v }
+    val playerEl03ArtistBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe03_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl03ArtistBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe03_b_d")] = v }
+    val playerEl04MiniLyricAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe04_a_d")] ?: 100 }
+    suspend fun setPlayerEl04MiniLyricAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe04_a_d")] = v }
+    val playerEl04MiniLyricBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe04_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl04MiniLyricBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe04_b_d")] = v }
+    val playerEl05TrackAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe05_a_d")] ?: 50 }
+    suspend fun setPlayerEl05TrackAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe05_a_d")] = v }
+    val playerEl05TrackBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe05_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl05TrackBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe05_b_d")] = v }
+    val playerEl06FillAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe06_a_d")] ?: 100 }
+    suspend fun setPlayerEl06FillAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe06_a_d")] = v }
+    val playerEl06FillBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe06_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl06FillBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe06_b_d")] = v }
+    val playerEl07TimeAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe07_a_d")] ?: 100 }
+    suspend fun setPlayerEl07TimeAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe07_a_d")] = v }
+    val playerEl07TimeBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe07_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl07TimeBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe07_b_d")] = v }
+    val playerEl08ControlsAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe08_a_d")] ?: 100 }
+    suspend fun setPlayerEl08ControlsAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe08_a_d")] = v }
+    val playerEl08ControlsBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe08_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl08ControlsBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe08_b_d")] = v }
+    val playerEl09ModeAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe09_a_d")] ?: 100 }
+    suspend fun setPlayerEl09ModeAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe09_a_d")] = v }
+    val playerEl09ModeBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe09_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl09ModeBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe09_b_d")] = v }
+    val playerEl10BottomAlphaDark: Flow<Int> = dataStore.data.map { it[intPreferencesKey("pe10_a_d")] ?: 100 }
+    suspend fun setPlayerEl10BottomAlphaDark(v: Int) = dataStore.edit { it[intPreferencesKey("pe10_a_d")] = v }
+    val playerEl10BottomBlendDark: Flow<String> = dataStore.data.map { it[stringPreferencesKey("pe10_b_d")] ?: "SrcOver" }
+    suspend fun setPlayerEl10BottomBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe10_b_d")] = v }
+
     // ========== 媒体库 ==========
     val autoScanOnLaunch: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("auto_scan")] ?: true }
     suspend fun setAutoScanOnLaunch(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("auto_scan")] = value }

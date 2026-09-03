@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,14 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
@@ -41,14 +38,11 @@ import androidx.compose.runtime.snapshots.SnapshotStateSet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.LocalPlayBarOverride
@@ -81,7 +75,8 @@ import com.composables.icons.lucide.X
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Icon
@@ -154,14 +149,23 @@ fun PlaylistDetailScreen(
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
         }
     }.value
-    val dragSpacingPx = with(LocalDensity.current) { 4.dp.toPx() }
     var displaySongs by remember(songs) { mutableStateOf(songs) }
-    var draggingSongId by remember { mutableStateOf<Long?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
     val latestDisplaySongs by rememberUpdatedState(displaySongs)
-    // Flow 刷新（重排落库/增删）时同步本地顺序；拖拽中不打断
+    val hapticFeedback = LocalHapticFeedback.current
+    val reorderableState = rememberReorderableLazyListState(listState) { from, to ->
+        // onMove 回传的 index 是 LazyColumn 全局索引（含 header），减 1 得到 displaySongs 索引
+        val fromIdx = (from.index - 1).coerceIn(0, latestDisplaySongs.lastIndex)
+        val toIdx = (to.index - 1).coerceIn(0, latestDisplaySongs.lastIndex)
+        if (fromIdx != toIdx) {
+            displaySongs = latestDisplaySongs.toMutableList().apply {
+                add(toIdx, removeAt(fromIdx))
+            }
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+        }
+    }
+    // Flow 刷新（重排落库/增删）时同步本地顺序
     LaunchedEffect(songs) {
-        if (draggingSongId == null) displaySongs = songs
+        displaySongs = songs
     }
 
     // 导出：CreateDocument 保存 M3U/JSON
@@ -380,57 +384,21 @@ fun PlaylistDetailScreen(
                     }
                 }
                 itemsIndexed(displaySongs, key = { _, song -> song.id }) { index, song ->
-                    val isDragging = song.id == draggingSongId
-                    FhListItem(
-                        title = song.title,
-                        summary = "${song.artist} - ${song.album}",
-                        modifier = if (isCustomSort && !multiSelectMode) {
-                            Modifier
-                                .animateItem()
-                                .zIndex(if (isDragging) 1f else 0f)
-                                .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
-                                .shadow(if (isDragging) 10.dp else 0.dp, RoundedCornerShape(12.dp))
-                                .pointerInput(song.id) {
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            draggingSongId = song.id
-                                            dragOffset = 0f
-                                        },
-                                        onDrag = { change, amount ->
-                                            change.consume()
-                                            dragOffset += amount.y
-                                            val info = listState.layoutInfo
-                                            val draggingItem = info.visibleItemsInfo
-                                                .firstOrNull { it.key == song.id }
-                                                ?: return@detectDragGesturesAfterLongPress
-                                            val step = draggingItem.size + dragSpacingPx
-                                            val currentIdx = latestDisplaySongs
-                                                .indexOfFirst { it.id == song.id }
-                                            val target = ((draggingItem.offset + dragOffset) / step)
-                                                .roundToInt()
-                                                .coerceIn(0, (latestDisplaySongs.size - 1).coerceAtLeast(0))
-                                            if (target != currentIdx) {
-                                                displaySongs = latestDisplaySongs.toMutableList().apply {
-                                                    add(target, removeAt(currentIdx))
-                                                }
-                                                dragOffset -= (target - currentIdx) * step
-                                            }
-                                        },
-                                        onDragEnd = {
-                                            viewModel.reorderSongs(
-                                                playlistId,
-                                                displaySongs.map { it.id }
-                                            )
-                                            draggingSongId = null
-                                            dragOffset = 0f
-                                        },
-                                        onDragCancel = {
-                                            draggingSongId = null
-                                            dragOffset = 0f
-                                        }
-                                    )
-                                }
-                        } else Modifier,
+                    ReorderableItem(reorderableState, key = song.id) { itemDragging ->
+                        FhListItem(
+                            title = song.title,
+                            summary = "${song.artist} - ${song.album}",
+                            modifier = if (isCustomSort && !multiSelectMode) {
+                                Modifier.longPressDraggableHandle(
+                                    onDragStopped = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                        viewModel.reorderSongs(
+                                            playlistId,
+                                            displaySongs.map { it.id }
+                                        )
+                                    }
+                                )
+                            } else Modifier,
                         onClick = {
                             if (multiSelectMode) {
                                 if (song.id in selectedSongIds) {
@@ -486,6 +454,7 @@ fun PlaylistDetailScreen(
                             }
                         }
                     )
+                    }
                 }
             }
             // 滚动条：自动淡入淡出，可拖动定位

@@ -152,6 +152,8 @@ fun SettingsScreen(
             "accompanist_lyric" -> pageStack.add(SettingsPage.AccompanistLyric)
             "open_source" -> pageStack.add(SettingsPage.OpenSourceLicenses)
             "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
+            "player_element_appearance" -> pageStack.add(SettingsPage.PlayerElementAppearance)
+            "player_preview" -> pageStack.add(SettingsPage.PlayerPreview)
             "hidden_folders" -> pageStack.add(SettingsPage.HiddenFolders)
             "reset_stats" -> showResetStatsConfirm = true
             "about_page" -> pageStack.add(SettingsPage.About)
@@ -200,6 +202,8 @@ fun SettingsScreen(
             SettingsPage.AccompanistLyric -> "Accompanist Lyric 设置"
             SettingsPage.OpenSourceLicenses -> "开源许可"
             SettingsPage.PlayerBackground -> "播放器页面背景"
+            SettingsPage.PlayerElementAppearance -> "播放器元素外观"
+            SettingsPage.PlayerPreview -> "播放器预览"
             SettingsPage.HiddenFolders -> "隐藏文件夹"
             SettingsPage.About -> "关于"
         }
@@ -216,6 +220,7 @@ fun SettingsScreen(
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
             topBar = {
                 BlurTopBar(
+                    backdrop = backdrop,
                     // 主页/分类页滚动感知；子页面常显背景
                     scrolled = if (currentPage() is SettingsPage.Home || currentPage() is SettingsPage.Category) topBarScrolled else true,
                     title = pageTitle(),
@@ -336,6 +341,14 @@ fun SettingsScreen(
                         paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
+                    SettingsPage.PlayerElementAppearance -> PlayerElementAppearanceContent(
+                        paddingValues = padding,
+                        bottomOverlayHeight = bottomOverlayHeight
+                    )
+                    SettingsPage.PlayerPreview -> PlayerPreviewContent(
+                        paddingValues = padding,
+                        bottomOverlayHeight = bottomOverlayHeight
+                    )
                     SettingsPage.HiddenFolders -> cn.lemondrop.fhreborn.ui.screens.hidden.HiddenFoldersContent(
                         libraryViewModel = libraryViewModel,
                         playerViewModel = playerViewModel,
@@ -360,6 +373,8 @@ private sealed class SettingsPage {
     data object AccompanistLyric : SettingsPage()
     data object OpenSourceLicenses : SettingsPage()
     data object PlayerBackground : SettingsPage()
+    data object PlayerElementAppearance : SettingsPage()
+    data object PlayerPreview : SettingsPage()
     data object HiddenFolders : SettingsPage()
     data object About : SettingsPage()
 }
@@ -442,7 +457,10 @@ private fun SettingsListContent(
         listState = listState,
         modifier = Modifier.align(Alignment.CenterEnd),
         // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-        trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = bottomOverlayHeight)
+        trackPadding = PaddingValues(
+            top = topInset + 4.dp,
+            bottom = bottomOverlayHeight
+        )
     )
     }
 }
@@ -818,6 +836,8 @@ private fun buildCategories(): List<SettingCategory> {
                 SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
                 SettingItem("main_bg", "主页面背景", "纯色 / 自选图片", null, SettingType.Navigation),
                 SettingItem("player_bg", "播放器页面背景", "AGSL 流体 / 封面模糊", null, SettingType.Navigation),
+                SettingItem("player_element_appearance", "播放器元素外观", "透明度与混合模式", null, SettingType.Navigation),
+                SettingItem("player_preview", "播放器预览", "实时预览播放器外观并点击编辑", null, SettingType.Navigation),
 
                 // 播放器
                 SettingItem("", "播放器", null, null, SettingType.Info),

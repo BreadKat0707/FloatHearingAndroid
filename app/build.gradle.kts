@@ -210,6 +210,9 @@ dependencies {
     implementation("com.mocharealm.accompanist:lyrics-ui:1.0.19")
     implementation("com.mocharealm.accompanist:lyrics-core:0.4.7")
 
+    // Reorderable - 拖拽排序
+    implementation(libs.reorderable)
+
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

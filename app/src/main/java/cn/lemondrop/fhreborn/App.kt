@@ -245,8 +245,14 @@ fun FHRebornApp() {
     val playBarOverrideState = remember { mutableStateOf(false) }
     val shouldShowPlayBar = currentRoute in playBarRoutes && !showPlayer && !playBarOverrideState.value
 
+    // 有底部导航栏的页面：Library、Statistics
+    val bottomNavBarRoutes = remember {
+        setOf(Screen.Library.route, Screen.Statistics.route)
+    }
+    val hasBottomNavBar = currentRoute in bottomNavBarRoutes
+    val bottomNavBarHeight = if (hasBottomNavBar) 64.dp else 0.dp
     val playBarBottomOffset = WindowInsets.navigationBars.asPaddingValues()
-        .calculateBottomPadding() + 80.dp
+        .calculateBottomPadding() + bottomNavBarHeight + 8.dp
     val globalPlayBarHeight = 160.dp
 
     val isAtHome = currentRoute == Screen.Library.route
