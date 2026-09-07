@@ -67,6 +67,7 @@ import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
+import cn.lemondrop.fhreborn.util.PathUtils
 import cn.lemondrop.fhreborn.util.PermissionUtils
 import com.composables.icons.lucide.DiscAlbum
 import com.composables.icons.lucide.ArrowUp
@@ -519,7 +520,7 @@ fun LibraryScreen(
                                 viewModel.songs.value.filter { it.artist == artist.name }.map { it.id }
                             }
                             3 -> displaySongs.filterNot { song ->
-                                hiddenFolders.any { h -> song.path.startsWith(h) }
+                                PathUtils.isPathHiddenByFolders(song.path, hiddenFolders)
                             }.map { it.id }
                             else -> emptyList()
                         }
@@ -1282,7 +1283,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
 ) {
     // 隐藏的文件夹始终不显示在媒体库
     val visibleSongs = songs.filterNot { song ->
-        hiddenFolders.any { hidden -> song.path.startsWith(hidden) }
+        PathUtils.isPathHiddenByFolders(song.path, hiddenFolders)
     }
 
     if (visibleSongs.isEmpty()) {

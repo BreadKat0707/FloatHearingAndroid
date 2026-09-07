@@ -35,6 +35,7 @@ import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
+import cn.lemondrop.fhreborn.util.PathUtils
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronRight
@@ -127,7 +128,7 @@ fun HiddenFoldersContent(
     val folders = remember(allSongs, hiddenFolders) {
         hiddenFolders.map { folderPath ->
             folderPath to allSongs.filter { song ->
-                song.path.startsWith(folderPath + "/")
+                PathUtils.isPathUnderFolder(song.path, folderPath)
             }
         }.sortedBy { it.first.lowercase() }
     }

@@ -14,6 +14,7 @@ import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.scanner.MediaScanner
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.util.ArtistSplitter
+import cn.lemondrop.fhreborn.util.PathUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,7 +84,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     ) { songList, hidden, field, order, counts ->
         // 隐藏文件夹中的歌曲从媒体库全局过滤（歌曲/专辑/艺术家/文件夹均不显示）
         val filtered = songList.filterNot { song ->
-            hidden.any { h -> song.path.startsWith(h) }
+            PathUtils.isPathHiddenByFolders(song.path, hidden)
         }
         sortSongs(filtered, field, order, counts)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

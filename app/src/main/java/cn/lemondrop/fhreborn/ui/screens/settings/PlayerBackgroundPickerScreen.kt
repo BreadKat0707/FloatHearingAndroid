@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,9 +43,8 @@ fun PlayerBackgroundPickerContent(
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
     val scope = rememberCoroutineScope()
-    val initialBgKey = remember { kotlinx.coroutines.runBlocking { repository.getString("player_bg", PlayerBackgroundType.CoverBlur.key).first() } }
     val currentKey by repository.getString("player_bg", PlayerBackgroundType.CoverBlur.key)
-        .collectAsState(initial = initialBgKey)
+        .collectAsState(initial = PlayerBackgroundType.CoverBlur.key)
 
     val options = listOf(
         PlayerBackgroundType.AppleMusic to "Apple Music 流体背景",
@@ -117,21 +115,13 @@ private fun AppleMusicSettingsPanel(
     repository: AppSettingsRepository,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    val initialBlurDp = remember { kotlinx.coroutines.runBlocking { repository.appleMusicBlurDp.first() } }
-    val initialScrimPct = remember { kotlinx.coroutines.runBlocking { repository.appleMusicScrimPct.first() } }
-    val initialSpeed = remember { kotlinx.coroutines.runBlocking { repository.appleMusicSpeed.first() } }
-    val initialCrossfadeMs = remember { kotlinx.coroutines.runBlocking { repository.appleMusicCrossfadeMs.first() } }
-    val initialSaturation = remember { kotlinx.coroutines.runBlocking { repository.appleMusicSaturation.first() } }
-    val initialRenderScale = remember { kotlinx.coroutines.runBlocking { repository.appleMusicRenderScale.first() } }
-    val initialBassPulse = remember { kotlinx.coroutines.runBlocking { repository.appleMusicBassPulse.first() } }
-
-    val blurDp by repository.appleMusicBlurDp.collectAsState(initial = initialBlurDp)
-    val scrimPct by repository.appleMusicScrimPct.collectAsState(initial = initialScrimPct)
-    val speed by repository.appleMusicSpeed.collectAsState(initial = initialSpeed)
-    val crossfadeMs by repository.appleMusicCrossfadeMs.collectAsState(initial = initialCrossfadeMs)
-    val saturation by repository.appleMusicSaturation.collectAsState(initial = initialSaturation)
-    val renderScale by repository.appleMusicRenderScale.collectAsState(initial = initialRenderScale)
-    val bassPulse by repository.appleMusicBassPulse.collectAsState(initial = initialBassPulse)
+    val blurDp by repository.appleMusicBlurDp.collectAsState(initial = 40)
+    val scrimPct by repository.appleMusicScrimPct.collectAsState(initial = 30)
+    val speed by repository.appleMusicSpeed.collectAsState(initial = 1.0)
+    val crossfadeMs by repository.appleMusicCrossfadeMs.collectAsState(initial = 600)
+    val saturation by repository.appleMusicSaturation.collectAsState(initial = 1.0)
+    val renderScale by repository.appleMusicRenderScale.collectAsState(initial = 0.5)
+    val bassPulse by repository.appleMusicBassPulse.collectAsState(initial = false)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // 模糊强度
@@ -263,15 +253,10 @@ private fun CoverAppearanceSettingsPanel(
     repository: AppSettingsRepository,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    val initialShadowY = remember { kotlinx.coroutines.runBlocking { repository.playerCoverShadowY.first() } }
-    val initialShadowAlpha = remember { kotlinx.coroutines.runBlocking { repository.playerCoverShadowAlpha.first() } }
-    val initialShadowBlur = remember { kotlinx.coroutines.runBlocking { repository.playerCoverShadowBlur.first() } }
-    val initialPauseScale = remember { kotlinx.coroutines.runBlocking { repository.playerCoverPauseScale.first() } }
-
-    val shadowY by repository.playerCoverShadowY.collectAsState(initial = initialShadowY)
-    val shadowAlpha by repository.playerCoverShadowAlpha.collectAsState(initial = initialShadowAlpha)
-    val shadowBlur by repository.playerCoverShadowBlur.collectAsState(initial = initialShadowBlur)
-    val pauseScale by repository.playerCoverPauseScale.collectAsState(initial = initialPauseScale)
+    val shadowY by repository.playerCoverShadowY.collectAsState(initial = 16)
+    val shadowAlpha by repository.playerCoverShadowAlpha.collectAsState(initial = 40)
+    val shadowBlur by repository.playerCoverShadowBlur.collectAsState(initial = 20)
+    val pauseScale by repository.playerCoverPauseScale.collectAsState(initial = 92)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SettingSliderItem(

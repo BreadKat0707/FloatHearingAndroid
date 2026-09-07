@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -150,10 +149,8 @@ private fun El(
     val scope = rememberCoroutineScope()
     val flow = a()
     val blendFlow = b()
-    val initialAlpha = remember { kotlinx.coroutines.runBlocking { flow.first() } }
-    val initialBlend = remember { kotlinx.coroutines.runBlocking { blendFlow.first() } }
-    val alpha by flow.collectAsState(initial = initialAlpha)
-    val blendMode by blendFlow.collectAsState(initial = initialBlend)
+    val alpha by flow.collectAsState(initial = 100)
+    val blendMode by blendFlow.collectAsState(initial = "SrcOver")
     val blendLabel = BlendModes.find { it.first == blendMode }?.second ?: blendMode
     var dropdownExpanded by remember { mutableIntStateOf(-1) }
 

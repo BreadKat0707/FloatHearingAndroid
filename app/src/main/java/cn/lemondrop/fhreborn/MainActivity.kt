@@ -19,9 +19,6 @@ import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.CrashHandler
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.first
 
 class MainActivity : ComponentActivity() {
 
@@ -73,35 +70,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-
-        // 预热 DataStore 内存缓存：同步阻塞直到所有设置加载完成
-        // 这样 Compose 首帧的 runBlocking { flow.first() } 直接命中缓存
-        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-            awaitAll(
-                async { appSettingsRepository.themeMode.first() },
-                async { appSettingsRepository.useDynamicColor.first() },
-                async { appSettingsRepository.accentColor.first() },
-                async { appSettingsRepository.bgForeground.first() },
-                async { appSettingsRepository.playerCoverCornerRadius.first() },
-                async { appSettingsRepository.playerCoverRotating.first() },
-                async { appSettingsRepository.playerCoverShadowY.first() },
-                async { appSettingsRepository.playerCoverShadowAlpha.first() },
-                async { appSettingsRepository.playerCoverShadowBlur.first() },
-                async { appSettingsRepository.playerCoverPauseScale.first() },
-                async { appSettingsRepository.appleMusicBlurDp.first() },
-                async { appSettingsRepository.appleMusicScrimPct.first() },
-                async { appSettingsRepository.appleMusicSpeed.first() },
-                async { appSettingsRepository.appleMusicCrossfadeMs.first() },
-                async { appSettingsRepository.appleMusicSaturation.first() },
-                async { appSettingsRepository.appleMusicRenderScale.first() },
-                async { appSettingsRepository.appleMusicBassPulse.first() },
-                async { appSettingsRepository.hideSystemUi.first() },
-                async { appSettingsRepository.wakeLock.first() },
-                async { appSettingsRepository.skipSilence.first() },
-                async { appSettingsRepository.autoPlayOnLaunch.first() },
-                async { appSettingsRepository.statsEnabled.first() }
-            )
         }
 
         setContent {

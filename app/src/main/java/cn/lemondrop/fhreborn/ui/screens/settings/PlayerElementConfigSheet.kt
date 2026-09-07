@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
@@ -123,16 +122,10 @@ fun PlayerElementConfigSheet(
     val scope = rememberCoroutineScope()
     val mapping = remember(elementIndex) { elementMappings.find { it.index == elementIndex } ?: elementMappings[0] }
 
-    // 读取当前设置（同步预加载避免闪烁）
-    val initialAlpha = remember { kotlinx.coroutines.runBlocking { mapping.alphaLight(repo).first() } }
-    val initialAlphaDark = remember { kotlinx.coroutines.runBlocking { mapping.alphaDark(repo).first() } }
-    val initialBlend = remember { kotlinx.coroutines.runBlocking { mapping.blendLight(repo).first() } }
-    val initialBlendDark = remember { kotlinx.coroutines.runBlocking { mapping.blendDark(repo).first() } }
-
-    val alphaLight by mapping.alphaLight(repo).collectAsState(initial = initialAlpha)
-    val alphaDark by mapping.alphaDark(repo).collectAsState(initial = initialAlphaDark)
-    val blendLight by mapping.blendLight(repo).collectAsState(initial = initialBlend)
-    val blendDark by mapping.blendDark(repo).collectAsState(initial = initialBlendDark)
+    val alphaLight by mapping.alphaLight(repo).collectAsState(initial = 100)
+    val alphaDark by mapping.alphaDark(repo).collectAsState(initial = 100)
+    val blendLight by mapping.blendLight(repo).collectAsState(initial = "SrcOver")
+    val blendDark by mapping.blendDark(repo).collectAsState(initial = "SrcOver")
 
     val blendLabelLight = BlendModes.find { it.first == blendLight }?.second ?: blendLight
     val blendLabelDark = BlendModes.find { it.first == blendDark }?.second ?: blendDark

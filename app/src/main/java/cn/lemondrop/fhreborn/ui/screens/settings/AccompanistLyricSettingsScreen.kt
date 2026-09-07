@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,42 +51,23 @@ fun AccompanistLyricSettingsContent(
     val repository = remember { AppSettingsRepository(context) }
     val scope = rememberCoroutineScope()
 
-    // 同步预加载所有歌词设置，避免闪烁
-    val initialMainTextSize = remember { kotlinx.coroutines.runBlocking { repository.acclLyricMainTextSizeSp.first() } }
-    val initialAccompanimentTextSize = remember { kotlinx.coroutines.runBlocking { repository.acclLyricAccompanimentTextSizeSp.first() } }
-    val initialPhoneticTextSize = remember { kotlinx.coroutines.runBlocking { repository.acclLyricPhoneticTextSizeSp.first() } }
-    val initialMainFontWeight = remember { kotlinx.coroutines.runBlocking { repository.acclLyricMainFontWeight.first() } }
-    val initialAccompanimentFontWeight = remember { kotlinx.coroutines.runBlocking { repository.acclLyricAccompanimentFontWeight.first() } }
-    val initialPhoneticFontWeight = remember { kotlinx.coroutines.runBlocking { repository.acclLyricPhoneticFontWeight.first() } }
-    val initialShowTranslation = remember { kotlinx.coroutines.runBlocking { repository.acclLyricShowTranslation.first() } }
-    val initialShowPhonetic = remember { kotlinx.coroutines.runBlocking { repository.acclLyricShowPhonetic.first() } }
-    val initialWordLevel = remember { kotlinx.coroutines.runBlocking { repository.acclLyricWordLevel.first() } }
-    val initialUseBlur = remember { kotlinx.coroutines.runBlocking { repository.acclLyricUseBlurEffect.first() } }
-    val initialBlurDelta = remember { kotlinx.coroutines.runBlocking { repository.acclLyricBlurDelta.first() } }
-    val initialTextAlign = remember { kotlinx.coroutines.runBlocking { repository.acclLyricTextAlign.first() } }
-    val initialGlowEffect = remember { kotlinx.coroutines.runBlocking { repository.acclLyricGlowEffect.first() } }
-    val initialBreathingDotsSize = remember { kotlinx.coroutines.runBlocking { repository.acclLyricBreathingDotsSize.first() } }
-    val initialTranslationTextSize = remember { kotlinx.coroutines.runBlocking { repository.acclLyricTranslationTextSizeSp.first() } }
-    val initialTranslationFontWeight = remember { kotlinx.coroutines.runBlocking { repository.acclLyricTranslationFontWeight.first() } }
-    val initialLinePositionPercent = remember { kotlinx.coroutines.runBlocking { repository.acclLyricLinePositionPercent.first() } }
-
-    val mainTextSize by repository.acclLyricMainTextSizeSp.collectAsState(initial = initialMainTextSize)
-    val accompanimentTextSize by repository.acclLyricAccompanimentTextSizeSp.collectAsState(initial = initialAccompanimentTextSize)
-    val phoneticTextSize by repository.acclLyricPhoneticTextSizeSp.collectAsState(initial = initialPhoneticTextSize)
-    val mainFontWeight by repository.acclLyricMainFontWeight.collectAsState(initial = initialMainFontWeight)
-    val accompanimentFontWeight by repository.acclLyricAccompanimentFontWeight.collectAsState(initial = initialAccompanimentFontWeight)
-    val phoneticFontWeight by repository.acclLyricPhoneticFontWeight.collectAsState(initial = initialPhoneticFontWeight)
-    val showTranslation by repository.acclLyricShowTranslation.collectAsState(initial = initialShowTranslation)
-    val showPhonetic by repository.acclLyricShowPhonetic.collectAsState(initial = initialShowPhonetic)
-    val wordLevel by repository.acclLyricWordLevel.collectAsState(initial = initialWordLevel)
-    val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = initialUseBlur)
-    val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = initialBlurDelta)
-    val textAlign by repository.acclLyricTextAlign.collectAsState(initial = initialTextAlign)
-    val glowEffect by repository.acclLyricGlowEffect.collectAsState(initial = initialGlowEffect)
-    val breathingDotsSize by repository.acclLyricBreathingDotsSize.collectAsState(initial = initialBreathingDotsSize)
-    val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = initialTranslationTextSize)
-    val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = initialTranslationFontWeight)
-    val linePositionPercent by repository.acclLyricLinePositionPercent.collectAsState(initial = initialLinePositionPercent)
+    val mainTextSize by repository.acclLyricMainTextSizeSp.collectAsState(initial = 34)
+    val accompanimentTextSize by repository.acclLyricAccompanimentTextSizeSp.collectAsState(initial = 20)
+    val phoneticTextSize by repository.acclLyricPhoneticTextSizeSp.collectAsState(initial = 13)
+    val mainFontWeight by repository.acclLyricMainFontWeight.collectAsState(initial = 700)
+    val accompanimentFontWeight by repository.acclLyricAccompanimentFontWeight.collectAsState(initial = 700)
+    val phoneticFontWeight by repository.acclLyricPhoneticFontWeight.collectAsState(initial = 400)
+    val showTranslation by repository.acclLyricShowTranslation.collectAsState(initial = true)
+    val showPhonetic by repository.acclLyricShowPhonetic.collectAsState(initial = true)
+    val wordLevel by repository.acclLyricWordLevel.collectAsState(initial = true)
+    val useBlur by repository.acclLyricUseBlurEffect.collectAsState(initial = true)
+    val blurDelta by repository.acclLyricBlurDelta.collectAsState(initial = 3)
+    val textAlign by repository.acclLyricTextAlign.collectAsState(initial = "center")
+    val glowEffect by repository.acclLyricGlowEffect.collectAsState(initial = true)
+    val breathingDotsSize by repository.acclLyricBreathingDotsSize.collectAsState(initial = 16)
+    val translationTextSize by repository.acclLyricTranslationTextSizeSp.collectAsState(initial = 14)
+    val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
+    val linePositionPercent by repository.acclLyricLinePositionPercent.collectAsState(initial = 35)
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     Box(modifier = Modifier.fillMaxSize()) {

@@ -41,4 +41,19 @@ object PathUtils {
         val decoded = java.net.URLDecoder.decode(path, "UTF-8")
         return decoded.substringAfterLast("/", "Music")
     }
+
+    /**
+     * Checks whether [path] is inside [folderPath] without treating a sibling
+     * directory with a common prefix as part of the hidden tree.
+     */
+    fun isPathUnderFolder(path: String, folderPath: String): Boolean {
+        val root = folderPath.trimEnd('/')
+        if (root.isEmpty()) return folderPath == "/" && path.startsWith("/")
+        val normalizedPath = path.trimEnd('/')
+        return normalizedPath == root || normalizedPath.startsWith("$root/")
+    }
+
+    fun isPathHiddenByFolders(path: String, hiddenFolders: Collection<String>): Boolean {
+        return hiddenFolders.any { folderPath -> isPathUnderFolder(path, folderPath) }
+    }
 }

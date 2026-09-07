@@ -35,7 +35,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 class PlaybackService : MediaLibraryService() {
@@ -182,10 +181,12 @@ class PlaybackService : MediaLibraryService() {
     override fun onDestroy() {
         periodicSaveJob?.cancel()
         debouncedSaveJob?.cancel()
-        // 释放前同步保存一次。runBlocking 在 IO 线程执行，不阻塞主线程，
-        // 避免主线程等待 Room 写入造成 ANR；内部读取会切回主线程（ExoPlayer 线程约束）。
-        runBlocking(Dispatchers.IO) {
-            savePlaybackState()
+        // ExoPlayer 快照必须在主线程读取，保存放到独立 IO 作用域，避免 onDestroy 等待写库。
+        val pendingState = snapshotPlaybackStateOnMain()
+        if (pendingState != null) {
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                persistPlaybackState(pendingState)
+            }
         }
         serviceScope.cancel()
         audioEffectsManager?.release()
@@ -275,31 +276,37 @@ class PlaybackService : MediaLibraryService() {
         }
     }
 
-    private suspend fun savePlaybackState() {
-        // ExoPlayer 必须在主线程访问，先切到主线程读取快照，再切到 IO 写入数据库
-        val state = withContext(Dispatchers.Main.immediate) {
-            val currentPlayer = player ?: return@withContext null
-            try {
-                val songs = mutableListOf<Song>()
-                for (i in 0 until currentPlayer.mediaItemCount) {
-                    val tag = currentPlayer.getMediaItemAt(i).localConfiguration?.tag
-                    if (tag is Song) songs.add(tag)
-                }
-                val currentSong = currentPlayer.currentMediaItem?.localConfiguration?.tag as? Song
-                PlaybackState(
-                    id = 1,
-                    currentSongId = currentSong?.id,
-                    position = currentPlayer.currentPosition.coerceAtLeast(0L),
-                    queueJson = songs.map { it.id }.joinToString(","),
-                    repeatMode = currentPlayer.repeatMode,
-                    shuffleMode = currentPlayer.shuffleModeEnabled
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "读取播放状态失败", e)
-                null
+    private fun snapshotPlaybackStateOnMain(): PlaybackState? {
+        val currentPlayer = player ?: return null
+        return try {
+            val songs = mutableListOf<Song>()
+            for (i in 0 until currentPlayer.mediaItemCount) {
+                val tag = currentPlayer.getMediaItemAt(i).localConfiguration?.tag
+                if (tag is Song) songs.add(tag)
             }
-        } ?: return
+            val currentSong = currentPlayer.currentMediaItem?.localConfiguration?.tag as? Song
+            PlaybackState(
+                id = 1,
+                currentSongId = currentSong?.id,
+                position = currentPlayer.currentPosition.coerceAtLeast(0L),
+                queueJson = songs.map { it.id }.joinToString(","),
+                repeatMode = currentPlayer.repeatMode,
+                shuffleMode = currentPlayer.shuffleModeEnabled
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "读取播放状态失败", e)
+            null
+        }
+    }
 
+    private suspend fun savePlaybackState() {
+        val state = withContext(Dispatchers.Main.immediate) {
+            snapshotPlaybackStateOnMain()
+        } ?: return
+        persistPlaybackState(state)
+    }
+
+    private suspend fun persistPlaybackState(state: PlaybackState) {
         withContext(Dispatchers.IO) {
             try {
                 db.playbackStateDao().save(state)

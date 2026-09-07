@@ -66,7 +66,6 @@ import cn.lemondrop.fhreborn.ui.screens.player.PlayerScreen
 import cn.lemondrop.fhreborn.ui.screens.playlists.PlaylistDetailScreen
 import cn.lemondrop.fhreborn.ui.screens.playlists.PlaylistsScreen
 import cn.lemondrop.fhreborn.ui.screens.settings.SettingsScreen
-import kotlinx.coroutines.flow.first
 import cn.lemondrop.fhreborn.ui.screens.statistics.StatisticsScreen
 import cn.lemondrop.fhreborn.ui.components.ScheduledPauseDialog
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
@@ -152,20 +151,14 @@ fun FHRebornApp() {
     // 等待 DataStore 读取完成，确定 onboarding 状态后再创建 NavHost
     if (isOnboardingCompleted == null) return
 
-    // 同步读取主题设置初始值，避免首帧使用默认值导致闪烁
-    val initialThemeMode = remember { kotlinx.coroutines.runBlocking { appSettingsRepository.themeMode.first() } }
-    val initialDynamicColor = remember { kotlinx.coroutines.runBlocking { appSettingsRepository.useDynamicColor.first() } }
-    val initialAccentColor = remember { kotlinx.coroutines.runBlocking { appSettingsRepository.accentColor.first() } }
-    val initialBgForeground = remember { kotlinx.coroutines.runBlocking { appSettingsRepository.bgForeground.first() } }
-
-    val themeMode by appSettingsRepository.themeMode.collectAsState(initial = initialThemeMode)
-    val useDynamicColor by appSettingsRepository.useDynamicColor.collectAsState(initial = initialDynamicColor)
-    val accentColorSetting by appSettingsRepository.accentColor.collectAsState(initial = initialAccentColor)
+    val themeMode by appSettingsRepository.themeMode.collectAsState(initial = "system")
+    val useDynamicColor by appSettingsRepository.useDynamicColor.collectAsState(initial = false)
+    val accentColorSetting by appSettingsRepository.accentColor.collectAsState(initial = "default")
     val accentColor = remember(accentColorSetting) {
         cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
     }
     // 背景前景色：auto=跟随颜色模式，light/dark=固定浅/深色前景
-    val bgForeground by appSettingsRepository.bgForeground.collectAsState(initial = initialBgForeground)
+    val bgForeground by appSettingsRepository.bgForeground.collectAsState(initial = "auto")
     val isSystemDark = isSystemInDarkTheme()
     val isDarkTheme = when (themeMode) {
         "light" -> false
