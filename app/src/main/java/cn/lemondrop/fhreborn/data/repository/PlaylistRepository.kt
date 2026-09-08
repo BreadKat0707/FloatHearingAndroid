@@ -16,6 +16,8 @@ class PlaylistRepository(private val db: AppDatabase) {
 
     suspend fun getPlaylist(id: Long): Playlist? = dao.getPlaylistById(id)
 
+    fun observePlaylist(id: Long): Flow<Playlist?> = dao.observePlaylist(id)
+
     suspend fun createPlaylist(name: String, description: String?): Long {
         val now = System.currentTimeMillis()
         return dao.insertPlaylist(

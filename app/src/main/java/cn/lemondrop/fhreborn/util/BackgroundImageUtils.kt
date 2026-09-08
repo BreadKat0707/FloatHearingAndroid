@@ -5,6 +5,10 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -16,6 +20,9 @@ object BackgroundImageUtils {
 
     private const val DIR_NAME = "backgrounds"
     private const val FILE_PREFIX = "bg_"
+    private val decodeMutex = Mutex()
+    private var cachedPath: String? = null
+    private var cachedBitmap: ImageBitmap? = null
 
     /**
      * 把 [uri] 指向的图片拷贝到 `filesDir/backgrounds/bg_<timestamp>.jpg`，
@@ -41,12 +48,21 @@ object BackgroundImageUtils {
     /**
      * 从 [path] 解码图片为 [ImageBitmap]，路径为空或解码失败返回 null。
      */
-    fun loadBitmapFromPath(path: String): ImageBitmap? {
+    suspend fun loadBitmapFromPath(path: String): ImageBitmap? {
         if (path.isBlank()) return null
-        return try {
-            BitmapFactory.decodeFile(path)?.asImageBitmap()
-        } catch (e: Exception) {
-            null
+        if (cachedPath == path) return cachedBitmap
+        return decodeMutex.withLock {
+            if (cachedPath == path) return@withLock cachedBitmap
+            val decoded = withContext(Dispatchers.IO) {
+                try {
+                    BitmapFactory.decodeFile(path)?.asImageBitmap()
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            cachedPath = path
+            cachedBitmap = decoded
+            decoded
         }
     }
 }

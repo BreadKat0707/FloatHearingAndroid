@@ -11,27 +11,42 @@ import cn.lemondrop.fhreborn.data.db.entity.Playlist
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.repository.PlaylistRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class PlaylistViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = PlaylistRepository(AppDatabase.getInstance(application))
     private val songDao = AppDatabase.getInstance(application).songDao()
+    private val playlistStates = HashMap<Long, StateFlow<Playlist?>>()
+    private val sortedSongStates = HashMap<Pair<Long, Int>, StateFlow<List<Song>>>()
 
     fun getAllPlaylists(): Flow<List<PlaylistWithCount>> = repository.getAllPlaylists()
 
-    fun getPlaylist(id: Long): Flow<cn.lemondrop.fhreborn.data.db.entity.Playlist?> =
-        kotlinx.coroutines.flow.flow {
-            emit(repository.getPlaylist(id))
-        }
+    fun getPlaylist(id: Long): StateFlow<Playlist?> = playlistStates.getOrPut(id) {
+        repository.observePlaylist(id).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+    }
 
     fun getSongsInPlaylist(playlistId: Long): Flow<List<Song>> = repository.getSongsInPlaylist(playlistId)
 
     /** 歌单歌曲 + 排序类型合并：按当前 sortType 排序后输出 */
-    fun getSortedSongs(playlistId: Long, sortType: Int): Flow<List<Song>> =
-        combine(repository.getSongsInPlaylist(playlistId), kotlinx.coroutines.flow.flowOf(sortType)) { songs, type ->
-            repository.sortSongs(songs, type)
+    fun getSortedSongs(playlistId: Long, sortType: Int): StateFlow<List<Song>> =
+        sortedSongStates.getOrPut(playlistId to sortType) {
+            combine(repository.getSongsInPlaylist(playlistId), flowOf(sortType)) { songs, type ->
+                repository.sortSongs(songs, type)
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
         }
 
     fun setSortType(playlistId: Long, sortType: Int) {

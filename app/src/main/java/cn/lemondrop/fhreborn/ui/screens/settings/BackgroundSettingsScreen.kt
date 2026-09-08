@@ -30,13 +30,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -172,9 +175,7 @@ fun BackgroundSettingsContent(
 
             "image" -> {
                 SectionTitle("自选图片")
-                val previewBitmap = remember(bgImagePath) {
-                    BackgroundImageUtils.loadBitmapFromPath(bgImagePath)
-                }
+                val previewBitmap = rememberBackgroundPreview(bgImagePath)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -234,9 +235,7 @@ fun BackgroundSettingsContent(
             "mica" -> {
                 SectionTitle("Mica 底层图片")
                 val isDark = LocalAppDarkTheme.current
-                val previewBitmap = remember(bgImagePath) {
-                    BackgroundImageUtils.loadBitmapFromPath(bgImagePath)
-                }
+                val previewBitmap = rememberBackgroundPreview(bgImagePath)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -380,4 +379,13 @@ private fun SliderRow(
             modifier = Modifier.fillMaxWidth()
         )
     }
+}
+
+@Composable
+private fun rememberBackgroundPreview(path: String): ImageBitmap? {
+    var bitmap by remember(path) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(path) {
+        bitmap = BackgroundImageUtils.loadBitmapFromPath(path)
+    }
+    return bitmap
 }

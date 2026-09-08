@@ -30,7 +30,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,6 +43,7 @@ import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -88,6 +88,12 @@ import com.composables.icons.lucide.Volume2
 import com.composables.icons.lucide.Wrench
 import com.composables.icons.lucide.X
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import top.yukonga.miuix.kmp.nav.core.NavDisplay
+import top.yukonga.miuix.kmp.nav.core.NavDisplayEffects
+import top.yukonga.miuix.kmp.nav.core.NavKey
+import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
+import top.yukonga.miuix.kmp.nav.transition.navGraphicsTransition
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
@@ -146,38 +152,56 @@ fun SettingsScreen(
     // 外部可指定直达分类（如播放器"歌词设置"→ 设置-歌词）；
     // remember 的 key 变化会重新初始化，导航复用实例时也能生效。
     // 直达时栈底始终保留 Home，保证返回链路完整（分类 → Home）
-    val pageStack: androidx.compose.runtime.snapshots.SnapshotStateList<SettingsPage> = remember(initialCategoryKey) {
+    val settingsBackStack = rememberNavBackStack<SettingsPage>(SettingsPage.Home)
+    LaunchedEffect(initialCategoryKey) {
         if (initialCategoryKey != null) {
-            mutableStateListOf(SettingsPage.Home, SettingsPage.Category(initialCategoryKey))
-        } else {
-            mutableStateListOf(SettingsPage.Home)
+            val current = settingsBackStack.lastOrNull()
+            if ((current as? SettingsPage.Category)?.key != initialCategoryKey) {
+                while (settingsBackStack.size > 1) {
+                    settingsBackStack.removeAt(settingsBackStack.lastIndex)
+                }
+                settingsBackStack.add(SettingsPage.Category(initialCategoryKey))
+                viewModel.selectCategory(initialCategoryKey)
+            }
         }
     }
-    fun currentPage(): SettingsPage = pageStack.last()
+    fun currentPage(): SettingsPage =
+        settingsBackStack.lastOrNull() as? SettingsPage ?: SettingsPage.Home
+    fun pushSettingsPage(page: SettingsPage) {
+        if (settingsBackStack.lastOrNull() != page) {
+            settingsBackStack.add(page)
+        }
+    }
+    fun popSettingsPage() {
+        if (settingsBackStack.size > 1) {
+            settingsBackStack.removeAt(settingsBackStack.lastIndex)
+            viewModel.navigateBack()
+        }
+    }
     var currentSelectionItem by remember { mutableStateOf<SettingItem?>(null) }
     var showArtistSeparatorSheet by remember { mutableStateOf(false) }
     var showResetStatsConfirm by remember { mutableStateOf(false) }
     // 顶栏滚动感知：主页/分类页列表滚离顶部时显示背景/模糊，回顶隐藏
     var topBarScrolled by remember { mutableStateOf(false) }
-    LaunchedEffect(pageStack.lastOrNull()) {
+    LaunchedEffect(settingsBackStack.lastOrNull()) {
         topBarScrolled = false
     }
 
     val onNavigateItem: (SettingItem) -> Unit = { item ->
         when (item.key) {
-            "main_bg" -> pageStack.add(SettingsPage.Background)
+            "main_bg" -> pushSettingsPage(SettingsPage.Background)
             "artist_separators" -> showArtistSeparatorSheet = true
-            "codec_capability" -> pageStack.add(SettingsPage.CodecCapabilities)
-            "accompanist_lyric" -> pageStack.add(SettingsPage.AccompanistLyric)
-            "open_source" -> pageStack.add(SettingsPage.OpenSourceLicenses)
-            "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
-            "player_element_appearance" -> pageStack.add(SettingsPage.PlayerElementAppearance)
-            "player_preview" -> pageStack.add(SettingsPage.PlayerPreview)
-            "title_bar_blur_settings" -> pageStack.add(SettingsPage.TitleBarBlurSettings)
-            "scan_settings" -> pageStack.add(SettingsPage.ScanSettings)
-            "hidden_folders" -> pageStack.add(SettingsPage.HiddenFolders)
+            "codec_capability" -> pushSettingsPage(SettingsPage.CodecCapabilities)
+            "accompanist_lyric" -> pushSettingsPage(SettingsPage.AccompanistLyric)
+            "open_source" -> pushSettingsPage(SettingsPage.OpenSourceLicenses)
+            "player_bg" -> pushSettingsPage(SettingsPage.PlayerBackground)
+            "player_element_appearance" -> pushSettingsPage(SettingsPage.PlayerElementAppearance)
+            "player_preview" -> pushSettingsPage(SettingsPage.PlayerPreview)
+            "title_bar_blur_settings" -> pushSettingsPage(SettingsPage.TitleBarBlurSettings)
+            "scan_settings" -> pushSettingsPage(SettingsPage.ScanSettings)
+            "hidden_folders" -> pushSettingsPage(SettingsPage.HiddenFolders)
             "reset_stats" -> showResetStatsConfirm = true
-            "about_page" -> pageStack.add(SettingsPage.About)
+            "about_page" -> pushSettingsPage(SettingsPage.About)
         }
     }
 
@@ -194,10 +218,6 @@ fun SettingsScreen(
     val playerOpen = LocalPlayerOpen.current
 
     // 系统返回键：逐级返回（子页 → 进入页 → 主页），分隔符弹窗优先关闭
-    BackHandler(enabled = currentPage() != SettingsPage.Home && !playerOpen) {
-        if (pageStack.size > 1) pageStack.removeAt(pageStack.lastIndex)
-        viewModel.navigateBack()
-    }
     BackHandler(enabled = showArtistSeparatorSheet) {
         showArtistSeparatorSheet = false
     }
@@ -255,10 +275,7 @@ fun SettingsScreen(
                                 Icon(Lucide.Menu, "菜单", tint = MiuixTheme.colorScheme.onSurface)
                             }
                         } else {
-                            IconButton(onClick = {
-                                if (pageStack.size > 1) pageStack.removeAt(pageStack.lastIndex)
-                                viewModel.navigateBack()
-                            }) {
+                            IconButton(onClick = { popSettingsPage() }) {
                                 Icon(Lucide.ArrowLeft, "返回", tint = MiuixTheme.colorScheme.onSurface)
                             }
                         }
@@ -327,117 +344,243 @@ fun SettingsScreen(
                     .layerBackdrop(backdrop)
             ) {
                 AppBackgroundLayer()
-                when (currentPage()) {
-                    SettingsPage.Home,
-                    is SettingsPage.Category -> SettingsListContent(
-                        viewModel = viewModel,
-                        currentPage = currentPage(),
-                        onCategoryClick = { key ->
-                            if (key == "about") {
-                                // 关于分类下仅一项：点击直接进关于页，不再套一层分类列表
-                                pageStack.add(SettingsPage.About)
-                            } else {
-                                pageStack.add(SettingsPage.Category(key))
-                                viewModel.selectCategory(key)
+                val settingsNavEffects = remember {
+                    NavDisplayEffects(
+                        enableCornerClip = false,
+                        dimAmount = 0f,
+                        blockInputDuringTransition = false
+                    )
+                }
+                NavDisplay(
+                    backStack = settingsBackStack,
+                    modifier = Modifier.fillMaxSize(),
+                    transition = SettingsNavTransition,
+                    effects = settingsNavEffects
+                ) {
+                    entry<SettingsPage.Home> {
+                        SettingsListContent(
+                            viewModel = viewModel,
+                            currentPage = SettingsPage.Home,
+                            onCategoryClick = { key ->
+                                if (key == "about") {
+                                    pushSettingsPage(SettingsPage.About)
+                                } else {
+                                    pushSettingsPage(SettingsPage.Category(key))
+                                    viewModel.selectCategory(key)
+                                }
+                            },
+                            onSettingItemClick = onSettingItemClick,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            topInset = padding.calculateTopPadding(),
+                            titleBarStyle = titleBarStyle,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() is SettingsPage.Category || currentPage() == SettingsPage.Home) {
+                                    topBarScrolled = scrolled
+                                }
                             }
-                        },
-                        onSettingItemClick = onSettingItemClick,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        topInset = padding.calculateTopPadding(),
-                        titleBarStyle = titleBarStyle,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-
-                    SettingsPage.Background -> BackgroundSettingsContent(
-                        viewModel = viewModel,
-                        paddingValues = padding,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.CodecCapabilities -> CodecCapabilitiesContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.AccompanistLyric -> AccompanistLyricSettingsContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.OpenSourceLicenses -> OpenSourceLicensesContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.PlayerBackground -> PlayerBackgroundPickerContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.PlayerElementAppearance -> PlayerElementAppearanceContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.PlayerPreview -> PlayerPreviewContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight
-                    )
-                    SettingsPage.TitleBarBlurSettings -> TitleBarBlurSettingsContent(
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.ScanSettings -> ScanSettingsContent(
-                        libraryViewModel = libraryViewModel,
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onOpenFolderPicker = { pageStack.add(SettingsPage.FolderPicker) },
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.FolderPicker -> FolderPickerContent(
-                        libraryViewModel = libraryViewModel,
-                        paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight,
-                        onBack = {
-                            if (pageStack.size > 1) pageStack.removeAt(pageStack.lastIndex)
-                            viewModel.navigateBack()
-                        },
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-                    SettingsPage.HiddenFolders -> cn.lemondrop.fhreborn.ui.screens.hidden.HiddenFoldersContent(
-                        libraryViewModel = libraryViewModel,
-                        playerViewModel = playerViewModel,
-                        contentPadding = padding,
-                        onScrolledChange = { topBarScrolled = it }
-                    )
-
-                    SettingsPage.About -> AboutContent(
-                        paddingValues = padding,
-                        foregroundBackdrop = aboutForegroundBackdrop,
-                        onOpenSource = { pageStack.add(SettingsPage.OpenSourceLicenses) },
-                        onScrolledChange = { topBarScrolled = it }
-                    )
+                        )
+                    }
+                    entry<SettingsPage.Category> { route ->
+                        SettingsListContent(
+                            viewModel = viewModel,
+                            currentPage = route,
+                            onCategoryClick = { key ->
+                                if (key == "about") {
+                                    pushSettingsPage(SettingsPage.About)
+                                } else {
+                                    pushSettingsPage(SettingsPage.Category(key))
+                                    viewModel.selectCategory(key)
+                                }
+                            },
+                            onSettingItemClick = onSettingItemClick,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            topInset = padding.calculateTopPadding(),
+                            titleBarStyle = titleBarStyle,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() is SettingsPage.Category) {
+                                    topBarScrolled = scrolled
+                                }
+                            }
+                        )
+                    }
+                    entry<SettingsPage.Background> {
+                        BackgroundSettingsContent(
+                            viewModel = viewModel,
+                            paddingValues = padding,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.Background) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.CodecCapabilities> {
+                        CodecCapabilitiesContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.CodecCapabilities) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.AccompanistLyric> {
+                        AccompanistLyricSettingsContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.AccompanistLyric) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.OpenSourceLicenses> {
+                        OpenSourceLicensesContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.OpenSourceLicenses) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.PlayerBackground> {
+                        PlayerBackgroundPickerContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.PlayerBackground) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.PlayerElementAppearance> {
+                        PlayerElementAppearanceContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.PlayerElementAppearance) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.PlayerPreview> {
+                        PlayerPreviewContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight
+                        )
+                    }
+                    entry<SettingsPage.TitleBarBlurSettings> {
+                        TitleBarBlurSettingsContent(
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.TitleBarBlurSettings) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.ScanSettings> {
+                        ScanSettingsContent(
+                            libraryViewModel = libraryViewModel,
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onOpenFolderPicker = { pushSettingsPage(SettingsPage.FolderPicker) },
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.ScanSettings) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.FolderPicker> {
+                        FolderPickerContent(
+                            libraryViewModel = libraryViewModel,
+                            paddingValues = padding,
+                            bottomOverlayHeight = bottomOverlayHeight,
+                            onBack = { popSettingsPage() },
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.FolderPicker) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.HiddenFolders> {
+                        cn.lemondrop.fhreborn.ui.screens.hidden.HiddenFoldersContent(
+                            libraryViewModel = libraryViewModel,
+                            playerViewModel = playerViewModel,
+                            contentPadding = padding,
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.HiddenFolders) topBarScrolled = scrolled
+                            }
+                        )
+                    }
+                    entry<SettingsPage.About> {
+                        AboutContent(
+                            paddingValues = padding,
+                            foregroundBackdrop = aboutForegroundBackdrop,
+                            onOpenSource = { pushSettingsPage(SettingsPage.OpenSourceLicenses) },
+                            onScrolledChange = { scrolled ->
+                                if (currentPage() == SettingsPage.About) topBarScrolled = scrolled
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-private sealed class SettingsPage {
-    data object Home : SettingsPage()
-    data class Category(val key: String) : SettingsPage()
-    data object Background : SettingsPage()
-    data object CodecCapabilities : SettingsPage()
-    data object AccompanistLyric : SettingsPage()
-    data object OpenSourceLicenses : SettingsPage()
-    data object PlayerBackground : SettingsPage()
-    data object PlayerElementAppearance : SettingsPage()
-    data object PlayerPreview : SettingsPage()
-    data object TitleBarBlurSettings : SettingsPage()
-    data object ScanSettings : SettingsPage()
-    data object FolderPicker : SettingsPage()
-    data object HiddenFolders : SettingsPage()
-    data object About : SettingsPage()
+@Serializable
+internal sealed interface SettingsPage : NavKey {
+    @Serializable
+    data object Home : SettingsPage
+
+    @Serializable
+    data class Category(val key: String) : SettingsPage
+
+    @Serializable
+    data object Background : SettingsPage
+
+    @Serializable
+    data object CodecCapabilities : SettingsPage
+
+    @Serializable
+    data object AccompanistLyric : SettingsPage
+
+    @Serializable
+    data object OpenSourceLicenses : SettingsPage
+
+    @Serializable
+    data object PlayerBackground : SettingsPage
+
+    @Serializable
+    data object PlayerElementAppearance : SettingsPage
+
+    @Serializable
+    data object PlayerPreview : SettingsPage
+
+    @Serializable
+    data object TitleBarBlurSettings : SettingsPage
+
+    @Serializable
+    data object ScanSettings : SettingsPage
+
+    @Serializable
+    data object FolderPicker : SettingsPage
+
+    @Serializable
+    data object HiddenFolders : SettingsPage
+
+    @Serializable
+    data object About : SettingsPage
+}
+
+/**
+ * Settings pages share the same outer background layer and are not individually opaque. This
+ * transition still uses the Miuix slide geometry, but fades the covered page out so text from the
+ * previous settings level cannot show through after the new page settles.
+ */
+private val SettingsNavTransition = navGraphicsTransition(opaqueDepth = 1f) { scope ->
+    val width = scope.layoutSize.width.toFloat()
+    val d = scope.relativeDepth
+    val rtl = scope.layoutDirection == LayoutDirection.Rtl
+    if (d <= 0f) {
+        translationX = (if (rtl) -1f else 1f) * (-d).coerceIn(0f, 1f) * width
+        alpha = 1f
+    } else {
+        translationX = (if (rtl) 1f else -1f) * d.coerceIn(0f, 1f) * width * 0.25f
+        alpha = 1f - d.coerceIn(0f, 1f)
+    }
 }
 
 @Composable

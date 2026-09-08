@@ -8,10 +8,14 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -78,9 +82,7 @@ private fun ImageBackground(
     bgImageBlur: Int,
     modifier: Modifier = Modifier
 ) {
-    val bgBitmap = remember(bgImagePath) {
-        BackgroundImageUtils.loadBitmapFromPath(bgImagePath)
-    }
+    val bgBitmap = rememberBackgroundBitmap(bgImagePath)
     if (bgBitmap != null) {
         Image(
             bitmap = bgBitmap,
@@ -114,12 +116,9 @@ private fun MicaBackground(
     bgImagePath: String,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val isDark = LocalAppDarkTheme.current
     val surfaceColor = if (isDark) Color(0xFF0A0A0A) else Color.White
-    val bgBitmap = remember(bgImagePath, context) {
-        BackgroundImageUtils.loadBitmapFromPath(bgImagePath)
-    }
+    val bgBitmap = rememberBackgroundBitmap(bgImagePath)
 
     if (bgBitmap == null) {
         Box(
@@ -179,4 +178,13 @@ private fun MicaBackground(
                 .background(surfaceColor.copy(alpha = 0.85f))
         )
     }
+}
+
+@Composable
+private fun rememberBackgroundBitmap(path: String): ImageBitmap? {
+    var bitmap by remember(path) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(path) {
+        bitmap = BackgroundImageUtils.loadBitmapFromPath(path)
+    }
+    return bitmap
 }

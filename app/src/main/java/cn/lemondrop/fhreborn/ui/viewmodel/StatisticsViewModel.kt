@@ -141,7 +141,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
             statisticsRepository.getTotalPlayDuration(),
             statisticsRepository.getTotalPlayCount(),
             songDao.getSongCount(),
-            statisticsRepository.getLibrarySongsByPlayCount()
+            statisticsRepository.getLibrarySongsByPlayCount(100)
         )
     ) { array ->
         OverviewUiState(

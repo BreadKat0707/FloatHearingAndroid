@@ -136,8 +136,9 @@ interface PlayRecordDao {
         LEFT JOIN play_records p ON s.id = p.songId
         GROUP BY s.id
         ORDER BY count DESC, totalDuration DESC
+        LIMIT :limit
     """)
-    fun getLibrarySongsPlayCount(): Flow<List<TopSongStat>>
+    fun getLibrarySongsPlayCount(limit: Int): Flow<List<TopSongStat>>
 }
 
 /**

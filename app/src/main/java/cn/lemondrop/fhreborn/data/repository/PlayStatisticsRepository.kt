@@ -149,8 +149,8 @@ class PlayStatisticsRepository(private val playRecordDao: PlayRecordDao) {
         return playRecordDao.getTopAlbumsRange(start, end, limit)
     }
 
-    fun getLibrarySongsByPlayCount(): Flow<List<TopSongStat>> {
-        return playRecordDao.getLibrarySongsPlayCount()
+    fun getLibrarySongsByPlayCount(limit: Int = 100): Flow<List<TopSongStat>> {
+        return playRecordDao.getLibrarySongsPlayCount(limit)
     }
 
     /**
