@@ -109,10 +109,9 @@ import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
+import top.yukonga.miuix.kmp.menu.OverlayIconCascadingDropdownMenu
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
-import cn.lemondrop.fhreborn.ui.components.LayoutStyleSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.SelectionIndicator
 import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
@@ -162,7 +161,6 @@ fun LibraryScreen(
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var showAddToPlaylist by remember { mutableStateOf(false) }
     var showSortSheet by remember { mutableStateOf(false) }
-    var showAlbumLayoutSheet by remember { mutableStateOf(false) }
     val menuScope = rememberCoroutineScope()
 
     // 各 tab 的排序选项（歌曲全字段 / 专辑标题·艺术家·年份 / 文件夹路径·名称）
@@ -537,13 +535,44 @@ fun LibraryScreen(
                                     if (sortOptions.isNotEmpty()) {
                                         add(DropdownItem("排序", icon = { mod -> Icon(Lucide.ArrowUpDown, null, modifier = mod) }, onClick = { showSortSheet = true }))
                                     }
-                                    // 专辑：列表布局弹窗选择（miuix 无级联子菜单，用弹窗替代）
+                                    // 专辑：列表布局使用 Miuix 二级菜单
                                     if (selectedNavIndex == 1) {
-                                        add(DropdownItem(
-                                            "列表布局",
-                                            icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
-                                            onClick = { showAlbumLayoutSheet = true }
-                                        ))
+                                        add(
+                                            DropdownItem(
+                                                text = "列表布局",
+                                                icon = { mod -> Icon(Lucide.LayoutList, null, modifier = mod) },
+                                                children = listOf(
+                                                    DropdownItem(
+                                                        text = "列表",
+                                                        selected = albumViewStyle == "list",
+                                                        onClick = {
+                                                            menuScope.launch { bgRepo.setAlbumViewStyle("list") }
+                                                        }
+                                                    ),
+                                                    DropdownItem(
+                                                        text = "双栏列表",
+                                                        selected = albumViewStyle == "grid",
+                                                        onClick = {
+                                                            menuScope.launch { bgRepo.setAlbumViewStyle("grid") }
+                                                        }
+                                                    ),
+                                                    DropdownItem(
+                                                        text = "卡片",
+                                                        selected = albumViewStyle == "card",
+                                                        onClick = {
+                                                            menuScope.launch { bgRepo.setAlbumViewStyle("card") }
+                                                        }
+                                                    ),
+                                                    DropdownItem(
+                                                        text = "方形",
+                                                        selected = albumViewStyle == "square",
+                                                        onClick = {
+                                                            menuScope.launch { bgRepo.setAlbumViewStyle("square") }
+                                                        }
+                                                    )
+                                                )
+                                            )
+                                        )
                                     }
                                     // 文件夹：查看隐藏的文件夹 → 二级页面
                                     if (selectedNavIndex == 3) {
@@ -572,7 +601,7 @@ fun LibraryScreen(
                                 }
                             )
                         )
-                        OverlayIconDropdownMenu(
+                        OverlayIconCascadingDropdownMenu(
                             entries = menuEntries,
                             minHeight = 40.dp,
                             minWidth = 40.dp,
@@ -640,23 +669,6 @@ fun LibraryScreen(
                 onDismiss = { showSortSheet = false },
                 onSelectField = { viewModel.setSortField(it) },
                 onToggleOrder = { viewModel.toggleSortOrder() }
-            )
-        }
-
-        // 专辑列表布局弹窗
-        if (showAlbumLayoutSheet) {
-            BackHandler { showAlbumLayoutSheet = false }
-            LayoutStyleSheet(
-                title = "列表布局",
-                options = listOf(
-                    "list" to "列表",
-                    "grid" to "双栏列表",
-                    "card" to "卡片",
-                    "square" to "方形"
-                ),
-                currentStyle = albumViewStyle,
-                onSelect = { style -> menuScope.launch { bgRepo.setAlbumViewStyle(style) } },
-                onDismiss = { showAlbumLayoutSheet = false }
             )
         }
 
