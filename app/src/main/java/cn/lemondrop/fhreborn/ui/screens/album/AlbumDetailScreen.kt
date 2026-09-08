@@ -89,16 +89,13 @@ fun AlbumDetailScreen(
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
-    val songsFlow = remember(albumName, albumArtist) {
-        db.songDao().getSongsByAlbum(albumName, albumArtist)
-    }
     val settingsRepository = remember { AppSettingsRepository(context) }
     val sourceMode by settingsRepository.scanSourceMode.collectAsState(initial = ScanSourceMode.MEDIA_STORE)
-    val allSongs by songsFlow.collectAsState(initial = emptyList())
-    val songs = remember(allSongs, sourceMode) {
-        val source = ScanSourceMode.toSongSource(sourceMode)
-        allSongs.filter { it.source == source }
+    val source = remember(sourceMode) { ScanSourceMode.toSongSource(sourceMode) }
+    val songsFlow = remember(albumName, albumArtist, source) {
+        db.songDao().getSongsByAlbumAndSource(albumName, albumArtist, source)
     }
+    val songs by songsFlow.collectAsState(initial = emptyList())
     val currentSong by playerViewModel.currentSong.collectAsState()
 
     val displayAlbum = albumName.ifBlank { "未知专辑" }

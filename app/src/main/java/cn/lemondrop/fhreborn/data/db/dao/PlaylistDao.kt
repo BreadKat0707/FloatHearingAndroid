@@ -96,6 +96,18 @@ interface PlaylistDao {
     )
     suspend fun getFirstSongIds(playlistId: Long, limit: Int): List<Long>
 
+    /** 歌单内前 N 首完整歌曲（自动封面拼图用，保留 source/path 供目录模式封面读取） */
+    @Query(
+        """
+        SELECT s.* FROM songs s
+        INNER JOIN playlist_songs ps ON ps.songId = s.id
+        WHERE ps.playlistId = :playlistId
+        ORDER BY ps.sortOrder ASC, ps.addedAt ASC
+        LIMIT :limit
+        """
+    )
+    suspend fun getFirstSongs(playlistId: Long, limit: Int): List<Song>
+
     /** 包含指定歌曲的所有歌单 id（用于"已加入"标记） */
     @Query("SELECT playlistId FROM playlist_songs WHERE songId = :songId")
     suspend fun getPlaylistIdsContainingSong(songId: Long): List<Long>

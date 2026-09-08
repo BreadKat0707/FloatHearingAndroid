@@ -695,9 +695,9 @@ private fun PlaylistGridItem(
     selectionMode: Boolean = false,
     selected: Boolean = false
 ) {
-    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    var coverSongs by remember(playlist.id) { mutableStateOf<List<Song>>(emptyList()) }
     LaunchedEffect(playlist.id, playlist.songCount) {
-        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+        viewModel.getFirstSongs(playlist.id) { songs -> coverSongs = songs }
     }
     Box(
         modifier = Modifier
@@ -707,9 +707,10 @@ private fun PlaylistGridItem(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlaylistCover(
-                songIds = coverSongIds,
+                songIds = coverSongs.map { it.id },
                 coverPath = playlist.coverPath,
                 coverSource = playlist.coverSource,
+                songs = coverSongs,
                 modifier = Modifier.size(56.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -745,9 +746,9 @@ private fun PlaylistCardItem(
     selectionMode: Boolean = false,
     selected: Boolean = false
 ) {
-    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    var coverSongs by remember(playlist.id) { mutableStateOf<List<Song>>(emptyList()) }
     LaunchedEffect(playlist.id, playlist.songCount) {
-        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+        viewModel.getFirstSongs(playlist.id) { songs -> coverSongs = songs }
     }
     // Card 背景圆角不裁切内容，需 clip 整卡让封面顶部贴合圆角（封面本身不加圆角）
     top.yukonga.miuix.kmp.basic.Card(
@@ -761,9 +762,10 @@ private fun PlaylistCardItem(
         Box {
             Column(modifier = Modifier.fillMaxWidth()) {
                 PlaylistCover(
-                    songIds = coverSongIds,
+                    songIds = coverSongs.map { it.id },
                     coverPath = playlist.coverPath,
                     coverSource = playlist.coverSource,
+                    songs = coverSongs,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f),
@@ -804,9 +806,9 @@ private fun PlaylistSquareItem(
     selectionMode: Boolean = false,
     selected: Boolean = false
 ) {
-    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    var coverSongs by remember(playlist.id) { mutableStateOf<List<Song>>(emptyList()) }
     LaunchedEffect(playlist.id, playlist.songCount) {
-        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+        viewModel.getFirstSongs(playlist.id) { songs -> coverSongs = songs }
     }
     Column(
         modifier = Modifier
@@ -816,9 +818,10 @@ private fun PlaylistSquareItem(
     ) {
         Box {
             PlaylistCover(
-                songIds = coverSongIds,
+                songIds = coverSongs.map { it.id },
                 coverPath = playlist.coverPath,
                 coverSource = playlist.coverSource,
+                songs = coverSongs,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
@@ -858,9 +861,9 @@ private fun PlaylistCard(
     selectionMode: Boolean = false,
     selected: Boolean = false
 ) {
-    var coverSongIds by remember(playlist.id) { mutableStateOf<List<Long>>(emptyList()) }
+    var coverSongs by remember(playlist.id) { mutableStateOf<List<Song>>(emptyList()) }
     LaunchedEffect(playlist.id, playlist.songCount) {
-        viewModel.getFirstSongIds(playlist.id) { ids -> coverSongIds = ids }
+        viewModel.getFirstSongs(playlist.id) { songs -> coverSongs = songs }
     }
 
     Row(
@@ -874,9 +877,10 @@ private fun PlaylistCard(
         verticalAlignment = Alignment.CenterVertically
     ) {
         PlaylistCover(
-            songIds = coverSongIds,
+            songIds = coverSongs.map { it.id },
             coverPath = playlist.coverPath,
             coverSource = playlist.coverSource,
+            songs = coverSongs,
             modifier = Modifier
                 .size(48.dp)
                 .clickable(onClick = onClick)

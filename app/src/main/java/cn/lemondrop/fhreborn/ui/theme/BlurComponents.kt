@@ -1,6 +1,7 @@
 package cn.lemondrop.fhreborn.ui.theme
 
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -109,12 +110,18 @@ fun BlurTopBar(
     val isProgressive = LocalTitleBarStyle.current == TITLE_BAR_STYLE_PROGRESSIVE
     if (useBlur) {
         val effectColors = rememberBackdropEffectColors()
+        // 真实模糊采样层尚未就绪或滚动过渡期间，先铺一层半透明表面色兜底，
+        // 避免状态栏/顶栏区域短暂变成全透明而丢失磨砂材质。
+        val fallbackColor = MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)
         Box(
             modifier = if (isProgressive) {
-                modifier.fillMaxWidth()
+                modifier
+                    .fillMaxWidth()
+                    .background(fallbackColor)
             } else {
                 modifier
                     .fillMaxWidth()
+                    .background(fallbackColor)
                     .textureBlur(
                         backdrop = backdrop!!,
                         shape = RoundedCornerShape(0.dp),

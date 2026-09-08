@@ -65,6 +65,10 @@ class PlaylistRepository(private val db: AppDatabase) {
     suspend fun getFirstSongIds(playlistId: Long, limit: Int = 3): List<Long> =
         dao.getFirstSongIds(playlistId, limit)
 
+    /** 歌单内前 N 首完整歌曲（自动封面用，保留 source/path） */
+    suspend fun getFirstSongs(playlistId: Long, limit: Int = 3): List<Song> =
+        dao.getFirstSongs(playlistId, limit)
+
     /** 歌单内歌曲快照（一次性，用于播放/导出） */
     suspend fun getSongsSnapshot(playlistId: Long, sortType: Int): List<Song> =
         sortSongs(dao.getSongsInPlaylistSnapshot(playlistId), sortType)

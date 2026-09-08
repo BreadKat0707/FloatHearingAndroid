@@ -1,6 +1,5 @@
 package cn.lemondrop.fhreborn.ui.components
 
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -60,9 +59,11 @@ fun SongCoverImage(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var bitmap by remember(songId) { mutableStateOf<ImageBitmap?>(null) }
+    var bitmap by remember(songId, source, path) {
+        mutableStateOf<ImageBitmap?>(CoverImageCache.get(songId))
+    }
 
-    LaunchedEffect(songId) {
+    LaunchedEffect(songId, source, path) {
         // 缓存命中直接复用，避免滚动回收后重新 IO 解码（掉帧主因）
         val cached = CoverImageCache.get(songId)
         if (cached != null) {
@@ -76,15 +77,13 @@ fun SongCoverImage(
                     try {
                         retriever.setDataSource(path)
                         val bytes = retriever.embeddedPicture
-                        bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+                        bytes?.let { CoverImageDecoder.decodeScaled(it)?.asImageBitmap() }
                     } finally {
                         retriever.release()
                     }
                 } else {
                     val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
-                    context.contentResolver.openInputStream(uri)?.use { stream ->
-                        BitmapFactory.decodeStream(stream)?.asImageBitmap()
-                    }
+                    CoverImageDecoder.decodeScaled(context, uri)?.asImageBitmap()
                 }
             } catch (e: Exception) {
                 null
@@ -173,6 +172,8 @@ fun MiniPlayBar(
             PlayerBackground(
                 songId = currentSong?.id,
                 isPlaying = isPlaying,
+                source = currentSong?.source ?: Song.SOURCE_MEDIA_STORE,
+                path = currentSong?.path,
                 modifier = Modifier.fillMaxSize()
             )
 

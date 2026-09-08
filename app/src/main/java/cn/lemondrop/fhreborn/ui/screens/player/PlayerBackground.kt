@@ -2,12 +2,12 @@ package cn.lemondrop.fhreborn.ui.screens.player
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RuntimeShader
 import android.graphics.Shader
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
+import cn.lemondrop.fhreborn.data.db.entity.Song
+import cn.lemondrop.fhreborn.ui.components.CoverImageDecoder
 import cn.lemondrop.fhreborn.ui.screens.player.apple_music.AppleMusicMeshRenderer
 import cn.lemondrop.fhreborn.ui.screens.player.apple_music.BassPulseProcessor
 import kotlinx.coroutines.Dispatchers
@@ -76,7 +78,9 @@ sealed class PlayerBackgroundType(val key: String) {
 fun PlayerBackground(
     songId: Long?,
     isPlaying: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ) {
     val context = LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
@@ -92,16 +96,22 @@ fun PlayerBackground(
             songId = songId,
             isPlaying = isPlaying,
             isDarkTheme = isDarkTheme,
+            source = source,
+            path = path,
             modifier = modifier
         )
         PlayerBackgroundType.AgslFluid -> AgslFluidBackground(
             songId = songId,
             isDarkTheme = isDarkTheme,
+            source = source,
+            path = path,
             modifier = modifier
         )
         PlayerBackgroundType.CoverBlur -> CoverBlurBackground(
             songId = songId,
             isDarkTheme = isDarkTheme,
+            source = source,
+            path = path,
             modifier = modifier
         )
         PlayerBackgroundType.DefaultColor -> DefaultPlayerBackground(
@@ -130,7 +140,9 @@ fun DefaultPlayerBackground(
 fun CoverBlurBackground(
     songId: Long?,
     isDarkTheme: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ) {
     val context = LocalContext.current
 
@@ -152,7 +164,7 @@ fun CoverBlurBackground(
 
             LaunchedEffect(currentSongId) {
                 withContext(Dispatchers.IO) {
-                    bitmap = loadPlayerCoverBitmap(context, currentSongId)
+                    bitmap = loadPlayerCoverBitmap(context, currentSongId, source = source, path = path)
                 }
             }
 
@@ -186,7 +198,9 @@ fun CoverBlurBackground(
 private fun AgslFluidBackgroundImpl(
     songId: Long?,
     isDarkTheme: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ) {
     val context = LocalContext.current
 
@@ -208,7 +222,7 @@ private fun AgslFluidBackgroundImpl(
 
             LaunchedEffect(currentSongId) {
                 withContext(Dispatchers.IO) {
-                    bitmap = loadPlayerCoverBitmap(context, currentSongId)
+                    bitmap = loadPlayerCoverBitmap(context, currentSongId, source = source, path = path)
                 }
             }
 
@@ -239,12 +253,14 @@ fun AppleMusicBackground(
     songId: Long?,
     isPlaying: Boolean,
     isDarkTheme: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        AppleMusicBackgroundImpl(songId, isPlaying, isDarkTheme, modifier)
+        AppleMusicBackgroundImpl(songId, isPlaying, isDarkTheme, modifier, source, path)
     } else {
-        CoverBlurBackground(songId, isDarkTheme, modifier)
+        CoverBlurBackground(songId, isDarkTheme, modifier, source, path)
     }
 }
 
@@ -254,7 +270,9 @@ private fun AppleMusicBackgroundImpl(
     songId: Long?,
     isPlaying: Boolean,
     isDarkTheme: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ) {
     val context = LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
@@ -285,7 +303,7 @@ private fun AppleMusicBackgroundImpl(
 
             LaunchedEffect(currentSongId) {
                 withContext(Dispatchers.IO) {
-                    bitmap = loadPlayerCoverBitmap(context, currentSongId)
+                    bitmap = loadPlayerCoverBitmap(context, currentSongId, source = source, path = path)
                 }
             }
 
@@ -561,12 +579,14 @@ private class AppleMusicBackgroundView @JvmOverloads constructor(
 fun AgslFluidBackground(
     songId: Long?,
     isDarkTheme: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        AgslFluidBackgroundImpl(songId, isDarkTheme, modifier)
+        AgslFluidBackgroundImpl(songId, isDarkTheme, modifier, source, path)
     } else {
-        CoverBlurBackground(songId, isDarkTheme, modifier)
+        CoverBlurBackground(songId, isDarkTheme, modifier, source, path)
     }
 }
 
@@ -679,20 +699,31 @@ private class AgslFluidView @JvmOverloads constructor(
 internal suspend fun loadPlayerCoverBitmap(
     context: Context,
     songId: Long?,
-    targetSize: android.util.Size = android.util.Size(600, 600)
+    targetSize: android.util.Size = android.util.Size(600, 600),
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null
 ): Bitmap? {
     if (songId == null) return null
     return try {
-        val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream)?.let { bmp ->
-                Bitmap.createScaledBitmap(
-                    bmp,
-                    targetSize.width,
-                    targetSize.height,
-                    true
-                )
+        val bitmap = if (source == Song.SOURCE_DIRECTORY && !path.isNullOrBlank()) {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(path)
+                retriever.embeddedPicture?.let { CoverImageDecoder.decodeScaled(it, targetSize.width) }
+            } finally {
+                retriever.release()
             }
+        } else {
+            val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
+            CoverImageDecoder.decodeScaled(context, uri, targetSize.width)
+        }
+        bitmap?.let { bmp ->
+            Bitmap.createScaledBitmap(
+                bmp,
+                targetSize.width,
+                targetSize.height,
+                true
+            )
         }
     } catch (e: Exception) {
         null

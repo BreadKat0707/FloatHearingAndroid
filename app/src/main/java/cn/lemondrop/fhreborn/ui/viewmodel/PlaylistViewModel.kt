@@ -59,6 +59,17 @@ class PlaylistViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** 歌单前 N 首完整歌曲（自动封面拼图用，回调形式） */
+    private val firstSongsCache = HashMap<Long, List<Song>>()
+    fun getFirstSongs(playlistId: Long, limit: Int = 3, onResult: (List<Song>) -> Unit) {
+        firstSongsCache[playlistId]?.let { onResult(it); return }
+        viewModelScope.launch {
+            val songs = repository.getFirstSongs(playlistId, limit)
+            firstSongsCache[playlistId] = songs
+            onResult(songs)
+        }
+    }
+
     /** 歌单内歌曲快照（封面"从歌单选"用，回调形式） */
     fun getSongsSnapshot(playlistId: Long, onResult: (List<Song>) -> Unit) {
         viewModelScope.launch {

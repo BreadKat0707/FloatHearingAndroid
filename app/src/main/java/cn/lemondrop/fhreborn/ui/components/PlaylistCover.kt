@@ -3,6 +3,7 @@ package cn.lemondrop.fhreborn.ui.components
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.data.db.entity.Playlist
+import cn.lemondrop.fhreborn.data.db.entity.Song
 import com.composables.icons.lucide.ListMusic
 import com.composables.icons.lucide.Lucide
 import kotlinx.coroutines.Dispatchers
@@ -52,21 +54,27 @@ fun PlaylistCover(
     coverPath: String?,
     coverSource: Int,
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 8.dp
+    cornerRadius: Dp = 8.dp,
+    songs: List<Song> = emptyList()
 ) {
     val context = LocalContext.current
     var bitmaps by remember { mutableStateOf<List<ImageBitmap>?>(null) }
 
-    LaunchedEffect(songIds, coverPath, coverSource) {
+    LaunchedEffect(songIds, coverPath, coverSource, songs) {
         bitmaps = withContext(Dispatchers.IO) {
             when {
                 coverSource == PlaylistCoverSource.SELF_IMAGE && coverPath != null ->
                     loadFileBitmap(context, coverPath)?.let { listOf(it) }
 
-                coverSource == PlaylistCoverSource.SONG_COVER && coverPath != null ->
-                    loadSongCover(context, coverPath.toLongOrNull())?.let { listOf(it) }
+                coverSource == PlaylistCoverSource.SONG_COVER && coverPath != null -> {
+                    val songId = coverPath.toLongOrNull()
+                    val song = songs.firstOrNull { it.id == songId }
+                    loadSongCover(context, songId, song)?.let { listOf(it) }
+                }
 
-                else -> songIds.take(3).mapNotNull { loadSongCover(context, it) }
+                else -> songIds.take(3).mapIndexedNotNull { index, songId ->
+                    loadSongCover(context, songId, songs.getOrNull(index))
+                }
             }
         }
     }
@@ -148,22 +156,27 @@ object PlaylistCoverSource {
     const val SELF_IMAGE = 2
 }
 
-private fun loadSongCover(context: Context, songId: Long?): ImageBitmap? {
+private fun loadSongCover(context: Context, songId: Long?, song: Song? = null): ImageBitmap? {
     if (songId == null) return null
     // 缓存命中直接复用（歌单封面与列表缩略图共用同一缓存）
     CoverImageCache.get(songId)?.let { return it }
     return try {
-        val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream)?.let { bmp ->
-                // 缩到 200px 内，控制内存
-                val scale = (maxOf(bmp.width, bmp.height) / 200f).coerceAtLeast(1f)
-                val w = (bmp.width / scale).toInt().coerceAtLeast(1)
-                val h = (bmp.height / scale).toInt().coerceAtLeast(1)
-                val scaled = Bitmap.createScaledBitmap(bmp, w, h, true).asImageBitmap()
-                CoverImageCache.put(songId, scaled)
-                scaled
+        val bitmap = if (song?.source == Song.SOURCE_DIRECTORY && song.path.isNotBlank()) {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(song.path)
+                retriever.embeddedPicture?.let { CoverImageDecoder.decodeScaled(it) }
+            } finally {
+                retriever.release()
             }
+        } else {
+            val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
+            CoverImageDecoder.decodeScaled(context, uri)
+        }
+        bitmap?.let {
+            val scaled = it.asImageBitmap()
+            CoverImageCache.put(songId, scaled)
+            scaled
         }
     } catch (_: Exception) {
         null

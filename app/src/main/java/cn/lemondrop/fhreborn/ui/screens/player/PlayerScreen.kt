@@ -423,6 +423,8 @@ fun PlayerScreen(
         PlayerBackground(
             songId = currentSong?.id,
             isPlaying = isPlaying,
+            source = currentSong?.source ?: cn.lemondrop.fhreborn.data.db.entity.Song.SOURCE_MEDIA_STORE,
+            path = currentSong?.path,
             modifier = Modifier.fillMaxSize()
         )
 

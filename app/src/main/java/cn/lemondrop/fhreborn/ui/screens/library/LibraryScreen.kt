@@ -477,7 +477,7 @@ fun LibraryScreen(
             BlurTopBar(
                 backdrop = backdrop,
                 // 列表滚动后（或多选时）才显示顶栏背景/模糊；回顶隐藏
-                scrolled = topBarScrolled || multiSelectMode,
+                scrolled = topBarScrolled || savedScrollIndex > 0 || multiSelectMode,
                 title = if (multiSelectMode) "已选 ${selectedSongIds.size} 首" else when (selectedNavIndex) {
                     0 -> "媒体库"
                     1 -> "专辑"

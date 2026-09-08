@@ -316,6 +316,7 @@ fun PlaylistDetailScreen(
                                 songIds = songs.take(3).map { it.id },
                                 coverPath = playlist?.coverPath,
                                 coverSource = playlist?.coverSource ?: 0,
+                                songs = songs,
                                 modifier = Modifier.size(96.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
