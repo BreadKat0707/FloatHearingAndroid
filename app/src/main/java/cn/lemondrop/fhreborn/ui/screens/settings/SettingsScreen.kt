@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -62,9 +63,14 @@ import cn.lemondrop.fhreborn.data.model.SettingItem
 import cn.lemondrop.fhreborn.data.model.SettingType
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.components.FhColorPalette
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.FhListItem
+import cn.lemondrop.fhreborn.ui.effect.BgEffectBackground
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
+import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
+import cn.lemondrop.fhreborn.ui.theme.isRuntimeShaderSupported
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
 import com.composables.icons.lucide.ArrowLeft
@@ -84,6 +90,7 @@ import com.composables.icons.lucide.X
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.OkHsvHueSlider
@@ -102,8 +109,14 @@ import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.BlurBlendMode
+import top.yukonga.miuix.kmp.blur.BlurColors
+import top.yukonga.miuix.kmp.blur.BlurDefaults
+import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import top.yukonga.miuix.kmp.blur.textureBlur
 
 @Composable
 fun SettingsScreen(
@@ -142,6 +155,9 @@ fun SettingsScreen(
     var showResetStatsConfirm by remember { mutableStateOf(false) }
     // 顶栏滚动感知：主页/分类页列表滚离顶部时显示背景/模糊，回顶隐藏
     var topBarScrolled by remember { mutableStateOf(false) }
+    LaunchedEffect(pageStack.lastOrNull()) {
+        topBarScrolled = false
+    }
 
     val onNavigateItem: (SettingItem) -> Unit = { item ->
         when (item.key) {
@@ -153,6 +169,8 @@ fun SettingsScreen(
             "player_bg" -> pageStack.add(SettingsPage.PlayerBackground)
             "player_element_appearance" -> pageStack.add(SettingsPage.PlayerElementAppearance)
             "player_preview" -> pageStack.add(SettingsPage.PlayerPreview)
+            "title_bar_blur_settings" -> pageStack.add(SettingsPage.TitleBarBlurSettings)
+            "scan_settings" -> pageStack.add(SettingsPage.ScanSettings)
             "hidden_folders" -> pageStack.add(SettingsPage.HiddenFolders)
             "reset_stats" -> showResetStatsConfirm = true
             "about_page" -> pageStack.add(SettingsPage.About)
@@ -203,6 +221,9 @@ fun SettingsScreen(
             SettingsPage.PlayerBackground -> "播放器页面背景"
             SettingsPage.PlayerElementAppearance -> "播放器元素外观"
             SettingsPage.PlayerPreview -> "播放器预览"
+            SettingsPage.TitleBarBlurSettings -> "标题栏模糊参数"
+            SettingsPage.ScanSettings -> "扫描设置"
+            SettingsPage.FolderPicker -> "选择目录"
             SettingsPage.HiddenFolders -> "隐藏文件夹"
             SettingsPage.About -> "关于"
         }
@@ -210,8 +231,9 @@ fun SettingsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
+        val backdrop = LocalBlurBackdrop.current ?: return
         val surfaceColor = MiuixTheme.colorScheme.surface
-        val backdrop = rememberLayerBackdrop {
+        val aboutForegroundBackdrop = rememberLayerBackdrop {
             drawRect(surfaceColor)
             drawContent()
         }
@@ -221,7 +243,7 @@ fun SettingsScreen(
                 BlurTopBar(
                     backdrop = backdrop,
                     // 主页/分类页滚动感知；子页面常显背景
-                    scrolled = if (currentPage() is SettingsPage.Home || currentPage() is SettingsPage.Category) topBarScrolled else true,
+                    scrolled = topBarScrolled,
                     title = pageTitle(),
                     navigationIcon = {
                         if (isHome) {
@@ -300,6 +322,7 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .layerBackdrop(backdrop)
             ) {
+                AppBackgroundLayer()
                 when (currentPage()) {
                     SettingsPage.Home,
                     is SettingsPage.Category -> SettingsListContent(
@@ -322,41 +345,72 @@ fun SettingsScreen(
 
                     SettingsPage.Background -> BackgroundSettingsContent(
                         viewModel = viewModel,
-                        paddingValues = padding
+                        paddingValues = padding,
+                        onScrolledChange = { topBarScrolled = it }
                     )
                     SettingsPage.CodecCapabilities -> CodecCapabilitiesContent(
                         paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onScrolledChange = { topBarScrolled = it }
                     )
                     SettingsPage.AccompanistLyric -> AccompanistLyricSettingsContent(
                         paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onScrolledChange = { topBarScrolled = it }
                     )
                     SettingsPage.OpenSourceLicenses -> OpenSourceLicensesContent(
                         paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onScrolledChange = { topBarScrolled = it }
                     )
                     SettingsPage.PlayerBackground -> PlayerBackgroundPickerContent(
                         paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onScrolledChange = { topBarScrolled = it }
                     )
                     SettingsPage.PlayerElementAppearance -> PlayerElementAppearanceContent(
                         paddingValues = padding,
-                        bottomOverlayHeight = bottomOverlayHeight
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onScrolledChange = { topBarScrolled = it }
                     )
                     SettingsPage.PlayerPreview -> PlayerPreviewContent(
                         paddingValues = padding,
                         bottomOverlayHeight = bottomOverlayHeight
                     )
+                    SettingsPage.TitleBarBlurSettings -> TitleBarBlurSettingsContent(
+                        paddingValues = padding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onScrolledChange = { topBarScrolled = it }
+                    )
+                    SettingsPage.ScanSettings -> ScanSettingsContent(
+                        libraryViewModel = libraryViewModel,
+                        paddingValues = padding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onOpenFolderPicker = { pageStack.add(SettingsPage.FolderPicker) },
+                        onScrolledChange = { topBarScrolled = it }
+                    )
+                    SettingsPage.FolderPicker -> FolderPickerContent(
+                        libraryViewModel = libraryViewModel,
+                        paddingValues = padding,
+                        bottomOverlayHeight = bottomOverlayHeight,
+                        onBack = {
+                            if (pageStack.size > 1) pageStack.removeAt(pageStack.lastIndex)
+                            viewModel.navigateBack()
+                        },
+                        onScrolledChange = { topBarScrolled = it }
+                    )
                     SettingsPage.HiddenFolders -> cn.lemondrop.fhreborn.ui.screens.hidden.HiddenFoldersContent(
                         libraryViewModel = libraryViewModel,
                         playerViewModel = playerViewModel,
-                        contentPadding = padding
+                        contentPadding = padding,
+                        onScrolledChange = { topBarScrolled = it }
                     )
 
                     SettingsPage.About -> AboutContent(
                         paddingValues = padding,
-                        onOpenSource = { pageStack.add(SettingsPage.OpenSourceLicenses) }
+                        foregroundBackdrop = aboutForegroundBackdrop,
+                        onOpenSource = { pageStack.add(SettingsPage.OpenSourceLicenses) },
+                        onScrolledChange = { topBarScrolled = it }
                     )
                 }
             }
@@ -374,6 +428,9 @@ private sealed class SettingsPage {
     data object PlayerBackground : SettingsPage()
     data object PlayerElementAppearance : SettingsPage()
     data object PlayerPreview : SettingsPage()
+    data object TitleBarBlurSettings : SettingsPage()
+    data object ScanSettings : SettingsPage()
+    data object FolderPicker : SettingsPage()
     data object HiddenFolders : SettingsPage()
     data object About : SettingsPage()
 }
@@ -816,6 +873,26 @@ private fun buildCategories(): List<SettingCategory> {
 
                 // 主界面
                 SettingItem("", "主界面", null, null, SettingType.Info),
+                SettingItem(
+                    "title_bar_style",
+                    "标题栏风格",
+                    "Gaussian / Progressive",
+                    null,
+                    SettingType.Selection(
+                        listOf(
+                            cn.lemondrop.fhreborn.data.model.Option("gaussian", "Gaussian"),
+                            cn.lemondrop.fhreborn.data.model.Option("progressive", "Progressive")
+                        )
+                    ),
+                    "gaussian"
+                ),
+                SettingItem(
+                    "title_bar_blur_settings",
+                    "标题栏模糊参数",
+                    "强度 / 渐变范围 / 曲线",
+                    null,
+                    SettingType.Navigation
+                ),
                 SettingItem("hide_system_ui", "隐藏状态栏和导航栏", "滑动状态栏/导航栏以显示", null, SettingType.Toggle, false),
                 SettingItem("main_bg", "主页面背景", "纯色 / 自选图片", null, SettingType.Navigation),
                 SettingItem("player_bg", "播放器页面背景", "AGSL 流体 / 封面模糊", null, SettingType.Navigation),
@@ -863,7 +940,7 @@ private fun buildCategories(): List<SettingCategory> {
             title = "媒体库",
             icon = Lucide.Music,
             items = listOf(
-                SettingItem("auto_scan", "启动时自动扫描", "每次打开检测媒体库变更", null, SettingType.Toggle, true),
+                SettingItem("scan_settings", "扫描设置", "来源 / 目录 / 最短时长", null, SettingType.Navigation),
                 SettingItem("hidden_folders", "隐藏文件夹", "管理黑名单目录", null, SettingType.Navigation),
                 SettingItem("artist_separators", "艺术家分隔符", "配置多艺术家拆分规则", null, SettingType.Navigation)
             )
@@ -891,10 +968,13 @@ private fun buildCategories(): List<SettingCategory> {
 @Composable
 private fun AboutContent(
     paddingValues: PaddingValues,
-    onOpenSource: () -> Unit
+    foregroundBackdrop: LayerBackdrop,
+    onOpenSource: () -> Unit,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
     val listState = rememberLazyListState()
+    observeSettingsScroll(listState, onScrolledChange)
     // 应用图标：adaptive icon 不是 VectorDrawable/位图，painterResource 不支持，
     // 改从 PackageManager 取渲染后的位图
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -902,7 +982,6 @@ private fun AboutContent(
         val drawable = context.packageManager.getApplicationIcon(context.packageName)
         drawable.toBitmap().asImageBitmap()
     }
-
     // 滚动进度：Logo 区滚出顶栏区域时从 0 渐变到 1
     val scrollProgress by remember {
         derivedStateOf {
@@ -923,8 +1002,43 @@ private fun AboutContent(
     val iconProgress = ((scrollProgress - 0.35f) / 0.15f).coerceIn(0f, 1f)
     val titleProgress = ((scrollProgress - 0.20f) / 0.15f).coerceIn(0f, 1f)
     val versionProgress = ((scrollProgress - 0.05f) / 0.15f).coerceIn(0f, 1f)
+    val isDarkTheme = LocalAppDarkTheme.current
+    val cardBlend = remember(isDarkTheme) {
+        if (isDarkTheme) {
+            listOf(
+                BlendColorEntry(Color(0x4DA9A9A9), BlurBlendMode.Luminosity),
+                BlendColorEntry(Color(0x1A9C9C9C), BlurBlendMode.PlusDarker),
+            )
+        } else {
+            listOf(
+                BlendColorEntry(Color(0x340034F9), BlurBlendMode.Overlay),
+                BlendColorEntry(Color(0xB3FFFFFF), BlurBlendMode.HardLight),
+            )
+        }
+    }
+    val logoBlend = remember(isDarkTheme) {
+        if (isDarkTheme) {
+            listOf(
+                BlendColorEntry(Color(0xe6a1a1a1), BlurBlendMode.ColorDodge),
+                BlendColorEntry(Color(0x4de6e6e6), BlurBlendMode.LinearLight),
+                BlendColorEntry(Color(0xff1af500), BlurBlendMode.Lab),
+            )
+        } else {
+            listOf(
+                BlendColorEntry(Color(0xcc4a4a4a), BlurBlendMode.ColorBurn),
+                BlendColorEntry(Color(0xff4f4f4f), BlurBlendMode.LinearLight),
+                BlendColorEntry(Color(0xff1af200), BlurBlendMode.Lab),
+            )
+        }
+    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BgEffectBackground(
+        dynamicBackground = isRuntimeShaderSupported,
+        modifier = Modifier.fillMaxSize(),
+        bgModifier = Modifier.layerBackdrop(foregroundBackdrop),
+        isFullSize = true,
+        alpha = { 1f - scrollProgress },
+    ) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -971,7 +1085,21 @@ private fun AboutContent(
                                 alpha = 1 - p
                                 scaleX = 1 - p * 0.05f
                                 scaleY = 1 - p * 0.05f
-                            },
+                            }
+                            .then(
+                                if (isRuntimeShaderSupported) {
+                                    Modifier.textureBlur(
+                                        backdrop = foregroundBackdrop,
+                                        shape = RoundedCornerShape(16.dp),
+                                        blurRadius = 150f,
+                                        noiseCoefficient = BlurDefaults.NoiseCoefficient,
+                                        colors = BlurDefaults.blurColors(blendColors = logoBlend),
+                                        contentBlendMode = ComposeBlendMode.DstIn,
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
                         color = MiuixTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.Bold,
                         fontSize = 35.sp
@@ -996,7 +1124,32 @@ private fun AboutContent(
             // 链接卡片：GitHub / Telegram / 许可 / 更新 / 反馈
             item(key = "about") {
                 Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-                    Card {
+                    Card(
+                        modifier = Modifier
+                            .then(
+                                if (isRuntimeShaderSupported) {
+                                    Modifier.textureBlur(
+                                        backdrop = foregroundBackdrop,
+                                        shape = RoundedCornerShape(16.dp),
+                                        blurRadius = 60f,
+                                        noiseCoefficient = BlurDefaults.NoiseCoefficient,
+                                        colors = BlurColors(
+                                            blendColors = cardBlend,
+                                        ),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                        colors = CardDefaults.defaultColors(
+                            if (isRuntimeShaderSupported) {
+                                Color.Transparent
+                            } else {
+                                MiuixTheme.colorScheme.surfaceContainer
+                            },
+                            Color.Transparent,
+                        ),
+                    ) {
                         ArrowPreference(
                             title = "GitHub 仓库",
                             endActions = {
@@ -1020,7 +1173,33 @@ private fun AboutContent(
                             onClick = { uriHandler.openUri("https://t.me/breadkat_nest") }
                         )
                     }
-                    Card(modifier = Modifier.padding(top = 12.dp)) {
+                    Card(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .then(
+                                if (isRuntimeShaderSupported) {
+                                    Modifier.textureBlur(
+                                        backdrop = foregroundBackdrop,
+                                        shape = RoundedCornerShape(16.dp),
+                                        blurRadius = 60f,
+                                        noiseCoefficient = BlurDefaults.NoiseCoefficient,
+                                        colors = BlurColors(
+                                            blendColors = cardBlend,
+                                        ),
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                        colors = CardDefaults.defaultColors(
+                            if (isRuntimeShaderSupported) {
+                                Color.Transparent
+                            } else {
+                                MiuixTheme.colorScheme.surfaceContainer
+                            },
+                            Color.Transparent,
+                        ),
+                    ) {
                         ArrowPreference(
                             title = "开源许可",
                             onClick = onOpenSource

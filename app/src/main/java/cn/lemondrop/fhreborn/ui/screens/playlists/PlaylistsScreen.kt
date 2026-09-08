@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,6 +58,7 @@ import cn.lemondrop.fhreborn.data.db.dao.PlaylistWithCount
 import cn.lemondrop.fhreborn.data.db.entity.Playlist
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.LazyGridScrollBar
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.components.LayoutStyleSheet
@@ -69,6 +69,7 @@ import cn.lemondrop.fhreborn.ui.components.SelectionIndicator
 import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Check
@@ -98,7 +99,6 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -249,11 +249,7 @@ fun PlaylistsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-        val surfaceColor = MiuixTheme.colorScheme.surface
-        val backdrop = rememberLayerBackdrop {
-            drawRect(surfaceColor)
-            drawContent()
-        }
+        val backdrop = LocalBlurBackdrop.current ?: return
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -365,6 +361,7 @@ fun PlaylistsScreen(
 
                 when (viewStyle) {
                     "grid" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        AppBackgroundLayer()
                         val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 180, minColumns = 2)
                         LazyVerticalGrid(
                             state = gridState,
@@ -393,10 +390,14 @@ fun PlaylistsScreen(
                             gridState = gridState,
                             modifier = Modifier.align(Alignment.CenterEnd),
                             // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(
+                                top = padding.calculateTopPadding() + 8.dp,
+                                bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp
+                            )
                         )
                     }
                     "card" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        AppBackgroundLayer()
                         val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 170, minColumns = 2)
                         LazyVerticalGrid(
                             state = gridState,
@@ -425,10 +426,14 @@ fun PlaylistsScreen(
                             gridState = gridState,
                             modifier = Modifier.align(Alignment.CenterEnd),
                             // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(
+                                top = padding.calculateTopPadding() + 8.dp,
+                                bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp
+                            )
                         )
                     }
                     "square" -> BoxWithConstraints(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        AppBackgroundLayer()
                         val columns = responsiveColumnCount(maxWidth, minItemWidthDp = 170, minColumns = 2)
                         LazyVerticalGrid(
                             state = gridState,
@@ -457,10 +462,14 @@ fun PlaylistsScreen(
                             gridState = gridState,
                             modifier = Modifier.align(Alignment.CenterEnd),
                             // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(
+                                top = padding.calculateTopPadding() + 8.dp,
+                                bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp
+                            )
                         )
                     }
                     else -> Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+                        AppBackgroundLayer()
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
@@ -488,7 +497,10 @@ fun PlaylistsScreen(
                             listState = listState,
                             modifier = Modifier.align(Alignment.CenterEnd),
                             // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-                            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight + 16.dp)
+                            trackPadding = androidx.compose.foundation.layout.PaddingValues(
+                                top = padding.calculateTopPadding() + 8.dp,
+                                bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp
+                            )
                         )
                     }
                 }

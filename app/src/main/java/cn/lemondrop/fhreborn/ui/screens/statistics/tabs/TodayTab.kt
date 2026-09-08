@@ -120,7 +120,7 @@ fun TodayTab(
     cn.lemondrop.fhreborn.ui.components.LazyListScrollBar(
         listState = listState,
         modifier = Modifier.align(Alignment.CenterEnd),
-        trackPadding = PaddingValues(top = 16.dp, bottom = 88.dp)
+        trackPadding = PaddingValues(top = topInset + 16.dp, bottom = bottomInset + 88.dp)
     )
     }
 }

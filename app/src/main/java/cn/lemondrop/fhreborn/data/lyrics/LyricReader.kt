@@ -105,10 +105,12 @@ object LyricReader {
             try {
                 retriever.setDataSource(song.path)
             } catch (_: Exception) {
-                retriever.setDataSource(
-                    context,
+                val fallbackUri = if (song.source == cn.lemondrop.fhreborn.data.db.entity.Song.SOURCE_DIRECTORY) {
+                    Uri.fromFile(File(song.path))
+                } else {
                     Uri.parse("content://media/external/audio/media/${song.id}")
-                )
+                }
+                retriever.setDataSource(context, fallbackUri)
             }
             retriever.extractMetadata(22) // MediaMetadataRetriever.METADATA_KEY_LYRICS
         } catch (e: Exception) {

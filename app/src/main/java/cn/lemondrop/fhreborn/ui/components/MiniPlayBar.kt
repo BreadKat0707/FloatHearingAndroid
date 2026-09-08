@@ -1,6 +1,7 @@
 package cn.lemondrop.fhreborn.ui.components
 
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.screens.player.PlayerBackground
 import top.yukonga.miuix.kmp.basic.IconButton
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
@@ -53,6 +55,8 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SongCoverImage(
     songId: Long,
+    source: Int = Song.SOURCE_MEDIA_STORE,
+    path: String? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -67,9 +71,20 @@ fun SongCoverImage(
         }
         withContext(Dispatchers.IO) {
             bitmap = try {
-                val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                if (source == Song.SOURCE_DIRECTORY && path != null) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(path)
+                        val bytes = retriever.embeddedPicture
+                        bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+                    } finally {
+                        retriever.release()
+                    }
+                } else {
+                    val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                    }
                 }
             } catch (e: Exception) {
                 null
@@ -103,6 +118,19 @@ fun SongCoverImage(
             )
         }
     }
+}
+
+@Composable
+fun SongCoverImage(
+    song: Song,
+    modifier: Modifier = Modifier
+) {
+    SongCoverImage(
+        songId = song.id,
+        source = song.source,
+        path = song.path,
+        modifier = modifier
+    )
 }
 
 @Suppress("DEPRECATION")
@@ -156,7 +184,7 @@ fun MiniPlayBar(
             ) {
                 currentSong?.let { song ->
                     SongCoverImage(
-                        songId = song.id,
+                        song = song,
                         modifier = Modifier.size(40.dp)
                     )
                 } ?: Box(

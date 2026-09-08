@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -28,19 +29,22 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun CodecCapabilitiesContent(
     paddingValues: PaddingValues,
-    bottomOverlayHeight: Dp
+    bottomOverlayHeight: Dp,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val codecs = remember { loadCodecList() }
+    val listState = rememberLazyListState()
+    observeSettingsScroll(listState, onScrolledChange)
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
-            .padding(
-                top = paddingValues.calculateTopPadding(),
-                start = 16.dp,
-                end = 16.dp
-            ),
-        contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
+            .padding(start = 16.dp, end = 16.dp),
+        contentPadding = PaddingValues(
+            top = paddingValues.calculateTopPadding(),
+            bottom = bottomOverlayHeight + 16.dp
+        )
     ) {
         item {
             Text(

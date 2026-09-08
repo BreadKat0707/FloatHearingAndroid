@@ -33,8 +33,10 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.ArrowLeft
@@ -51,7 +53,6 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 文件夹详情页（媒体库-文件夹 tab 的二级页面）。
@@ -96,11 +97,7 @@ fun FolderDetailScreen(
     var showSongProperties by remember { mutableStateOf(false) }
 
     // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
+    val backdrop = LocalBlurBackdrop.current ?: return
 
     val folderListState = rememberLazyListState()
     // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
@@ -170,6 +167,7 @@ fun FolderDetailScreen(
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         ) {
+            AppBackgroundLayer()
             LazyColumn(
                 state = folderListState,
                 modifier = Modifier.fillMaxSize(),
@@ -250,7 +248,10 @@ fun FolderDetailScreen(
             LazyListScrollBar(
                 listState = folderListState,
                 modifier = Modifier.align(Alignment.CenterEnd),
-                trackPadding = PaddingValues(bottom = bottomOverlayHeight)
+                trackPadding = PaddingValues(
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + bottomOverlayHeight
+                )
             )
         }
     }

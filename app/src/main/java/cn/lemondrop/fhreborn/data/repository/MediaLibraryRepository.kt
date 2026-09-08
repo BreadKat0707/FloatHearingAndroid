@@ -14,8 +14,14 @@ class MediaLibraryRepository(database: AppDatabase) {
     val allSongs: Flow<List<Song>> = songDao.getAllSongs()
     val songCount: Flow<Int> = songDao.getSongCount()
     val scanDirectories: Flow<List<ScanDirectory>> = scanDirectoryDao.getActiveDirectories()
+    val allScanDirectories: Flow<List<ScanDirectory>> = scanDirectoryDao.getAll()
 
     fun searchSongs(query: String): Flow<List<Song>> = songDao.searchSongs(query)
+
+    fun songsBySource(source: Int): Flow<List<Song>> = songDao.getAllSongsBySource(source)
+
+    fun searchSongsBySource(query: String, source: Int): Flow<List<Song>> =
+        songDao.searchSongsBySource(query, source)
 
     suspend fun getSongById(id: Long): Song? = songDao.getSongById(id)
 
@@ -31,15 +37,24 @@ class MediaLibraryRepository(database: AppDatabase) {
      */
     suspend fun replaceAllSongs(songs: List<Song>): Int = songDao.replaceAll(songs)
 
+    suspend fun replaceAllSongsForSource(songs: List<Song>, source: Int): Int =
+        songDao.replaceSource(songs, source)
+
     suspend fun deleteAllSongs() = songDao.deleteAll()
 
     suspend fun deleteSongByPath(path: String) = songDao.deleteByPath(path)
+
+    suspend fun getActiveScanDirectoriesSnapshot(): List<ScanDirectory> =
+        scanDirectoryDao.getActiveDirectoriesSnapshot()
 
     suspend fun addScanDirectory(path: String, name: String): Long {
         return scanDirectoryDao.insert(ScanDirectory(path = path, name = name))
     }
 
     suspend fun removeScanDirectory(directory: ScanDirectory) = scanDirectoryDao.delete(directory)
+
+    suspend fun setScanDirectoryActive(directoryId: Long, active: Boolean) =
+        scanDirectoryDao.setActive(directoryId, active)
 
     suspend fun isPathHidden(path: String): Boolean = hiddenFolderDao.isPathHidden(path)
 

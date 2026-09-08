@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.Screen
 import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Headphones
@@ -50,6 +52,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
+import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 大屏判定阈值（dp）：宽度 >= 该值显示常驻侧边栏 */
@@ -82,6 +85,12 @@ fun AppShell(
 ) {
     val configuration = LocalConfiguration.current
     val isLargeScreen = configuration.screenWidthDp >= LARGE_SCREEN_MIN_WIDTH_DP
+    val backdrop = rememberLayerBackdrop()
+    val sharedContent: @Composable () -> Unit = {
+        CompositionLocalProvider(LocalBlurBackdrop provides backdrop) {
+            content()
+        }
+    }
 
     if (isLargeScreen) {
         LargeScreenShell(
@@ -91,13 +100,13 @@ fun AppShell(
             onNavigate = onNavigate,
             onScheduledPauseClick = onScheduledPauseClick,
             modifier = modifier,
-            content = content
+            content = sharedContent
         )
     } else {
         // 小屏：统一背景层铺满，内容透明叠加（侧边栏抽屉为弹层，不参与背景）
-        Box(modifier = modifier.fillMaxSize()) {
-            AppBackgroundLayer()
-            content()
+            Box(modifier = modifier.fillMaxSize()) {
+                AppBackgroundLayer()
+                sharedContent()
             FhBottomSheet(
                 show = drawerVisible,
                 onDismissRequest = onDismissDrawer,

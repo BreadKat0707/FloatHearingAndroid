@@ -56,4 +56,23 @@ object PathUtils {
     fun isPathHiddenByFolders(path: String, hiddenFolders: Collection<String>): Boolean {
         return hiddenFolders.any { folderPath -> isPathUnderFolder(path, folderPath) }
     }
+
+    fun normalizePath(path: String): String {
+        val normalized = path.replace('\\', '/').trimEnd('/')
+        return if (normalized.startsWith("/")) normalized else "/$normalized"
+    }
+
+    /**
+     * Stable negative directory-song id derived from the normalized absolute path.
+     * FNV-1a keeps the id independent from Java hashCode while remaining stable
+     * across rescans.
+     */
+    fun stableDirectorySongId(path: String): Long {
+        val bytes = normalizePath(path).toByteArray(Charsets.UTF_8)
+        var hash = -3750763034362895579L
+        for (byte in bytes) {
+            hash = (hash xor (byte.toInt() and 0xFF).toLong()) * 1099511628211L
+        }
+        return if (hash >= 0L) -hash - 1L else hash
+    }
 }

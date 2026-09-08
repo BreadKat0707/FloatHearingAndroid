@@ -51,12 +51,13 @@ import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.Screen
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
@@ -68,7 +69,6 @@ import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.ArtistSplitter
 import cn.lemondrop.fhreborn.util.PathUtils
-import cn.lemondrop.fhreborn.util.PermissionUtils
 import com.composables.icons.lucide.DiscAlbum
 import com.composables.icons.lucide.ArrowUp
 import com.composables.icons.lucide.ArrowUpDown
@@ -148,9 +148,8 @@ fun LibraryScreen(
     val currentSong by playerViewModel.currentSong.collectAsState()
 
     // 启动时自动快速刷新音乐库（仅 MediaStore，需要存储/音频权限）
-    val hasStoragePermission = PermissionUtils.hasStoragePermission(context)
-    LaunchedEffect(hasStoragePermission) {
-        viewModel.autoScanIfNeeded(hasStoragePermission)
+    LaunchedEffect(Unit) {
+        viewModel.autoScanIfNeeded()
     }
 
     // 播放模式状态（歌曲页搜索栏旁的循环/随机按钮）
@@ -470,11 +469,7 @@ fun LibraryScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏/底栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-        val surfaceColor = MiuixTheme.colorScheme.surface
-        val backdrop = rememberLayerBackdrop {
-            drawRect(surfaceColor)
-            drawContent()
-        }
+        val backdrop = LocalBlurBackdrop.current ?: return
         Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -771,6 +766,7 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         ) {
+        AppBackgroundLayer()
         libraryBody(
             padding,
             miniPlayBarHeight
@@ -1097,7 +1093,7 @@ private fun AlbumGridItem(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SongCoverImage(
-                songId = album.coverSongId,
+                song = album.coverSong,
                 modifier = Modifier.size(56.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -1122,7 +1118,7 @@ private fun AlbumGridItem(
             // 多选标志统一右侧垂直居中（对齐歌单双栏列表）
             SelectionIndicator(
                 selected = selected,
-                modifier = Modifier.align(Alignment.CenterEnd).size(20.dp)
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
     }
@@ -1144,7 +1140,7 @@ private fun AlbumListRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         SongCoverImage(
-            songId = album.coverSongId,
+            song = album.coverSong,
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(8.dp))
@@ -1170,7 +1166,6 @@ private fun AlbumListRow(
             // 多选标志统一右侧垂直居中
             SelectionIndicator(
                 selected = selected,
-                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -1194,7 +1189,7 @@ private fun AlbumCardItem(
         Box {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SongCoverImage(
-                    songId = album.coverSongId,
+                    song = album.coverSong,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
@@ -1384,7 +1379,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.FoldersContent(
                     val allSelected = folderSongs.isNotEmpty() && folderSongs.all { it.id in selectedSongIds }
                     SelectionIndicator(
                         selected = allSelected,
-                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -1488,14 +1482,13 @@ internal fun SongItem(
             onClick = { onToggleSelect?.invoke() },
             leading = {
                 SongCoverImage(
-                    songId = song.id,
+                    song = song,
                     modifier = Modifier.size(48.dp)
                 )
             },
             trailing = {
                 SelectionIndicator(
                     selected = selected,
-                    modifier = Modifier.size(20.dp)
                 )
             }
         )
@@ -1506,7 +1499,7 @@ internal fun SongItem(
             onClick = onClick,
             leading = {
                 SongCoverImage(
-                    songId = song.id,
+                    song = song,
                     modifier = Modifier.size(48.dp)
                 )
             },
@@ -1537,7 +1530,7 @@ internal fun AlbumItem(
     ) {
         Box {
             SongCoverImage(
-                songId = album.coverSongId,
+                song = album.coverSong,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
@@ -1623,7 +1616,6 @@ private fun ArtistItem(
         if (selectionMode) {
             SelectionIndicator(
                 selected = selected,
-                modifier = Modifier.size(20.dp)
             )
         }
     }

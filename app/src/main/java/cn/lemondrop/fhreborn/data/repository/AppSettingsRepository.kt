@@ -257,6 +257,26 @@ class AppSettingsRepository(private val context: Context) {
     suspend fun setPlayerEl10BottomBlendDark(v: String) = dataStore.edit { it[stringPreferencesKey("pe10_b_d")] = v }
 
     // ========== 媒体库 ==========
+    val scanSourceMode: Flow<String> = dataStore.data.map {
+        it[stringPreferencesKey("source_mode")] ?: "media_store"
+    }
+    suspend fun setScanSourceMode(value: String) =
+        dataStore.edit { it[stringPreferencesKey("source_mode")] = value }
+
+    val minDurationEnabled: Flow<Boolean> = dataStore.data.map {
+        it[booleanPreferencesKey("min_duration_enabled")] ?: false
+    }
+    suspend fun setMinDurationEnabled(value: Boolean) =
+        dataStore.edit { it[booleanPreferencesKey("min_duration_enabled")] = value }
+
+    val minDurationSeconds: Flow<Int> = dataStore.data.map {
+        it[intPreferencesKey("min_duration_seconds")]?.coerceIn(10, 60) ?: 30
+    }
+    suspend fun setMinDurationSeconds(value: Int) {
+        val clamped = value.coerceIn(10, 60)
+        dataStore.edit { it[intPreferencesKey("min_duration_seconds")] = clamped }
+    }
+
     val autoScanOnLaunch: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("auto_scan")] ?: true }
     suspend fun setAutoScanOnLaunch(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("auto_scan")] = value }
 
@@ -264,6 +284,53 @@ class AppSettingsRepository(private val context: Context) {
     suspend fun setCoverCacheStrategy(value: String) = dataStore.edit { it[stringPreferencesKey("cover_cache")] = value }
 
     // ========== 主界面 ==========
+    val titleBarStyle: Flow<String> = dataStore.data.map {
+        it[stringPreferencesKey("title_bar_style")] ?: "gaussian"
+    }
+    suspend fun setTitleBarStyle(value: String) =
+        dataStore.edit { it[stringPreferencesKey("title_bar_style")] = value }
+
+    val titleBarBlurRadius: Flow<Int> = dataStore.data.map {
+        it[intPreferencesKey("title_bar_blur_radius")]?.coerceIn(0, 150) ?: 10
+    }
+    suspend fun setTitleBarBlurRadius(value: Int) {
+        dataStore.edit {
+            it[intPreferencesKey("title_bar_blur_radius")] = value.coerceIn(0, 150)
+        }
+    }
+
+    val titleBarProgressiveDirection: Flow<String> = dataStore.data.map {
+        it[stringPreferencesKey("title_bar_progressive_direction")] ?: "top"
+    }
+    suspend fun setTitleBarProgressiveDirection(value: String) =
+        dataStore.edit {
+            it[stringPreferencesKey("title_bar_progressive_direction")] = value
+        }
+
+    val titleBarProgressiveStart: Flow<Int> = dataStore.data.map {
+        it[intPreferencesKey("title_bar_progressive_start")]?.coerceIn(0, 100) ?: 0
+    }
+    suspend fun setTitleBarProgressiveStart(value: Int) =
+        dataStore.edit {
+            it[intPreferencesKey("title_bar_progressive_start")] = value.coerceIn(0, 100)
+        }
+
+    val titleBarProgressiveEnd: Flow<Int> = dataStore.data.map {
+        it[intPreferencesKey("title_bar_progressive_end")]?.coerceIn(0, 100) ?: 100
+    }
+    suspend fun setTitleBarProgressiveEnd(value: Int) =
+        dataStore.edit {
+            it[intPreferencesKey("title_bar_progressive_end")] = value.coerceIn(0, 100)
+        }
+
+    val titleBarProgressiveCurve: Flow<Int> = dataStore.data.map {
+        it[intPreferencesKey("title_bar_progressive_curve")]?.coerceIn(20, 300) ?: 220
+    }
+    suspend fun setTitleBarProgressiveCurve(value: Int) =
+        dataStore.edit {
+            it[intPreferencesKey("title_bar_progressive_curve")] = value.coerceIn(20, 300)
+        }
+
     val hideSystemUi: Flow<Boolean> = dataStore.data.map { it[booleanPreferencesKey("hide_system_ui")] ?: false }
     suspend fun setHideSystemUi(value: Boolean) = dataStore.edit { it[booleanPreferencesKey("hide_system_ui")] = value }
 

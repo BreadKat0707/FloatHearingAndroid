@@ -17,8 +17,14 @@ interface ScanDirectoryDao {
     @Query("SELECT * FROM scan_directories")
     fun getAll(): Flow<List<ScanDirectory>>
 
+    @Query("SELECT * FROM scan_directories WHERE isActive = 1")
+    suspend fun getActiveDirectoriesSnapshot(): List<ScanDirectory>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(directory: ScanDirectory): Long
+
+    @Query("UPDATE scan_directories SET isActive = :active WHERE id = :directoryId")
+    suspend fun setActive(directoryId: Long, active: Boolean)
 
     @Update
     suspend fun update(directory: ScanDirectory)

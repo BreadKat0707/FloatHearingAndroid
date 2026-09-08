@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,14 +48,24 @@ private val BlendModes = listOf(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PlayerElementAppearanceContent(paddingValues: PaddingValues, bottomOverlayHeight: Dp) {
+fun PlayerElementAppearanceContent(
+    paddingValues: PaddingValues,
+    bottomOverlayHeight: Dp,
+    onScrolledChange: (Boolean) -> Unit = {}
+) {
     val context = LocalContext.current
     val repo = remember { AppSettingsRepository(context) }
     var selectedTab by remember { mutableIntStateOf(0) }
+    val listState = rememberLazyListState()
+    observeSettingsScroll(listState, onScrolledChange)
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding()),
-        contentPadding = PaddingValues(bottom = bottomOverlayHeight + 16.dp)
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            top = paddingValues.calculateTopPadding(),
+            bottom = bottomOverlayHeight + 16.dp
+        )
     ) {
         item {
             TabRowWithContour(

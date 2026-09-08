@@ -303,7 +303,7 @@ private fun QueuePlayBar(
     ) {
         currentSong?.let { song ->
             SongCoverImage(
-                songId = song.id,
+                song = song,
                 modifier = Modifier.size(40.dp)
             )
         } ?: Box(
@@ -392,7 +392,7 @@ private fun QueueItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         SongCoverImage(
-            songId = song.id,
+            song = song,
             modifier = Modifier.size(48.dp)
         )
 

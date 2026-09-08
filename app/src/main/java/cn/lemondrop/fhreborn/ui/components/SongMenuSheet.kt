@@ -75,7 +75,7 @@ fun SongMenuSheet(
             verticalAlignment = Alignment.CenterVertically
         ) {
             SongCoverImage(
-                songId = song.id,
+                song = song,
                 modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))

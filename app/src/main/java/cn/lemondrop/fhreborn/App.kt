@@ -47,6 +47,9 @@ import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.ui.theme.FloatHearingTheme
 import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
+import cn.lemondrop.fhreborn.ui.theme.LocalTitleBarProgressiveConfig
+import cn.lemondrop.fhreborn.ui.theme.LocalTitleBarStyle
+import cn.lemondrop.fhreborn.ui.theme.TitleBarProgressiveConfig
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.utils.MiuixPopupUtils
@@ -154,6 +157,27 @@ fun FHRebornApp() {
     val themeMode by appSettingsRepository.themeMode.collectAsState(initial = "system")
     val useDynamicColor by appSettingsRepository.useDynamicColor.collectAsState(initial = false)
     val accentColorSetting by appSettingsRepository.accentColor.collectAsState(initial = "default")
+    val titleBarStyle by appSettingsRepository.titleBarStyle.collectAsState(initial = "gaussian")
+    val titleBarBlurRadius by appSettingsRepository.titleBarBlurRadius.collectAsState(initial = 10)
+    val titleBarProgressiveStart by appSettingsRepository.titleBarProgressiveStart
+        .collectAsState(initial = 0)
+    val titleBarProgressiveEnd by appSettingsRepository.titleBarProgressiveEnd
+        .collectAsState(initial = 100)
+    val titleBarProgressiveCurve by appSettingsRepository.titleBarProgressiveCurve
+        .collectAsState(initial = 220)
+    val titleBarProgressiveConfig = remember(
+        titleBarBlurRadius,
+        titleBarProgressiveStart,
+        titleBarProgressiveEnd,
+        titleBarProgressiveCurve
+    ) {
+        TitleBarProgressiveConfig(
+            blurRadius = titleBarBlurRadius.toFloat(),
+            startFraction = titleBarProgressiveStart / 100f,
+            endFraction = titleBarProgressiveEnd / 100f,
+            curve = titleBarProgressiveCurve / 100f
+        )
+    }
     val accentColor = remember(accentColorSetting) {
         cn.lemondrop.fhreborn.ui.theme.parseAccentColor(accentColorSetting)
     }
@@ -224,6 +248,7 @@ fun FHRebornApp() {
         setOf(
             Screen.Library.route,
             Screen.Playlists.route,
+            Screen.FolderBrowser.route,
             Screen.Ideas.route,
             Screen.Statistics.route,
             Screen.Settings.route,
@@ -287,6 +312,8 @@ fun FHRebornApp() {
 
     CompositionLocalProvider(
         LocalAppDarkTheme provides isDarkTheme,
+        LocalTitleBarStyle provides titleBarStyle,
+        LocalTitleBarProgressiveConfig provides titleBarProgressiveConfig,
         LocalPredictiveBackEnabled provides predictiveBack,
         LocalGlobalPlayBarHeight provides globalPlayBarHeight,
         LocalDrawerVisible provides drawerVisibleState,

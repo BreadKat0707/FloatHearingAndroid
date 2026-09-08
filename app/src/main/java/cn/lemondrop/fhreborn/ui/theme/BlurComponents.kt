@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -16,9 +17,12 @@ import top.yukonga.miuix.kmp.blur.BlendColorEntry
 import top.yukonga.miuix.kmp.blur.BlurColors
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
+import top.yukonga.miuix.kmp.blur.ProgressiveBlur
 import top.yukonga.miuix.kmp.blur.blendColors
 import top.yukonga.miuix.kmp.blur.blur
 import top.yukonga.miuix.kmp.blur.drawBackdrop
+import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
+import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 模糊半径（像素）。顶栏/底栏对 backdrop 层的实时模糊强度。 */
@@ -26,6 +30,43 @@ private const val BackdropBlurRadius = 60f
 
 /** 叠加在模糊上的表面色不透明度（磨砂玻璃观感，越高越不透） */
 private const val BackdropSurfaceAlpha = 0.8f
+
+const val TITLE_BAR_STYLE_GAUSSIAN = "gaussian"
+const val TITLE_BAR_STYLE_PROGRESSIVE = "progressive"
+
+val LocalTitleBarStyle = staticCompositionLocalOf { TITLE_BAR_STYLE_GAUSSIAN }
+val LocalBlurBackdrop = staticCompositionLocalOf<LayerBackdrop?> { null }
+
+data class TitleBarProgressiveConfig(
+    val blurRadius: Float = 10f,
+    val startFraction: Float = 0f,
+    val endFraction: Float = 1f,
+    val curve: Float = 2.2f
+) {
+    fun toProgressiveBlur(): ProgressiveBlur {
+        return ProgressiveBlur.Top.copy(
+            startFraction = startFraction.coerceIn(0f, 1f),
+            endFraction = endFraction.coerceIn(0f, 1f),
+            curve = curve.coerceAtLeast(0.01f)
+        )
+    }
+}
+
+val LocalTitleBarProgressiveConfig = staticCompositionLocalOf {
+    TitleBarProgressiveConfig()
+}
+
+@Composable
+private fun rememberProgressiveBackdropEffectColors(): BlurColors {
+    val surfaceColor = MiuixTheme.colorScheme.surface
+    return remember(surfaceColor) {
+        BlurColors(
+            blendColors = listOf(
+                BlendColorEntry(color = surfaceColor.copy(alpha = 0.3f))
+            )
+        )
+    }
+}
 
 /** 当前平台是否支持 RuntimeShader（Android 13+）——支持时才走真实模糊 */
 internal val isRuntimeShaderSupported: Boolean
@@ -65,20 +106,36 @@ fun BlurTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val useBlur = backdrop != null && isRuntimeShaderSupported && scrolled
+    val isProgressive = LocalTitleBarStyle.current == TITLE_BAR_STYLE_PROGRESSIVE
     if (useBlur) {
         val effectColors = rememberBackdropEffectColors()
         Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .drawBackdrop(
-                    backdrop = backdrop!!,
-                    shape = { RoundedCornerShape(0.dp) },
-                    effects = {
-                        blur(radiusX = BackdropBlurRadius)
-                        blendColors(effectColors)
-                    }
-                )
+            modifier = if (isProgressive) {
+                modifier.fillMaxWidth()
+            } else {
+                modifier
+                    .fillMaxWidth()
+                    .textureBlur(
+                        backdrop = backdrop!!,
+                        shape = RoundedCornerShape(0.dp),
+                        blurRadius = 40f,
+                        colors = effectColors
+                    )
+            }
         ) {
+            if (isProgressive) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .progressiveTextureBlur(
+                            backdrop = backdrop!!,
+                            shape = RoundedCornerShape(0.dp),
+                            blurRadius = LocalTitleBarProgressiveConfig.current.blurRadius,
+                            gradient = LocalTitleBarProgressiveConfig.current.toProgressiveBlur(),
+                            colors = rememberProgressiveBackdropEffectColors()
+                        )
+                )
+            }
             SmallTopAppBar(
                 title = title,
                 color = Color.Transparent,

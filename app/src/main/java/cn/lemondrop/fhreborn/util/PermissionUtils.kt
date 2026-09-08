@@ -1,9 +1,12 @@
 package cn.lemondrop.fhreborn.util
 
 import android.Manifest
+import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -47,6 +50,26 @@ object PermissionUtils {
         val permission = getNotificationPermission() ?: return true
         return ContextCompat.checkSelfPermission(context, permission) ==
                 PackageManager.PERMISSION_GRANTED
+    }
+
+    fun hasAllFilesAccess(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            hasStoragePermission(context)
+        }
+    }
+
+    fun openAllFilesAccessSettings(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                android.net.Uri.parse("package:${context.packageName}")
+            )
+        } else {
+            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+        }
+        runCatching { context.startActivity(intent) }
     }
 }
 

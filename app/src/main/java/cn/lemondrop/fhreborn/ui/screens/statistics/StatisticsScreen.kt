@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.MonthTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.OverviewTab
 import cn.lemondrop.fhreborn.ui.screens.statistics.tabs.TodayTab
@@ -34,11 +35,11 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import cn.lemondrop.fhreborn.ui.theme.BlurNavigationBar
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -72,11 +73,7 @@ fun StatisticsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏/底栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-        val surfaceColor = MiuixTheme.colorScheme.surface
-        val backdrop = rememberLayerBackdrop {
-            drawRect(surfaceColor)
-            drawContent()
-        }
+        val backdrop = LocalBlurBackdrop.current ?: return
         Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -113,6 +110,7 @@ fun StatisticsScreen(
                     .fillMaxSize()
                     .layerBackdrop(backdrop)
             ) {
+                AppBackgroundLayer()
                 val topInset = padding.calculateTopPadding()
                 val bottomInset = padding.calculateBottomPadding()
                 when (selectedTab) {

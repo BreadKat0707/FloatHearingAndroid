@@ -1224,14 +1224,16 @@ private fun LyricSheet(
                         )
                 ) {
                     Crossfade(
-                        targetState = song?.id,
+                        targetState = song,
                         animationSpec = tween(350, easing = FastOutSlowInEasing),
                         label = "lyric_sheet_cover_crossfade"
-                    ) { songId ->
-                        SongCoverImage(
-                            songId = songId ?: 0,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                    ) { targetSong ->
+                        targetSong?.let {
+                            SongCoverImage(
+                                song = it,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
 
                     // 播放/暂停状态图标覆盖层
@@ -1772,19 +1774,32 @@ private fun PlayerCoverSection(
             contentAlignment = Alignment.Center
         ) {
             Crossfade(
-                targetState = currentSong?.id,
+                targetState = currentSong,
                 animationSpec = tween(350, easing = FastOutSlowInEasing),
                 label = "cover_crossfade"
-            ) { songId ->
-                var bitmap by remember(songId) { mutableStateOf<ImageBitmap?>(null) }
-                LaunchedEffect(songId) {
+            ) { targetSong ->
+                var bitmap by remember(targetSong) { mutableStateOf<ImageBitmap?>(null) }
+                LaunchedEffect(targetSong) {
                     bitmap = null
-                    songId?.let { id ->
+                    targetSong?.let { song ->
                         withContext(Dispatchers.IO) {
                             bitmap = try {
-                                val uri = Uri.parse("content://media/external/audio/media/$id/albumart")
-                                context.contentResolver.openInputStream(uri)?.use { stream ->
-                                    BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                                if (song.source == cn.lemondrop.fhreborn.data.db.entity.Song.SOURCE_DIRECTORY) {
+                                    val retriever = android.media.MediaMetadataRetriever()
+                                    try {
+                                        retriever.setDataSource(song.path)
+                                        val bytes = retriever.embeddedPicture
+                                        bytes?.let {
+                                            BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap()
+                                        }
+                                    } finally {
+                                        retriever.release()
+                                    }
+                                } else {
+                                    val uri = Uri.parse("content://media/external/audio/media/${song.id}/albumart")
+                                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                                        BitmapFactory.decodeStream(stream)?.asImageBitmap()
+                                    }
                                 }
                             } catch (e: Exception) {
                                 null
@@ -1795,7 +1810,7 @@ private fun PlayerCoverSection(
 
                 // 把当前显示封面同步给查看器，避免长按后再加载
                 LaunchedEffect(bitmap) {
-                    if (songId == currentSong?.id) {
+                    if (targetSong?.id == currentSong?.id) {
                         onCoverBitmapLoaded(bitmap)
                     }
                 }

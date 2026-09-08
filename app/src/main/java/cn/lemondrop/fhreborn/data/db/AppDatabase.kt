@@ -22,7 +22,7 @@ import cn.lemondrop.fhreborn.data.db.entity.Song
 
 @Database(
     entities = [Song::class, HiddenFolder::class, ScanDirectory::class, PlaybackState::class, PlayRecord::class, Playlist::class, PlaylistSong::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -97,6 +97,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE songs ADD COLUMN source INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -104,7 +110,13 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fh_reborn_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6
+                    )
                     .build()
                     .also { INSTANCE = it }
             }

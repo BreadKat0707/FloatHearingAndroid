@@ -10,12 +10,18 @@ import cn.lemondrop.fhreborn.data.db.entity.ScanDirectory
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.data.repository.MediaLibraryRepository
 import cn.lemondrop.fhreborn.data.repository.PlayStatisticsRepository
+import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import cn.lemondrop.fhreborn.data.repository.SettingsRepository
 import cn.lemondrop.fhreborn.scanner.MediaScanner
+import cn.lemondrop.fhreborn.scanner.ScanFilterConfig
+import cn.lemondrop.fhreborn.scanner.ScanSourceMode
 import cn.lemondrop.fhreborn.scanner.ScanProgress
 import cn.lemondrop.fhreborn.util.ArtistSplitter
+import cn.lemondrop.fhreborn.util.PermissionUtils
 import cn.lemondrop.fhreborn.util.PathUtils
+import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -47,9 +53,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         AppDatabase.getInstance(application).playRecordDao()
     )
     private val settingsRepository = SettingsRepository(application)
+    private val appSettingsRepository = AppSettingsRepository(application)
 
     val songCount = repository.songCount
-    val scanDirectories = repository.scanDirectories
+    val allScanDirectories = repository.allScanDirectories
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _sourceMode = MutableStateFlow(ScanSourceMode.MEDIA_STORE)
+    val sourceMode: StateFlow<String> = _sourceMode.asStateFlow()
 
     private val _sortField = MutableStateFlow(SortField.TITLE)
     val sortField: StateFlow<SortField> = _sortField.asStateFlow()
@@ -60,7 +70,12 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     // 播放次数查找表
     private val playCountMap = MutableStateFlow<Map<Long, Int>>(emptyMap())
 
+    private var scanJob: Job? = null
+
     init {
+        viewModelScope.launch {
+            appSettingsRepository.scanSourceMode.collect { _sourceMode.value = it }
+        }
         viewModelScope.launch {
             // 恢复排序设置
             val savedField = settingsRepository.sortField.first()
@@ -76,14 +91,17 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val songs: StateFlow<List<Song>> = combine(
-        repository.allSongs,
+        combine(repository.allSongs, _sourceMode) { songList, mode ->
+            val source = ScanSourceMode.toSongSource(mode)
+            songList.filter { it.source == source }
+        },
         settingsRepository.hiddenFolders,
         _sortField,
         _sortOrder,
         playCountMap
-    ) { songList, hidden, field, order, counts ->
+    ) { sourceSongs, hidden, field, order, counts ->
         // 隐藏文件夹中的歌曲从媒体库全局过滤（歌曲/专辑/艺术家/文件夹均不显示）
-        val filtered = songList.filterNot { song ->
+        val filtered = sourceSongs.filterNot { song ->
             PathUtils.isPathHiddenByFolders(song.path, hidden)
         }
         sortSongs(filtered, field, order, counts)
@@ -126,7 +144,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                     name = key.first,
                     artist = key.second,
                     songs = albumSongs,
-                    coverSongId = albumSongs.first().id
+                    coverSong = albumSongs.first()
                 )
             }
             .sortedBy { it.name.lowercase() }
@@ -203,8 +221,15 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 if (query.isBlank()) {
                     searchResults.value = emptyList()
                 } else {
-                    repository.searchSongs(query).collect {
-                        searchResults.value = sortSongs(it, _sortField.value, _sortOrder.value, playCountMap.value)
+                    repository.searchSongs(query).collect { all ->
+                        val source = ScanSourceMode.toSongSource(_sourceMode.value)
+                        val filtered = all.filter { it.source == source }
+                        searchResults.value = sortSongs(
+                            filtered,
+                            _sortField.value,
+                            _sortOrder.value,
+                            playCountMap.value
+                        )
                     }
                 }
             }
@@ -238,26 +263,19 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun scanLibrary() {
-        viewModelScope.launch {
-            _scanProgress.value = ScanProgress.Scanning
-            scanner.scan().collect { progress ->
-                _scanProgress.value = progress
-                if (progress is ScanProgress.Completed) {
-                    val removed = repository.replaceAllSongs(progress.songs)
-                    _scanProgress.value = progress.copy(removed = removed)
-                }
-            }
-        }
+        performScan(notifyCompleted = true)
     }
 
     /**
      * App 启动时自动快速刷新：只扫 MediaStore，不重复 FFmpeg 全目录，避免拖慢启动。
      */
-    fun autoScanIfNeeded(hasStoragePermission: Boolean) {
-        if (hasAutoScanned || !hasStoragePermission) return
+    fun autoScanIfNeeded() {
+        if (hasAutoScanned) return
         hasAutoScanned = true
         viewModelScope.launch {
-            refreshMediaStore()
+            val enabled = appSettingsRepository.autoScanOnLaunch.first()
+            if (!enabled) return@launch
+            performScan(notifyCompleted = false)
         }
     }
 
@@ -266,17 +284,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
      * 完成后通过 [refreshCompleted] 发出扫描到的歌曲数。
      */
     fun refreshMediaStore() {
-        viewModelScope.launch {
-            _scanProgress.value = ScanProgress.Scanning
-            scanner.scan(quickScan = true).collect { progress ->
-                _scanProgress.value = progress
-                if (progress is ScanProgress.Completed) {
-                    val removed = repository.replaceAllSongs(progress.songs)
-                    _scanProgress.value = progress.copy(removed = removed)
-                    _refreshCompleted.tryEmit(progress.songs.size)
-                }
-            }
-        }
+        performScan(notifyCompleted = true)
     }
 
     /**
@@ -289,18 +297,70 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
             val deleted = withContext(kotlinx.coroutines.Dispatchers.IO) {
                 var count = 0
                 songs.forEach { song ->
-                    val uri = android.content.ContentUris.withAppendedId(
-                        android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                        song.id
-                    )
-                    val rows = runCatching { context.contentResolver.delete(uri, null, null) }
-                        .getOrDefault(0)
-                    if (rows > 0) count++
+                    val deletedRows = if (song.source == Song.SOURCE_DIRECTORY) {
+                        if (File(song.path).delete()) 1 else 0
+                    } else {
+                        val uri = android.content.ContentUris.withAppendedId(
+                            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                            song.id
+                        )
+                        runCatching { context.contentResolver.delete(uri, null, null) }
+                            .getOrDefault(0)
+                    }
+                    if (deletedRows > 0) count++
                 }
                 count
             }
             if (deleted > 0) refreshMediaStore()
             onResult(deleted)
+        }
+    }
+
+    private fun performScan(notifyCompleted: Boolean) {
+        if (scanJob?.isActive == true) return
+        scanJob = viewModelScope.launch {
+            val mode = appSettingsRepository.scanSourceMode.first()
+            val filter = ScanFilterConfig(
+                durationFilterEnabled = appSettingsRepository.minDurationEnabled.first(),
+                durationSeconds = appSettingsRepository.minDurationSeconds.first()
+            )
+            val directoryPaths = if (mode == ScanSourceMode.DIRECTORY) {
+                repository.getActiveScanDirectoriesSnapshot().map { it.path }
+            } else {
+                emptyList()
+            }
+            val source = ScanSourceMode.toSongSource(mode)
+            _sourceMode.value = mode
+
+            val readinessError = when {
+                source == Song.SOURCE_DIRECTORY &&
+                    !PermissionUtils.hasAllFilesAccess(getApplication()) ->
+                    "All files access is required for directory scanning"
+                source == Song.SOURCE_DIRECTORY && directoryPaths.isEmpty() ->
+                    "No active scan directories"
+                source == Song.SOURCE_MEDIA_STORE &&
+                    !PermissionUtils.hasStoragePermission(getApplication()) ->
+                    "Media audio permission is required"
+                else -> null
+            }
+            if (readinessError != null) {
+                _scanProgress.value = ScanProgress.Error(readinessError)
+                return@launch
+            }
+
+            scanner.scan(
+                mode = mode,
+                filter = filter,
+                directoryPaths = directoryPaths,
+                quickScan = true
+            ).collect { progress ->
+                _scanProgress.value = progress
+                if (progress is ScanProgress.Completed) {
+                    val removed = repository.replaceAllSongsForSource(progress.songs, source)
+                    _scanProgress.value = progress.copy(removed = removed)
+                    if (notifyCompleted) _refreshCompleted.tryEmit(progress.songs.size)
+                }
+            }
         }
     }
 
@@ -313,6 +373,12 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun removeScanDirectory(directory: ScanDirectory) {
         viewModelScope.launch {
             repository.removeScanDirectory(directory)
+        }
+    }
+
+    fun setScanDirectoryActive(directoryId: Long, active: Boolean) {
+        viewModelScope.launch {
+            repository.setScanDirectoryActive(directoryId, active)
         }
     }
 
@@ -345,7 +411,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         val name: String,
         val artist: String,
         val songs: List<Song>,
-        val coverSongId: Long
+        val coverSong: Song
     )
 
     data class Artist(

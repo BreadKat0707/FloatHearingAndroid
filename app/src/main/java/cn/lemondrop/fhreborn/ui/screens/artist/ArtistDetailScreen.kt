@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.edgeFadeOut
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.responsiveColumnCount
 import cn.lemondrop.fhreborn.ui.screens.library.AlbumItem
 import cn.lemondrop.fhreborn.util.ArtistSplitter
@@ -44,11 +45,11 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 艺术家详情页。
@@ -99,11 +100,7 @@ fun ArtistDetailScreen(
     var selectedTab by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
 
     // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
+    val backdrop = LocalBlurBackdrop.current ?: return
 
     // 每个 tab 各自的滚动位置（按 selectedTab 分 key），离开页面返回后恢复
     val artistListState = androidx.compose.runtime.saveable.rememberSaveable(
@@ -166,6 +163,7 @@ fun ArtistDetailScreen(
                     .fillMaxSize()
                     .layerBackdrop(backdrop)
             ) {
+            AppBackgroundLayer()
             // 专辑/参与网格列数：与媒体库-专辑一致（大屏响应式多列）
             val albumColumns = responsiveColumnCount(maxWidth, minItemWidthDp = 170, minColumns = 2)
             LazyColumn(

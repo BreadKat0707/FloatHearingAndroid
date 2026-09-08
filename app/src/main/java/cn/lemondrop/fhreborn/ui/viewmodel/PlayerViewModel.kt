@@ -589,9 +589,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 }
 
 fun Song.toMediaItem(): MediaItem {
+    val uri = if (source == Song.SOURCE_DIRECTORY) {
+        android.net.Uri.fromFile(java.io.File(path))
+    } else {
+        android.net.Uri.parse("content://media/external/audio/media/$id")
+    }
     return MediaItem.Builder()
         .setMediaId(id.toString())
-        .setUri(android.net.Uri.parse("content://media/external/audio/media/$id"))
+        .setUri(uri)
         // 明确 mime 类型，帮助 renderer 精确匹配（系统解码器不支持的格式落到 FFmpeg）
         .setMimeType(mimeTypeForFormat(format))
         .setMediaMetadata(

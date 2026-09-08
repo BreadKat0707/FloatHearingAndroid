@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +48,7 @@ import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.entity.PlaylistSortType
 import cn.lemondrop.fhreborn.data.db.entity.Song
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.FhListItem
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
@@ -59,6 +59,7 @@ import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.components.SongMenuSheet
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
@@ -87,7 +88,6 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -208,11 +208,7 @@ fun PlaylistDetailScreen(
     }
 
     // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
+    val backdrop = LocalBlurBackdrop.current ?: return
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -304,6 +300,7 @@ fun PlaylistDetailScreen(
         ) { padding ->
             val playBarHeight = LocalGlobalPlayBarHeight.current
             Box(modifier = Modifier.fillMaxSize().layerBackdrop(backdrop)) {
+            AppBackgroundLayer()
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -417,32 +414,16 @@ fun PlaylistDetailScreen(
                         },
                         leading = {
                             SongCoverImage(
-                                songId = song.id,
+                                song = song,
                                 modifier = Modifier.size(48.dp)
                             )
                         },
                         trailing = {
                             if (multiSelectMode) {
                                 // 多选勾选指示
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (song.id in selectedSongIds) MiuixTheme.colorScheme.primary
-                                            else MiuixTheme.colorScheme.outline.copy(alpha = 0.4f)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (song.id in selectedSongIds) {
-                                        Icon(
-                                            imageVector = Lucide.Check,
-                                            contentDescription = "已选择",
-                                            modifier = Modifier.size(14.dp),
-                                            tint = MiuixTheme.colorScheme.onPrimary
-                                        )
-                                    }
-                                }
+                                cn.lemondrop.fhreborn.ui.components.SelectionIndicator(
+                                    selected = song.id in selectedSongIds
+                                )
                             } else {
                                 IconButton(onClick = { menuSong = song }) {
                                     Icon(
@@ -462,7 +443,10 @@ fun PlaylistDetailScreen(
                 listState = listState,
                 modifier = Modifier.align(Alignment.CenterEnd),
                 // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-                trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = playBarHeight)
+                trackPadding = androidx.compose.foundation.layout.PaddingValues(
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + playBarHeight + 16.dp
+                )
             )
             }
 

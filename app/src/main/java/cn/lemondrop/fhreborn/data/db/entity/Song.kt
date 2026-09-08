@@ -13,6 +13,7 @@ data class Song(
     val path: String,
     val duration: Long,
     val format: String,
+    val source: Int = Song.SOURCE_MEDIA_STORE,
     val bitrate: Int? = null,
     val sampleRate: Int? = null,
     val channels: Int? = null,
@@ -24,4 +25,9 @@ data class Song(
     val year: Int? = null,
     val discNumber: Int? = null,
     val trackNumber: Int? = null
-)
+) {
+    companion object {
+        const val SOURCE_MEDIA_STORE = 0
+        const val SOURCE_DIRECTORY = 1
+    }
+}

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -80,7 +81,8 @@ private val PRESET_COLORS = listOf(
 @Composable
 fun BackgroundSettingsContent(
     viewModel: SettingsViewModel,
-    paddingValues: PaddingValues = PaddingValues()
+    paddingValues: PaddingValues = PaddingValues(),
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -103,13 +105,17 @@ fun BackgroundSettingsContent(
         }
     }
 
+    val scrollState = rememberScrollState()
+    LaunchedEffect(scrollState.value) {
+        onScrolledChange(scrollState.value > 0)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(top = paddingValues.calculateTopPadding(), bottom = paddingValues.calculateBottomPadding())
+            .verticalScroll(scrollState)
             .padding(horizontal = 16.dp)
     ) {
+        Spacer(modifier = Modifier.height(paddingValues.calculateTopPadding()))
         SectionTitle("背景类型")
 
         TypeOption("纯色", selected = bgType == "color") {
@@ -222,7 +228,7 @@ fun BackgroundSettingsContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(160.dp))
+        Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 160.dp))
     }
 }
 

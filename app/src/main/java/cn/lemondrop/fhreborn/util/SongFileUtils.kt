@@ -34,13 +34,7 @@ object SongFileUtils {
 
     fun shareSong(context: Context, song: Song?, chooserTitle: String = "分享音频") {
         song ?: return
-        val file = File(song.path)
-        if (!file.exists()) return
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file
-        )
+        val uri = song.toShareUri(context) ?: return
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "audio/*"
             putExtra(Intent.EXTRA_STREAM, uri)
@@ -51,13 +45,7 @@ object SongFileUtils {
 
     fun openWithOtherApp(context: Context, song: Song?, chooserTitle: String = "用其他 app 打开") {
         song ?: return
-        val file = File(song.path)
-        if (!file.exists()) return
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file
-        )
+        val uri = song.toShareUri(context) ?: return
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "audio/*")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -68,13 +56,7 @@ object SongFileUtils {
     /** 批量分享多首歌曲（ACTION_SEND_MULTIPLE），跳过不存在的文件 */
     fun shareSongs(context: Context, songs: List<Song>, chooserTitle: String = "分享音频") {
         val uris = songs.mapNotNull { song ->
-            val file = File(song.path)
-            if (!file.exists()) null
-            else FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file
-            )
+            song.toShareUri(context)
         }
         if (uris.isEmpty()) return
         val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
@@ -83,6 +65,23 @@ object SongFileUtils {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, chooserTitle))
+    }
+
+    private fun Song.toShareUri(context: Context): Uri? {
+        return if (source == Song.SOURCE_DIRECTORY) {
+            val file = File(path)
+            if (!file.exists()) return null
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+        } else {
+            android.content.ContentUris.withAppendedId(
+                android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                id
+            )
+        }
     }
 
     fun formatFileSize(bytes: Long): String {

@@ -45,7 +45,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun AccompanistLyricSettingsContent(
     paddingValues: PaddingValues,
-    bottomOverlayHeight: Dp
+    bottomOverlayHeight: Dp,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
@@ -69,14 +70,15 @@ fun AccompanistLyricSettingsContent(
     val translationFontWeight by repository.acclLyricTranslationFontWeight.collectAsState(initial = 400)
     val linePositionPercent by repository.acclLyricLinePositionPercent.collectAsState(initial = 35)
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    observeSettingsScroll(listState, onScrolledChange)
 
     Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         state = listState,
         modifier = Modifier
-            .fillMaxSize()
-            .padding(top = paddingValues.calculateTopPadding()),
+            .fillMaxSize(),
         contentPadding = PaddingValues(
+            top = paddingValues.calculateTopPadding(),
             bottom = bottomOverlayHeight + 16.dp
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp)

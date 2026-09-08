@@ -40,12 +40,16 @@ import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.LocalPlayBarOverride
 import cn.lemondrop.fhreborn.data.db.AppDatabase
 import cn.lemondrop.fhreborn.data.db.entity.Song
+import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
+import cn.lemondrop.fhreborn.scanner.ScanSourceMode
 import cn.lemondrop.fhreborn.ui.components.AddToPlaylistSheet
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.ui.components.MultiSelectToolbar
 import cn.lemondrop.fhreborn.ui.components.SelectionStateButton
 import cn.lemondrop.fhreborn.ui.components.SongCoverImage
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlaylistViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
@@ -69,7 +73,6 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 专辑详情页。
@@ -89,7 +92,13 @@ fun AlbumDetailScreen(
     val songsFlow = remember(albumName, albumArtist) {
         db.songDao().getSongsByAlbum(albumName, albumArtist)
     }
-    val songs by songsFlow.collectAsState(initial = emptyList())
+    val settingsRepository = remember { AppSettingsRepository(context) }
+    val sourceMode by settingsRepository.scanSourceMode.collectAsState(initial = ScanSourceMode.MEDIA_STORE)
+    val allSongs by songsFlow.collectAsState(initial = emptyList())
+    val songs = remember(allSongs, sourceMode) {
+        val source = ScanSourceMode.toSongSource(sourceMode)
+        allSongs.filter { it.source == source }
+    }
     val currentSong by playerViewModel.currentSong.collectAsState()
 
     val displayAlbum = albumName.ifBlank { "未知专辑" }
@@ -101,7 +110,7 @@ fun AlbumDetailScreen(
     val releaseYear = songs.firstNotNullOfOrNull { it.year }
     val participatingArtists = songs.map { it.artist }.distinct()
     val hasMultipleDiscs = songs.mapNotNull { it.discNumber }.distinct().size > 1
-    val coverSongId = songs.firstOrNull()?.id
+    val coverSong = songs.firstOrNull()
 
     val meta = buildString {
         append("${songs.size} 首")
@@ -141,11 +150,7 @@ fun AlbumDetailScreen(
     val snackbarScope = rememberCoroutineScope()
 
     // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
+    val backdrop = LocalBlurBackdrop.current ?: return
 
     val albumListState = androidx.compose.foundation.lazy.rememberLazyListState()
     // 顶栏滚动感知：列表滚离顶部时显示背景/模糊，回顶隐藏
@@ -260,6 +265,7 @@ fun AlbumDetailScreen(
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         ) {
+        AppBackgroundLayer()
         LazyColumn(
             state = albumListState,
             modifier = Modifier.fillMaxSize(),
@@ -274,7 +280,7 @@ fun AlbumDetailScreen(
                     album = displayAlbum,
                     artist = displayArtist,
                     meta = meta,
-                    coverSongId = coverSongId,
+                    coverSong = coverSong,
                     onPlayAlbum = {
                         if (songs.isNotEmpty()) playerViewModel.playSongs(songs, 0)
                     }
@@ -317,8 +323,7 @@ fun AlbumDetailScreen(
                     trailing = {
                         if (multiSelectMode) {
                             cn.lemondrop.fhreborn.ui.components.SelectionIndicator(
-                                selected = song.id in selectedSongIds,
-                                modifier = Modifier.size(20.dp)
+                                selected = song.id in selectedSongIds
                             )
                         } else {
                             IconButton(onClick = { menuSong = song }) {
@@ -362,7 +367,10 @@ fun AlbumDetailScreen(
             listState = albumListState,
             modifier = Modifier.align(Alignment.CenterEnd),
             // 滚动条限制在内容区：不渲染在标题栏/底栏之下层
-            trackPadding = androidx.compose.foundation.layout.PaddingValues(bottom = bottomOverlayHeight)
+            trackPadding = androidx.compose.foundation.layout.PaddingValues(
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding() + (if (multiSelectMode) 0.dp else bottomOverlayHeight)
+            )
         )
         }
     }
@@ -477,7 +485,7 @@ private fun AlbumHeader(
     album: String,
     artist: String,
     meta: String,
-    coverSongId: Long?,
+    coverSong: Song?,
     onPlayAlbum: () -> Unit
 ) {
     Column(
@@ -486,9 +494,9 @@ private fun AlbumHeader(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (coverSongId != null) {
+        if (coverSong != null) {
             SongCoverImage(
-                songId = coverSongId,
+                song = coverSong,
                 modifier = Modifier
                     .size(160.dp)
                     .clip(RoundedCornerShape(12.dp))

@@ -30,9 +30,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
 import cn.lemondrop.fhreborn.data.db.AppDatabase
+import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
+import cn.lemondrop.fhreborn.scanner.ScanSourceMode
 import cn.lemondrop.fhreborn.ui.components.FhListItem
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.components.LazyListScrollBar
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import cn.lemondrop.fhreborn.util.PathUtils
@@ -48,7 +52,6 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 已隐藏的文件夹（二级页面）。
@@ -63,11 +66,7 @@ fun HiddenFoldersScreen(
     onBack: () -> Unit
 ) {
     // 层背景：顶栏对其做真实模糊
-    val surfaceColor = MiuixTheme.colorScheme.surface
-    val backdrop = rememberLayerBackdrop {
-        drawRect(surfaceColor)
-        drawContent()
-    }
+    val backdrop = LocalBlurBackdrop.current ?: return
     val listState = rememberLazyListState()
     val topBarScrolled = remember {
         derivedStateOf {
@@ -99,6 +98,7 @@ fun HiddenFoldersScreen(
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         ) {
+            AppBackgroundLayer()
             HiddenFoldersContent(
                 libraryViewModel = libraryViewModel,
                 playerViewModel = playerViewModel,
@@ -115,14 +115,21 @@ fun HiddenFoldersScreen(
 fun HiddenFoldersContent(
     libraryViewModel: LibraryViewModel,
     playerViewModel: PlayerViewModel,
-    contentPadding: PaddingValues
+    contentPadding: PaddingValues,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val hiddenFolders by libraryViewModel.hiddenFolders.collectAsState(initial = emptySet())
     val db = remember { AppDatabase.getInstance(context) }
-    val allSongs by remember {
+    val settingsRepository = remember(context) { AppSettingsRepository(context) }
+    val sourceMode by settingsRepository.scanSourceMode.collectAsState(initial = ScanSourceMode.MEDIA_STORE)
+    val storedSongs by remember {
         db.songDao().getAllSongs()
     }.collectAsState(initial = emptyList())
+    val allSongs = remember(storedSongs, sourceMode) {
+        val source = ScanSourceMode.toSongSource(sourceMode)
+        storedSongs.filter { it.source == source }
+    }
 
     // 每个隐藏文件夹 -> 其中的歌曲（直接子文件 + 子层全部）
     val folders = remember(allSongs, hiddenFolders) {
@@ -136,6 +143,7 @@ fun HiddenFoldersContent(
     val totalSongs = folders.sumOf { it.second.size }
 
     val listState = rememberLazyListState()
+    cn.lemondrop.fhreborn.ui.screens.settings.observeSettingsScroll(listState, onScrolledChange)
     val bottomOverlayHeight = LocalGlobalPlayBarHeight.current
     Box(
         modifier = Modifier
@@ -242,7 +250,7 @@ fun HiddenFoldersContent(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 trackPadding = PaddingValues(
                     top = contentPadding.calculateTopPadding(),
-                    bottom = bottomOverlayHeight
+                    bottom = contentPadding.calculateBottomPadding() + bottomOverlayHeight
                 )
             )
         }

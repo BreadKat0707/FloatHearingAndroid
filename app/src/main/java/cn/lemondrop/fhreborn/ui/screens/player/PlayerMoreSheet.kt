@@ -2,10 +2,15 @@ package cn.lemondrop.fhreborn.ui.screens.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.captionBar
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,7 +96,7 @@ fun PlayerMoreSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SongCoverImage(
-                    songId = currentSong.id,
+                    song = currentSong,
                     modifier = Modifier.size(48.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -121,7 +126,17 @@ fun PlayerMoreSheet(
             )
         }
 
-        LazyColumn {
+        val navBarBottom = maxOf(
+            WindowInsets.navigationBarsIgnoringVisibility
+                .asPaddingValues()
+                .calculateBottomPadding(),
+            WindowInsets.captionBar
+                .asPaddingValues()
+                .calculateBottomPadding()
+        )
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = navBarBottom + 16.dp)
+        ) {
             items(menuItems, key = { it.label }) { item ->
                 Row(
                     modifier = Modifier

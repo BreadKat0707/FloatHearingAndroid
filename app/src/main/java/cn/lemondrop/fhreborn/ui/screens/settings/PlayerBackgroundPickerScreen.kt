@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,13 +39,16 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun PlayerBackgroundPickerContent(
     paddingValues: PaddingValues,
-    bottomOverlayHeight: Dp
+    bottomOverlayHeight: Dp,
+    onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { AppSettingsRepository(context) }
     val scope = rememberCoroutineScope()
     val currentKey by repository.getString("player_bg", PlayerBackgroundType.CoverBlur.key)
         .collectAsState(initial = PlayerBackgroundType.CoverBlur.key)
+    val listState = rememberLazyListState()
+    observeSettingsScroll(listState, onScrolledChange)
 
     val options = listOf(
         PlayerBackgroundType.AppleMusic to "Apple Music 流体背景",
@@ -54,12 +58,13 @@ fun PlayerBackgroundPickerContent(
     )
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
-            .fillMaxSize()
-            .padding(top = paddingValues.calculateTopPadding()),
+            .fillMaxSize(),
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
+            top = paddingValues.calculateTopPadding(),
             bottom = bottomOverlayHeight + 16.dp
         )
     ) {

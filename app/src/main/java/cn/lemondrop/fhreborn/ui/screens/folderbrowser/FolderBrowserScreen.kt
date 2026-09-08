@@ -33,7 +33,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import cn.lemondrop.fhreborn.ui.screens.library.SongItem
 import cn.lemondrop.fhreborn.ui.screens.library.FileBrowserItemRow
 import cn.lemondrop.fhreborn.ui.screens.library.FileNode
@@ -49,7 +51,6 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 /**
  * 浏览路径页面。
@@ -116,11 +117,7 @@ fun FolderBrowserScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-        val surfaceColor = MiuixTheme.colorScheme.surface
-        val backdrop = rememberLayerBackdrop {
-            drawRect(surfaceColor)
-            drawContent()
-        }
+        val backdrop = LocalBlurBackdrop.current ?: return
         Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
@@ -148,6 +145,7 @@ fun FolderBrowserScreen(
                 .fillMaxSize()
                 .layerBackdrop(backdrop)
         ) {
+            AppBackgroundLayer()
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
@@ -190,8 +188,8 @@ fun FolderBrowserScreen(
                 listState = listState,
                 modifier = Modifier.align(Alignment.CenterEnd),
                 trackPadding = PaddingValues(
-                    top = 8.dp,
-                    bottom = bottomOverlayHeight + addressBarHeight + 16.dp
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + bottomOverlayHeight + addressBarHeight + 16.dp
                 )
             )
 

@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.LocalDrawerToggle
 import cn.lemondrop.fhreborn.LocalDrawerVisible
 import cn.lemondrop.fhreborn.LocalGlobalPlayBarHeight
+import cn.lemondrop.fhreborn.ui.components.AppBackgroundLayer
 import cn.lemondrop.fhreborn.ui.viewmodel.PlayerViewModel
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Menu
@@ -18,11 +19,11 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import cn.lemondrop.fhreborn.ui.theme.BlurTopBar
+import cn.lemondrop.fhreborn.ui.theme.LocalBlurBackdrop
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 
 @Composable
 fun IdeasScreen(
@@ -34,11 +35,7 @@ fun IdeasScreen(
     val drawerToggle = LocalDrawerToggle.current
     Box(modifier = Modifier.fillMaxSize()) {
         // 层背景：顶栏对其做真实模糊（页面内容捕获进 GraphicsLayer）
-        val surfaceColor = MiuixTheme.colorScheme.surface
-        val backdrop = rememberLayerBackdrop {
-            drawRect(surfaceColor)
-            drawContent()
-        }
+        val backdrop = LocalBlurBackdrop.current ?: return
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
             containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -63,6 +60,7 @@ fun IdeasScreen(
                 .layerBackdrop(backdrop),
             contentAlignment = Alignment.Center
         ) {
+            AppBackgroundLayer()
             Text(
                 text = "想法页面（占位）",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary
