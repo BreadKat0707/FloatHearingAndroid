@@ -214,7 +214,8 @@ private fun AlbumChip(
             songId = album.coverSongId ?: 0L,
             modifier = Modifier
                 .size(120.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp)),
+            targetPixelSize = cn.lemondrop.fhreborn.ui.components.CoverImageCache.MEDIUM_COVER_TARGET
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(

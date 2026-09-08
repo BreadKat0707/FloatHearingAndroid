@@ -159,7 +159,7 @@ object PlaylistCoverSource {
 private fun loadSongCover(context: Context, songId: Long?, song: Song? = null): ImageBitmap? {
     if (songId == null) return null
     // 缓存命中直接复用（歌单封面与列表缩略图共用同一缓存）
-    CoverImageCache.get(songId)?.let { return it }
+    CoverImageCache.get(songId, CoverImageCache.DEFAULT_COVER_TARGET)?.let { return it }
     return try {
         val bitmap = if (song?.source == Song.SOURCE_DIRECTORY && song.path.isNotBlank()) {
             val retriever = MediaMetadataRetriever()
@@ -175,7 +175,7 @@ private fun loadSongCover(context: Context, songId: Long?, song: Song? = null): 
         }
         bitmap?.let {
             val scaled = it.asImageBitmap()
-            CoverImageCache.put(songId, scaled)
+            CoverImageCache.put(songId, CoverImageCache.DEFAULT_COVER_TARGET, scaled)
             scaled
         }
     } catch (_: Exception) {

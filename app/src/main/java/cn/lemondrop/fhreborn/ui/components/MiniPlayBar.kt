@@ -49,47 +49,57 @@ import com.composables.icons.lucide.SkipForward
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+
+/** 限制同时进行的封面 IO 解码数，避免大屏专辑页首次进入时一次拉起过多解码。 */
+private val coverDecodeLimiter = Semaphore(4)
 
 @Composable
 fun SongCoverImage(
     songId: Long,
     source: Int = Song.SOURCE_MEDIA_STORE,
     path: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    targetPixelSize: Int = CoverImageCache.SMALL_COVER_TARGET
 ) {
     val context = LocalContext.current
-    var bitmap by remember(songId, source, path) {
-        mutableStateOf<ImageBitmap?>(CoverImageCache.get(songId))
+    var bitmap by remember(songId, source, path, targetPixelSize) {
+        mutableStateOf<ImageBitmap?>(CoverImageCache.get(songId, targetPixelSize))
     }
 
-    LaunchedEffect(songId, source, path) {
+    LaunchedEffect(songId, source, path, targetPixelSize) {
         // 缓存命中直接复用，避免滚动回收后重新 IO 解码（掉帧主因）
-        val cached = CoverImageCache.get(songId)
+        val cached = CoverImageCache.get(songId, targetPixelSize)
         if (cached != null) {
             bitmap = cached
             return@LaunchedEffect
         }
         withContext(Dispatchers.IO) {
-            bitmap = try {
-                if (source == Song.SOURCE_DIRECTORY && path != null) {
-                    val retriever = MediaMetadataRetriever()
-                    try {
-                        retriever.setDataSource(path)
-                        val bytes = retriever.embeddedPicture
-                        bytes?.let { CoverImageDecoder.decodeScaled(it)?.asImageBitmap() }
-                    } finally {
-                        retriever.release()
+            coverDecodeLimiter.withPermit {
+                bitmap = try {
+                    if (source == Song.SOURCE_DIRECTORY && path != null) {
+                        val retriever = MediaMetadataRetriever()
+                        try {
+                            retriever.setDataSource(path)
+                            val bytes = retriever.embeddedPicture
+                            bytes?.let {
+                                CoverImageDecoder.decodeScaled(it, targetPixelSize)?.asImageBitmap()
+                            }
+                        } finally {
+                            retriever.release()
+                        }
+                    } else {
+                        val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
+                        CoverImageDecoder.decodeScaled(context, uri, targetPixelSize)?.asImageBitmap()
                     }
-                } else {
-                    val uri = Uri.parse("content://media/external/audio/media/$songId/albumart")
-                    CoverImageDecoder.decodeScaled(context, uri)?.asImageBitmap()
+                } catch (e: Exception) {
+                    null
                 }
-            } catch (e: Exception) {
-                null
             }
         }
-        bitmap?.let { CoverImageCache.put(songId, it) }
+        bitmap?.let { CoverImageCache.put(songId, targetPixelSize, it) }
     }
 
     if (bitmap != null) {
@@ -122,13 +132,15 @@ fun SongCoverImage(
 @Composable
 fun SongCoverImage(
     song: Song,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    targetPixelSize: Int = CoverImageCache.SMALL_COVER_TARGET
 ) {
     SongCoverImage(
         songId = song.id,
         source = song.source,
         path = song.path,
-        modifier = modifier
+        modifier = modifier,
+        targetPixelSize = targetPixelSize
     )
 }
 

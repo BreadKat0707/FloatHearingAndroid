@@ -8,7 +8,7 @@ import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 
 /**
- * 歌曲封面位图内存缓存（按 songId）。
+ * 歌曲封面位图内存缓存（按 songId + 目标分辨率）。
  *
  * 列表滚动时 LazyColumn 回收/重建 item，若无缓存每个 item 都要重新走 IO
  * 解码，导致滚动掉帧。缓存命中后直接返回已解码的 ImageBitmap；容量按位图
@@ -16,24 +16,32 @@ import androidx.compose.ui.graphics.ImageBitmap
  */
 object CoverImageCache {
 
+    const val SMALL_COVER_TARGET = 256
+    const val MEDIUM_COVER_TARGET = 384
+    const val DEFAULT_COVER_TARGET = 600
+    const val LARGE_COVER_TARGET = 900
+
     private const val MAX_MEMORY_BYTES = 64 * 1024 * 1024
 
-    private val cache = object : LruCache<Long, ImageBitmap>(MAX_MEMORY_BYTES) {
-        override fun sizeOf(key: Long, value: ImageBitmap): Int {
+    private val cache = object : LruCache<String, ImageBitmap>(MAX_MEMORY_BYTES) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int {
             return value.width * value.height * 4
         }
     }
 
-    fun get(songId: Long): ImageBitmap? = cache.get(songId)
+    fun get(songId: Long, targetSize: Int = DEFAULT_COVER_TARGET): ImageBitmap? =
+        cache.get(key(songId, targetSize))
 
-    fun put(songId: Long, bitmap: ImageBitmap) {
+    fun put(songId: Long, targetSize: Int, bitmap: ImageBitmap) {
         val size = bitmap.width * bitmap.height * 4
         if (size > 0 && size <= MAX_MEMORY_BYTES) {
-            cache.put(songId, bitmap)
+            cache.put(key(songId, targetSize), bitmap)
         }
     }
 
     fun clear() = cache.evictAll()
+
+    private fun key(songId: Long, targetSize: Int): String = "$songId:$targetSize"
 }
 
 /**

@@ -496,7 +496,8 @@ private fun AlbumHeader(
                 song = coverSong,
                 modifier = Modifier
                     .size(160.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp)),
+                targetPixelSize = cn.lemondrop.fhreborn.ui.components.CoverImageCache.MEDIUM_COVER_TARGET
             )
         } else {
             Box(

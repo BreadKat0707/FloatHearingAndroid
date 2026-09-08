@@ -1094,7 +1094,8 @@ private fun AlbumGridItem(
         Row(verticalAlignment = Alignment.CenterVertically) {
             SongCoverImage(
                 song = album.coverSong,
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(56.dp),
+                targetPixelSize = cn.lemondrop.fhreborn.ui.components.CoverImageCache.SMALL_COVER_TARGET
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -1143,7 +1144,8 @@ private fun AlbumListRow(
             song = album.coverSong,
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp)),
+            targetPixelSize = cn.lemondrop.fhreborn.ui.components.CoverImageCache.SMALL_COVER_TARGET
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -1194,7 +1196,8 @@ private fun AlbumCardItem(
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         // 卡片视图：封面自身不带圆角，由 Card 裁切上方圆角
-                        .clip(RoundedCornerShape(0.dp))
+                        .clip(RoundedCornerShape(0.dp)),
+                    targetPixelSize = cn.lemondrop.fhreborn.ui.components.CoverImageCache.LARGE_COVER_TARGET
                 )
                 Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                     Text(
@@ -1534,7 +1537,8 @@ internal fun AlbumItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp)),
+                targetPixelSize = cn.lemondrop.fhreborn.ui.components.CoverImageCache.LARGE_COVER_TARGET
             )
             if (selectionMode) {
                 // 方形视图：多选标志保留封面右上角（对齐歌单方形视图）
