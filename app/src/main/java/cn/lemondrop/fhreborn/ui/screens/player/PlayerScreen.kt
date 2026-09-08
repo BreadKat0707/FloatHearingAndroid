@@ -223,6 +223,7 @@ fun PlayerScreen(
     // 横屏 / 大屏（Expanded 宽度，≥840dp）时启用左右双栏布局；竖屏保持单栏
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
     val isExpandedWidth = screenWidthDp >= 840
     val isCompactLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE && !isExpandedWidth
     val isTwoPane = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || isExpandedWidth
@@ -452,12 +453,31 @@ fun PlayerScreen(
             // 左栏列宽锚定封面（未收缩时）的适配宽度：信息/播控/进度条与封面严格对齐；
             // 封面暂停收缩（×0.92）只作用于封面自身，不影响列宽，避免整列布局跳动。
             var leftCoverWidth by remember { mutableStateOf<Dp?>(null) }
+            // 参照 Flamingo 的大屏播放器推导：横屏/宽屏内容区不按固定 50/50 分栏，
+            // 左栏主尺寸由可用高度换算，右栏歌词吃掉剩余宽度。
+            val twoPaneEdge = if (isCompactLandscape) 16.dp else 40.dp
+            val twoPaneContentWidth = (screenWidthDp.dp - twoPaneEdge * 2f).coerceAtLeast(320.dp)
+            val twoPaneAvailableHeight = (
+                screenHeightDp.dp -
+                    statusBarPadding.calculateTopPadding() -
+                    navBarPadding -
+                    if (isCompactLandscape) 28.dp else 52.dp
+                ).coerceAtLeast(220.dp)
+            val heightDrivenLeftWidth = twoPaneAvailableHeight * 0.60606f
+            val twoPaneLeftWidth = if (isCompactLandscape) {
+                twoPaneContentWidth * 0.48f
+            } else {
+                heightDrivenLeftWidth.coerceIn(
+                    minimumValue = twoPaneContentWidth * 0.34f,
+                    maximumValue = twoPaneContentWidth * 0.50f
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(cutoutHorizontalPadding)
                     // 大屏双栏左右留白 40dp，不与屏幕边缘贴合；手机横屏紧凑布局维持 16dp
-                    .padding(horizontal = if (isCompactLandscape) 16.dp else 40.dp)
+                    .padding(horizontal = twoPaneEdge)
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
@@ -471,11 +491,11 @@ fun PlayerScreen(
                 )
                 Column(
                     modifier = Modifier
-                        .weight(0.48f)
+                        .width(twoPaneLeftWidth)
                         .fillMaxHeight()
                         .padding(
                             top = statusBarPadding.calculateTopPadding() + 12.dp,
-                            bottom = navBarPadding + 24.dp
+                            bottom = navBarPadding + if (isCompactLandscape) 16.dp else 32.dp
                         )
                         .padding(horizontal = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -613,11 +633,11 @@ fun PlayerScreen(
 
                 Box(
                     modifier = Modifier
-                        .weight(0.52f)
+                        .weight(1f)
                         .fillMaxHeight()
                         .padding(
                             top = statusBarPadding.calculateTopPadding() + 12.dp,
-                            bottom = navBarPadding + 12.dp,
+                            bottom = navBarPadding + if (isCompactLandscape) 16.dp else 32.dp,
                             start = 12.dp,
                             end = 12.dp
                         )
@@ -696,7 +716,7 @@ fun PlayerScreen(
                     }
                     .padding(
                         top = statusBarPadding.calculateTopPadding(),
-                        bottom = navBarPadding
+                        bottom = navBarPadding + 16.dp
                     )
                     .padding(horizontal = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -808,7 +828,7 @@ fun PlayerScreen(
                     isDarkTheme = isDarkTheme
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // 播放队列已移至单栏/双栏分支之后，见下方共用覆盖层
