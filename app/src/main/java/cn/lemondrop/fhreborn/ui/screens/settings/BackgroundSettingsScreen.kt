@@ -41,6 +41,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.fhreborn.ui.viewmodel.SettingsViewModel
+import cn.lemondrop.fhreborn.ui.theme.LocalAppDarkTheme
 import cn.lemondrop.fhreborn.util.BackgroundImageUtils
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.RadioButton
@@ -123,6 +124,9 @@ fun BackgroundSettingsContent(
         }
         TypeOption("自选图片", selected = bgType == "image") {
             viewModel.setStringSetting(KEY_BG_TYPE, "image")
+        }
+        TypeOption("Mica", selected = bgType == "mica") {
+            viewModel.setStringSetting(KEY_BG_TYPE, "mica")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -225,6 +229,58 @@ fun BackgroundSettingsContent(
                     value = bgImageBlur,
                     valueRange = 0f..50f
                 ) { viewModel.setIntSetting(KEY_BG_IMAGE_BLUR, it) }
+            }
+
+            "mica" -> {
+                SectionTitle("Mica 底层图片")
+                val isDark = LocalAppDarkTheme.current
+                val previewBitmap = remember(bgImagePath) {
+                    BackgroundImageUtils.loadBitmapFromPath(bgImagePath)
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MiuixTheme.colorScheme.surfaceVariant)
+                        .clickable {
+                            pickImageLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (previewBitmap != null) {
+                        Image(
+                            bitmap = previewBitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(160.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    (if (isDark) Color(0xFF0A0A0A) else Color.White)
+                                        .copy(alpha = 0.85f)
+                                )
+                        )
+                    } else {
+                        Text(
+                            text = "点击选择图片",
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Mica 会以高模糊采样底层图片，并叠加 85% 表面色与轻微噪点",
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                )
             }
         }
 

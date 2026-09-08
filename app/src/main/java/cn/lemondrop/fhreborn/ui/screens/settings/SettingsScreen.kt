@@ -99,12 +99,14 @@ import top.yukonga.miuix.kmp.basic.OkHsvValueSlider
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.color.core.Transforms
 import cn.lemondrop.fhreborn.ui.components.FhBottomSheet
 import cn.lemondrop.fhreborn.data.repository.AppSettingsRepository
 import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.OverlaySpinnerPreference
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import top.yukonga.miuix.kmp.preference.SliderPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -133,6 +135,8 @@ fun SettingsScreen(
         factory = cn.lemondrop.fhreborn.ui.viewmodel.LibraryViewModel.Factory(context.applicationContext as Application)
     )
     val settingsRepository = remember { SettingsRepository(context) }
+    val appSettingsRepository = remember { AppSettingsRepository(context) }
+    val titleBarStyle by appSettingsRepository.titleBarStyle.collectAsState(initial = "gaussian")
     val scope = rememberCoroutineScope()
     val artistSeparators by settingsRepository.artistSeparators.collectAsState(initial = setOf(" / "))
     val drawerVisible = LocalDrawerVisible.current
@@ -340,6 +344,7 @@ fun SettingsScreen(
                         onSettingItemClick = onSettingItemClick,
                         bottomOverlayHeight = bottomOverlayHeight,
                         topInset = padding.calculateTopPadding(),
+                        titleBarStyle = titleBarStyle,
                         onScrolledChange = { topBarScrolled = it }
                     )
 
@@ -443,6 +448,7 @@ private fun SettingsListContent(
     onSettingItemClick: (SettingItem) -> Unit,
     bottomOverlayHeight: Dp,
     topInset: Dp = 0.dp,
+    titleBarStyle: String = "gaussian",
     onScrolledChange: (Boolean) -> Unit = {}
 ) {
     val selectedCategory = (currentPage as? SettingsPage.Category)?.key
@@ -469,7 +475,15 @@ private fun SettingsListContent(
         } else {
             val category = buildCategories().find { it.key == selectedCategory }
             if (category != null) {
-                category.items.forEach { item ->
+                val visibleItems = if (category.key == "personalize") {
+                    category.items.filterNot { item ->
+                        item.key == "title_bar_blur_settings" &&
+                            titleBarStyle != "progressive"
+                    }
+                } else {
+                    category.items
+                }
+                visibleItems.forEach { item ->
                     item {
                         SettingItemRow(
                             item = item,
@@ -767,11 +781,21 @@ private fun SettingItemRow(
             val stringValue by viewModel.getStringValue(item.key, defaultVal)
                 .collectAsState(initial = defaultVal)
             val options = (item.type as SettingType.Selection).options
-            val selectedLabel = options.find { it.key == stringValue }?.label ?: stringValue
-            ArrowPreference(
+            val selectedIndex = options.indexOfFirst { it.key == stringValue }
+                .coerceAtLeast(0)
+            OverlaySpinnerPreference(
+                items = options.map { option ->
+                    DropdownItem(
+                        text = option.label,
+                        selected = option.key == stringValue,
+                        onClick = {
+                            viewModel.setStringSetting(item.key, option.key)
+                        }
+                    )
+                },
+                selectedIndex = selectedIndex,
                 title = item.title,
-                summary = selectedLabel,
-                onClick = { onClick(item) },
+                summary = item.description,
                 startAction = item.icon?.let {
                     { Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
                 }
